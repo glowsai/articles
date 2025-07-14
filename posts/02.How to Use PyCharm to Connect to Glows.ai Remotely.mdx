@@ -23,7 +23,7 @@ This tutorial will explain how to use Glows.ai via PyCharm.
 - Please note that PyCharm is a tool developed by JetBrains. Glows.ai only provides a tutorial on connecting to the services. For issues related to the IDE, please contact PyCharm official support.
 
 - The version used in this tutorial is PyCharm 2024.2.4 (Professional Edition).
-![PyCharm Edition](./img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
+  ![PyCharm Edition](./img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
 
 You need first to [rent a GPU](https://platform.glows.ai/create) on Glows.ai.
 
@@ -37,23 +37,23 @@ If you already have a local project, please first upload the dataset using the [
 
 2. Click `Create to start` with a new project.
 
-    ![Create to Start](./img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
+   ![Create to Start](./img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
 
 3. Right-click on the project folder and create a new Python file.
 
-    ![Create New File](./img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
+   ![Create New File](./img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
 
 4. Name the Python file, for example "Test".
 
-    ![NametheFile](./img/tutorials-images/02.PyCharm/04.NametheFile.png)
+   ![NametheFile](./img/tutorials-images/02.PyCharm/04.NametheFile.png)
 
 5. Write a simple command in the file.
 
-     ```python
+   ```python
    print("Hello world!")
    ```
 
-    ![SimpleCommand](./img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
+   ![SimpleCommand](./img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
 
 ## **Step2: Set Up a Remote Connection**
 
@@ -61,17 +61,17 @@ If you already have a local project, please first upload the dataset using the [
 
 - For Windows users, click File - Settings in the top-left corner.
 
-    ![Windows User](./img/tutorials-images/02.PyCharm/06.WindowsUser.png)
+  ![Windows User](./img/tutorials-images/02.PyCharm/06.WindowsUser.png)
 
 - For Mac users, click **PyCharm - Preferences**.
 
-    ![Mac User](./img/tutorials-images/02.PyCharm/07.MacUser.png)
+  ![Mac User](./img/tutorials-images/02.PyCharm/07.MacUser.png)
 
 **Pycharm 2024**
 
 2. If you use PyCharm 2024 or a later version, follow these steps: click **Project:pythonProject - Python Interpreter**, then click `Add Interpreter`->`On SSH` to add a new remote interpreter.
 
-  ![New Remote Interpreter](./img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
+![New Remote Interpreter](./img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
 
 3. Enter the following details of the rented machine: Host, Port, Username, and password.
 
@@ -84,7 +84,7 @@ If you already have a local project, please first upload the dataset using the [
   ![Detail2](./img/tutorials-images/02.PyCharm/10.Detail2.png)
 
 4. Click `Next` in the following steps. On the page of interpreter selection section, select `System Interpreter`, and enter the Python interpreter of your rented machine. The default interpreter path is:
-`/root/miniconda3/envs/workenv/bin/python`
+   `/root/miniconda3/envs/workenv/bin/python`
 
 If you have created your own Conda environment, replace it with the corresponding environment path.
 
@@ -120,22 +120,22 @@ How do you install missing packages when PyCharm is connected to the server but 
 
 1. Generally, after setting up the Python interpreter, file synchronization is automatically configured.
 
-    If not, you can click **Tools -> Deployment -> Configuration** to set up.
+   If not, you can click **Tools -> Deployment -> Configuration** to set up.
 
-     ![Configuration](./img/tutorials-images/02.PyCharm/15.Configuration.png)
+   ![Configuration](./img/tutorials-images/02.PyCharm/15.Configuration.png)
 
-2. Modify **Host** and **Port** to match the hostname and port number of your rented machine. 
+2. Modify **Host** and **Port** to match the hostname and port number of your rented machine.
 
-    Keep **Root Path** empty, do not auto-fill it, as it may lead to synchronization errors.
+   Keep **Root Path** empty, do not auto-fill it, as it may lead to synchronization errors.
 
-    ![Root Path](./img/tutorials-images/02.PyCharm/16.Root%20Path.png)
-    ![HostandPort](./img/tutorials-images/02.PyCharm/17.HostandPort.png)
+   ![Root Path](./img/tutorials-images/02.PyCharm/16.Root%20Path.png)
+   ![HostandPort](./img/tutorials-images/02.PyCharm/17.HostandPort.png)
 
-3. To avoid confusion, you can rename this connection to Glows.ai for easier use. 
+3. To avoid confusion, you can rename this connection to Glows.ai for easier use.
 
-    Right-click on the listed name on the left, select `Rename`, and change it to Glows.ai.
+   Right-click on the listed name on the left, select `Rename`, and change it to Glows.ai.
 
-    ![Rename](./img/tutorials-images/02.PyCharm/18.Rename.png)
+   ![Rename](./img/tutorials-images/02.PyCharm/18.Rename.png)
 
 ## **Step6 : Upload/Download Files**
 
