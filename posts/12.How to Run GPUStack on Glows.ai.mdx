@@ -1,0 +1,169 @@
+---
+id: run_gpustack_on_glowsai
+title: 'How to Run GPUStack on Glows.ai'
+date: '2025-09-14 11:00'
+description: 'Step-by-step guide to deploying GPUStack on Glows.ai with NVIDIA RTX 4090, including instance creation, WebUI usage, API integration, and Auto Deploy.'
+tags:
+  - Tutorial
+---
+
+# How to Run GPUStack on **Glows.ai** with **NVIDIA GeForce RTX 4090**
+
+This tutorial walks you through renting an **NVIDIA GeForce RTX 4090** GPU on **Glows.ai** and running **GPUStack**.
+
+It covers the following topics:
+
+- How to create an instance on Glows.ai
+- How to deploy any model service with GPUStack
+- How to call deployed models via code
+- Introduction to the **Auto Deploy** on-demand mode
+
+---
+
+## Introduction to GPUStack
+
+**GPUStack** is an open-source GPU cluster manager designed for running AI models. It supports multiple GPUs (e.g., NVIDIA CUDA, Apple Metal), a wide range of models (LLMs, VLMs, image models, etc.), and multiple inference backends (e.g., vLLM, Ascend MindIE). It also supports running multiple backend versions concurrently, single-node and multi-node multi-GPU inference, automatic failure recovery, load balancing, and real-time GPU monitoring.
+
+Its innovation lies in broad GPU and model compatibility, flexible backend integration, and distributed inference across heterogeneous GPUs. Additionally, it provides an **OpenAI-compatible API**, making integration seamless and lowering the barrier to entry.
+
+Key features include:
+
+- Support for multiple GPU platforms (NVIDIA CUDA, Apple Metal, etc.)
+- Support for multiple model types (LLM, VLM, image models, etc.)
+- Multiple inference backends (vLLM, Ascend MindIE, etc.)
+- Multi-version backends running in parallel, single/multi-node multi-GPU inference
+- Automatic failure recovery, load balancing, real-time GPU monitoring
+
+Compared to similar tools, GPUStack offers:
+
+- Broad compatibility with GPUs and models
+- Flexible backend integration
+- Distributed inference across heterogeneous GPUs (different vendor GPUs running together)
+- An **OpenAI-compatible API** to greatly simplify integration
+
+---
+
+## Creating an Instance
+
+1. Log in to **Glows.ai** and create a new instance as needed. Refer to the [official tutorial](https://docs.glows.ai/docs/create-new).
+2. On the **Create New** page:
+
+   - **Workload Type**: select **Inference GPU -- 4090**
+   - **Image**: choose the official **GPUStack (img-rgqwxrpy)** image (preconfigured with GPUStack service listening on port 80)
+
+![image-20250908104737276](./img/tutorials-images/GPUStack/01.png)
+
+### Using Datadrive (Optional)
+
+**Datadrive** is Glows.ai’s cloud storage service, allowing you to upload data, models, or code before creating an instance.  
+When creating the instance, click **Mount** to attach a Datadrive for direct read/write access.  
+Since this tutorial only demonstrates inference services, Datadrive mounting is optional.
+
+After completing the setup, click **Complete Checkout** to create the instance.
+
+![image-20250908172833649](./img/tutorials-images/GPUStack/02.png)
+
+> **Note**: GPUStack images take about 30–60 seconds to start.  
+> You can check the status on the **My Instances** page. Once running, the following ports will be available:
+
+- **SSH Port 22** → SSH login
+- **HTTP Port 8888** → JupyterLab
+- **HTTP Port 80** → GPUStack WebUI
+
+---
+
+## Using GPUStack WebUI
+
+### 1. Retrieve Username and Password
+
+- Default username: `admin`
+- Password must be retrieved inside the instance:
+
+1. Click **HTTP Port 8888 → Open** to access JupyterLab
+
+![image-20250821162610764](./img/tutorials-images/GPUStack/03.png)
+
+2. Open a new **Terminal**
+
+![image-20250821162648937](./img/tutorials-images/GPUStack/04.png)
+
+3. Run the following command to get the GPUStack WebUI password:
+
+   ```bash
+   cat /var/lib/gpustack/initial_admin_password
+   ```
+
+![image-20250821162729721](./img/tutorials-images/GPUStack/05.png)
+
+### 2. Log in to WebUI
+
+- From the instance interface, click **HTTP Port 80 → Open**
+  ![image-20250821162755137](./img/tutorials-images/GPUStack/06.png)
+
+- Enter the username and password you obtained, then click `Log in`.
+
+![image-20250821162818233](./img/tutorials-images/GPUStack/07.png)
+
+- After logging in, you will be prompted to change the password.
+
+![image-20250821162841553](./img/tutorials-images/GPUStack/08.png)
+
+### 3. Using GPUStack WebUI
+
+- **Dashboards**: Display statistics of current workers, GPUs, deployed models, and resource monitoring (GPU/CPU usage).
+  ![image-20250821162859700](./img/tutorials-images/GPUStack/09.png)
+
+- **Catalog**: Deploy models directly from sources like Ollama and HuggingFace.
+  ![image-20250821171409795](./img/tutorials-images/GPUStack/10.png)
+
+Once configured, the system moves to the **Deployments** page and begins downloading the model.
+
+![image-20250821171445281](./img/tutorials-images/GPUStack/11.png)
+
+When the model finishes downloading and starts successfully, the status will show **Running**.
+
+![image-20250821171944239](./img/tutorials-images/GPUStack/12.png)
+
+You can then switch to the **Chat** page to interact with the model directly.
+
+![image-20250821173105073](./img/tutorials-images/GPUStack/13.png)
+
+Models deployed on GPUStack can also be called via **API**. Simply click **View Code** in the interface to see official code samples for quick integration.
+
+![image-20250821172308362](./img/tutorials-images/GPUStack/14.png)
+
+---
+
+## Obtaining an API Key
+
+1. Click the user avatar at the bottom left → **API Keys**
+   ![image-20250821172135022](./img/tutorials-images/GPUStack/15.png)
+2. Click **New API Key** and fill in the details
+   ![image-20250821172216747](./img/tutorials-images/GPUStack/16.png)
+3. Use the generated API Key to call GPUStack model APIs
+   ![image-20250821173253057](./img/tutorials-images/GPUStack/17.png)
+
+---
+
+## Auto Deploy: On-Demand Mode
+
+Traditional deployment requires manually creating and releasing instances, which is inconvenient for sporadic or third-party API usage.
+**Glows.ai provides Auto Deploy**, which automatically creates instances and processes tasks when requests arrive.
+
+- Each Auto Deploy has a fixed service URL
+- When a request is received, the system automatically creates an instance
+- If no new requests arrive within 5 minutes, the instance is automatically released
+
+📘 For detailed instructions, see: [Auto Deploy Documentation](https://docs.glows.ai/docs/auto-deploy-usage)
+
+---
+
+## Contact Us
+
+If you have any questions or suggestions while using Glows.ai, feel free to contact us via Email, Discord, or Line.
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG
