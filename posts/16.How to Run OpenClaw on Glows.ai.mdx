@@ -26,7 +26,7 @@ We create an instance on demand on Glows.ai. You can refer to the [tutorial](htt
 
 On the Create New page, select Inference GPU -- 4090 for Workload Type, then choose the **OpenClaw** image first. This image has already been preconfigured with the required environment.
 
-![ ](../img/001.png)
+![ ](./img/tutorials-images/16.OpenClaw/001.png)
 
 **Datadrive** is a cloud storage service provided by Glows.ai for users. Before creating an instance, users can upload the data, models, code, and other content they want to run to Datadrive. When creating the instance, simply click the **Mount** button in the interface to mount Datadrive to the instance being created. This allows us to directly read and write Datadrive content from within the instance.
 
@@ -34,7 +34,7 @@ In this tutorial, we only run inference services, so mounting Datadrive is not r
 
 Once everything is ready, click `Complete Checkout` in the lower-right corner to complete instance creation.
 
-![ ](../img/002.png)
+![ ](./img/tutorials-images/16.OpenClaw/002.png)
 
 The estimated startup time for an **OpenClaw** image instance is 30–60 seconds. We can view the instance status and related information in the `My Instances` interface. After the instance starts successfully, we will see the following information:
 
@@ -42,13 +42,13 @@ The estimated startup time for an **OpenClaw** image instance is 30–60 seconds
 - **HTTP Port 8888** is the JupyterLab connection
 - **HTTP Port 11434** is the Ollama API connection
 
-![ ](../img/003.png)
+![ ](./img/tutorials-images/16.OpenClaw/003.png)
 
 ## Connect to the Instance
 
 Visit the link corresponding to `HTTP Port 8888` on the instance page to open the JupyterLab service. Then follow the illustration to create a new Terminal. 
 
-![ ](../img/004.png)
+![ ](./img/tutorials-images/16.OpenClaw/004.png)
 
 ## Upgrade OpenClaw
 
@@ -61,7 +61,7 @@ openclaw --version
 openclaw update status
 ```
 
-![ ](../img/005.png)
+![ ](./img/tutorials-images/16.OpenClaw/005.png)
 
 Then enter the following command to update the version.
 
@@ -69,7 +69,7 @@ Then enter the following command to update the version.
 openclaw update
 ```
 
-![ ](../img/006.png)
+![ ](./img/tutorials-images/16.OpenClaw/006.png)
 
 **Reminder:** The final `systemctl` command error can be ignored. This is because `systemctl` is not supported inside Docker containers. The tutorial below will explain how to start the OpenClaw service manually.
 
@@ -81,11 +81,11 @@ First, enter the following command to open the OpenClaw configuration interface,
 openclaw onboard
 ```
 
-![ ](../img/007.png)
+![ ](./img/tutorials-images/16.OpenClaw/007.png)
 
 Use the default options. The model configuration can be left empty for now, as we will configure a local Ollama model later. You may also configure a third-party model API as needed.
 
-![ ](../img/008.png)
+![ ](./img/tutorials-images/16.OpenClaw/008.png)
 
 You can configure the communication software according to your needs. This tutorial uses Telegram as an example. First, you need to send the following command to `@BotFather` on Telegram to create a new Bot and obtain the Bot API Token.
 
@@ -93,15 +93,15 @@ You can configure the communication software according to your needs. This tutor
 /newbot
 ```
 
-![ ](../img/009.png)
+![ ](./img/tutorials-images/16.OpenClaw/009.png)
 
 Then enter the Telegram Bot API Token in the OpenClaw configuration interface.
 
-![ ](../img/010.png)
+![ ](./img/tutorials-images/16.OpenClaw/010.png)
 
 Finally, when you see `Onboarding complete`, the configuration is complete.
 
-![ ](../img/011.png)
+![ ](./img/tutorials-images/16.OpenClaw/011.png)
 
 ## OpenClaw Local Model Configuration
 
@@ -111,7 +111,7 @@ With Ollama, you only need a single command to download and configure a model fo
 ollama launch openclaw --model qwen3.5:4b
 ```
 
-![ ](../img/012.png)
+![ ](./img/tutorials-images/16.OpenClaw/012.png)
 
 After downloading the model, the OpenClaw service will start automatically. We can then begin using OpenClaw.
 
@@ -123,21 +123,21 @@ After downloading the model, the OpenClaw service will start automatically. We c
 
 After the previous command finishes running, you can directly chat with OpenClaw in the interface. For example, here we ask it to create a Python file and write the Fibonacci algorithm into it.
 
-![ ](../img/013.png)
+![ ](./img/tutorials-images/16.OpenClaw/013.png)
 
 ### Chat in Telegram
 
 First, send a message to the Telegram Bot created earlier. After a short while, you will receive an authentication command.
 
-![ ](../img/014.png)
+![ ](./img/tutorials-images/16.OpenClaw/014.png)
 
 Copy the authentication command above and execute it in the instance Terminal. After execution is complete, you can formally use OpenClaw in Telegram.
 
-![ ](../img/015.png)
+![ ](./img/tutorials-images/16.OpenClaw/015.png)
 
 To test its memory capability, we can directly ask it for the path of the Fibonacci algorithm file we asked it to write earlier. As shown in the screenshot, the Bot quickly replies with both the path and the source code content.
 
-![ ](../img/016.png)
+![ ](./img/tutorials-images/16.OpenClaw/016.png)
 
 ### Chat in a Web Browser
 
@@ -145,7 +145,7 @@ For security reasons, OpenClaw binds its service host to `127.0.0.1` by default.
 
 On the My Instance page in Glows.ai, you can view the SSH information. We need to convert the SSH Command into an SSH port forwarding command.
 
-![ ](../img/017.png)
+![ ](./img/tutorials-images/16.OpenClaw/017.png)
 
 The modified command is as follows. You only need to replace these parts of the command.
 
@@ -159,13 +159,13 @@ ssh -p 2xxx7 -NL 18888:localhost:18789 root@tw-05.access.glows.ai
 
 Run the modified SSH port forwarding command in your local Terminal/CMD. After pressing Enter, paste the SSH Password. It is normal that nothing is displayed after pasting the password. Press Enter again. If no errors appear, the message has been forwarded successfully.
 
-![ ](../img/018.png)
+![ ](./img/tutorials-images/16.OpenClaw/018.png)
 
 **Reminder:** If you are a Windows user, it is recommended to download and install [Windows Git](https://git-scm.com/install/windows) locally.
 
 After the forwarding succeeds, visit `http://localhost:18888/#token=xxxxxxxx` locally. Please replace the token value with the token displayed when starting the OpenClaw service in [OpenClaw Local Model Configuration](#OpenClaw Local Model Configuration).
 
-![ ](../img/019.png)
+![ ](./img/tutorials-images/16.OpenClaw/019.png)
 
 ------
 
