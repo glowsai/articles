@@ -1,0 +1,113 @@
+---
+id: try_openclaw_in_10_minutes_en
+title: 'Everyone''s Talking About OpenClaw. Here''s How to Try It in 10 Minutes Without Buying Anything.'
+date: '2026-07-11 10:00'
+description: 'Everyone''s talking about OpenClaw. Skip the Mac Mini — launch the official image on a cloud RTX 4090 from $0.49/hour and try it in 10 minutes.'
+tags:
+  - Blog
+---
+
+# Everyone's Talking About OpenClaw. Here's How to Try It in 10 Minutes Without Buying Anything.
+
+The fastest way to try OpenClaw without buying a Mac Mini, renting a monthly VPS, or paying per-token API bills is an hourly cloud GPU: Glows.ai ships an official OpenClaw image that boots on an NVIDIA RTX 4090 in 30–60 seconds, comes with Ollama preinstalled for a local model, and costs from $0.49/hour (pricing checked July 2026). A two-hour test drive runs about $0.98, and if OpenClaw isn't for you, you delete the instance and walk away.
+
+This post covers:
+
+- What OpenClaw actually is, and the numbers behind the hype
+- Why "just install it" hides a hardware-or-API-bill decision
+- Four ways to try OpenClaw, compared on cost-to-walk-away
+- The 10-minute route, step by step, with concrete timings
+
+![Abstract AI illustration representing the fastest way to try OpenClaw on a cloud GPU](https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1965&auto=format&fit=crop)
+
+## What Is OpenClaw and Why Is Everyone Talking About It?
+
+OpenClaw is an open-source, self-hosted AI agent gateway: you connect it to the chat apps you already use — Telegram, WhatsApp, Discord, Slack and more — and it connects an AI model to real tools on a machine you control. Unlike a chatbot tab that can only talk, an OpenClaw agent can manage files, run commands, browse, and execute scheduled automations. The model decides; OpenClaw executes.
+
+The hype is measurable. The project launched as "Clawdbot" on January 25, 2026 and hit 9,000 GitHub stars in its first 24 hours ([Elephas](https://elephas.app/blog/opean-claw-clawdbot-viral-launch), January 2026). After two forced renames in under a week — Clawdbot → Moltbot → OpenClaw — it kept accelerating, climbing from 2,000 to over 168,000 stars in roughly three weeks ([HackerNoon](https://hackernoon.com/why-everyone-is-panic-buying-mac-minis-for-openclaw-moltbot-clawdbot), February 2026). Creator Peter Steinberger, who previously sold PDF tooling company PSPDFKit, built the first version in about an hour ([36kr](https://eu.36kr.com/en/p/3655938014093701), 2026). The side effects got their own headlines: a fake token on Solana briefly hit a $16 million market cap, and Slashdot ran the story "['Clawdbot' Has AI Techies Buying Mac Minis](https://tech.slashdot.org/story/26/01/28/0510226/clawdbot-has-ai-techies-buying-mac-minis)" on January 28, 2026.
+
+That last one is the part this post is about. You do not need to buy a Mac Mini to see what the fuss is about.
+
+## Why OpenClaw Needs Real Hardware (and an AI Brain)
+
+OpenClaw itself is light. The gateway runs on Node.js 22+ with 4 GB of RAM as a working minimum ([Cherry Servers](https://www.cherryservers.com/blog/openclaw-hardware-requirements), 2026) — a Raspberry Pi technically qualifies. So why did people rush to buy $599 desktops?
+
+Because the gateway is not the agent. OpenClaw needs a model behind it, and it needs to run somewhere always-on that you're comfortable giving shell access. That leaves two options for the "brain":
+
+**Option 1: a cloud API key.** Simple, but metered. Anthropic blocked Claude Pro and Max subscriptions from third-party agent frameworks like OpenClaw effective April 4, 2026, pushing users to pay-as-you-go API rates — $3 per million input tokens and $15 per million output for Claude Sonnet 4.6 ([The Next Web](https://thenextweb.com/news/anthropic-openclaw-claude-subscription-ban-cost), 2026). The same report cited estimates that a single OpenClaw instance running autonomously for a full day can consume the equivalent of $1,000–$5,000 in API costs depending on task load. Real-world hobbyist bills are far lower, but the point stands: an always-on agent on metered tokens is an open-ended liability.
+
+**Option 2: a local model.** Zero per-message cost and your prompts never leave your machine — but now you need hardware that can hold model weights. That's the actual reason for the Mac Mini run: unified memory that fits a usable local model in a silent box. A $5–20/month CPU-only VPS, the other popular route ([Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/02/openclaw-hosting-mac-mini-vs-cloud-vps/), February 2026), can host the gateway but not a capable model — so it quietly pushes you back to Option 1 and its token bills.
+
+A rented GPU instance is the third path: local-model economics without buying the hardware.
+
+## Four Ways to Try OpenClaw, Compared
+
+Here's the trial decision, priced honestly. "Cost to walk away" is what you've spent if you try OpenClaw for one evening and decide it's not for you.
+
+| | Buy a Mac Mini | $5–20/mo VPS + API key | Your own laptop | Hourly cloud GPU (Glows.ai) |
+| --- | --- | --- | --- | --- |
+| Upfront cost | $599+ (M4 base) | $0 | $0 | $0 |
+| Runs a local model? | Yes (16 GB unified memory) | No — CPU-only, needs API tokens | Rarely — typical 8 GB VRAM is tight | Yes — 24 GB RTX 4090 |
+| Ongoing AI cost | $0 (local) | $3–15/M tokens (Sonnet 4.6 rates) | API tokens, usually | $0 — Ollama preinstalled |
+| Setup before first chat | Days (shipping) + manual install | 30+ min manual install | 20–30 min install on your daily machine | ~10 min, preconfigured image |
+| Agent has shell access to… | A box you own (good) | A cheap remote box | Your personal files (risky) | A disposable instance |
+| Cost to walk away | $599 minus resale hassle | First month's bill + tokens | $0, but agent touched your laptop | About $0.98 for 2 hours |
+
+Two rows deserve emphasis. First, the laptop route is free but backwards: OpenClaw's whole premise is an agent that executes commands, and reviewers flagged exactly this security surface when the hype peaked ([Elephas](https://elephas.app/blog/opean-claw-clawdbot-viral-launch), 2026). Giving an experimental autonomous agent shell access to the machine with your tax documents is a bad first date. A cloud instance you can delete afterwards keeps the blast radius at zero.
+
+Second, the VPS route's "under $10/month" framing hides the model problem. You'll pay monthly for the box *and* per-token for the brain.
+
+## The 10-Minute Route: the Official OpenClaw Image on Glows.ai
+
+Glows.ai maintains a preconfigured OpenClaw image — OpenClaw, Ollama, and JupyterLab already installed — so the trial path skips every install step. We walk through the full version with screenshots in the companion tutorial "How to Run OpenClaw on Glows.ai"; the condensed version:
+
+1. **Sign up and create an instance.** At [Glows.ai](https://glows.ai), click `Create New`, pick Inference GPU — 4090, and select the official **OpenClaw** image ([instance creation guide](https://docs.glows.ai/docs/create-new)). Click `Complete Checkout`. Startup takes 30–60 seconds.
+2. **Open the terminal.** In `My Instances`, open the link for `HTTP Port 8888` — that's JupyterLab — and launch a Terminal. Port 22 is SSH; port 11434 is the Ollama API.
+3. **Run onboarding.** `openclaw onboard` walks you through the terms and, optionally, a Telegram bot token from `@BotFather`. Model configuration can stay empty — the next step handles it.
+4. **Launch a local model.** One command downloads a model and starts the OpenClaw service against it:
+
+```bash
+ollama launch openclaw --model qwen3.5:4b
+```
+
+5. **Chat.** Three entry points work immediately: directly in the CLI, through your Telegram bot after a one-line authentication, or in the browser via SSH port forwarding to the Web UI.
+
+**Note:** the 4B model is the fast-download demo choice. The reason you rented a 24 GB RTX 4090 rather than a CPU box is headroom — the same instance runs much larger local models when you want an agent that reasons better, and our post "Local LLM PC vs Cloud GPU Cost: We Priced the 2026 Build" covers which model sizes fit which cards.
+
+**Reminder:** billing is hourly. Shut the instance down when you're done experimenting and the meter stops.
+
+## What a Test Drive Actually Costs
+
+The math for a skeptic who wants two evenings of honest experimentation before forming an opinion:
+
+| Route | Spend for ~4 hours of trying OpenClaw |
+| --- | --- |
+| Mac Mini M4 | $599 upfront, before you know if you'll use it |
+| VPS + Claude API | ~$5–20 month minimum + metered tokens at $3–15/M |
+| Glows.ai RTX 4090 @ $0.49/hr | **~$1.96 total** — no subscription, no tokens |
+
+That's the entire pitch. The hype cycle already produced one wave of hardware purchases that Slashdot documented; renting by the hour lets you find out whether a personal AI agent fits your life *before* your money commits to an answer. And if it does fit — running it 8 hours every evening for a month is still about $118, cancellable any day, on hardware that also runs [Ollama, ComfyUI, and every other image in the catalog](https://glows.ai).
+
+Rates vary by GPU and region; all figures above were checked on the Glows.ai pricing page in July 2026.
+
+## FAQ
+
+### What is OpenClaw?
+
+OpenClaw is an open-source, self-hosted AI agent gateway that connects chat apps like Telegram, WhatsApp, and Discord to an AI model with real tool access — file management, command execution, browsing, and scheduled automations. It launched as Clawdbot in January 2026 and passed 168,000 GitHub stars within weeks.
+
+### Do I need a Mac Mini to run OpenClaw?
+
+No. The Mac Mini became popular because it fits a local model in unified memory and runs 24/7 quietly, but any machine with Node.js 22+ and 4 GB of RAM runs the gateway — and a rented cloud GPU gives you the local-model capability without the $599 purchase.
+
+### How much does it cost to try OpenClaw?
+
+About $1 for a two-hour session. Glows.ai's preconfigured OpenClaw image runs on an RTX 4090 from $0.49/hour (checked July 2026), with Ollama included, so there are no API token charges and no monthly plan.
+
+### Can OpenClaw run a local model instead of a Claude API key?
+
+Yes. On the Glows.ai OpenClaw image, one command — `ollama launch openclaw --model qwen3.5:4b` — downloads a local model and starts the service against it. Per-message cost is zero, and prompts stay on your instance, which matters since Anthropic cut off Claude subscription access for third-party agents in April 2026.
+
+## Try It Tonight, Decide Tomorrow
+
+The interesting question about OpenClaw isn't whether the hype is real — 168,000 GitHub stars answered that — it's whether *you* actually want an AI agent in your chat apps. That question costs about a dollar to answer. [Sign up at Glows.ai](https://glows.ai), create an instance with the official OpenClaw image, and you'll be chatting with your own agent in about 10 minutes — no Mac Mini required.

@@ -1,0 +1,123 @@
+---
+id: best_local_llms_2026_gpu_requirements_en
+title: 'The Best Local LLMs in 2026 — and What GPU Each One Actually Needs'
+date: '2026-07-10 10:00'
+description: 'Compare the best local LLMs of 2026 — gpt-oss, Qwen3, Llama 3.3, Gemma 3 — with VRAM needs per quantization and the exact GPU to rent for each.'
+tags:
+  - Blog
+---
+
+# The Best Local LLMs in 2026 — and What GPU Each One Actually Needs
+
+Looking for the best local LLM in 2026? Here is the short answer: **gpt-oss-20b** if you have 16 GB of VRAM, **Qwen3-30B-A3B** or **Gemma 3 27B** on a 24 GB card like the RTX 4090, **Llama 3.3 70B** once you reach 48 GB, and **gpt-oss-120b** or **GLM-4.5-Air** at 80–96 GB. The full DeepSeek-R1 still needs a multi-GPU cluster.
+
+The rest of this guide backs each pick with numbers you can verify: parameter counts, license, published 4-bit file sizes, the VRAM you realistically need, and — since not everyone owns a 96 GB workstation card — which rentable GPU runs it, at what hourly price.
+
+![GPU graphics card that can run the best local LLMs in 2026](https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=1920&auto=format&fit=crop)
+
+This article covers:
+
+- A 30-second method for estimating any model's VRAM footprint
+- A comparison table of 8 open-weight models, from 21B to 671B parameters
+- What each model costs to run on rented GPUs, per hour and per 8-hour day
+
+## How much VRAM does a local LLM need? The 30-second math
+
+A 4-bit quantized model needs roughly **0.57 GB of VRAM per billion parameters for the weights, plus 2–4 GB for the KV cache and runtime overhead** at an 8K context. That's the whole trick. A 27B model at Q4_K_M is about a 16 GB file; give it 20–24 GB of VRAM and it runs with room for context.
+
+Two refinements:
+
+- **FP16 needs ~2 GB per billion parameters** — four times the 4-bit figure. That's why almost everyone runs quantized weights locally: quality loss at Q4_K_M is small for most workloads, and the VRAM savings are not.
+- **Mixture-of-experts (MoE) models still need all weights in memory.** Qwen3-30B-A3B activates only 3.3B parameters per token, which makes it fast — but its full 30.5B parameters must fit in VRAM. MoE buys speed, not capacity.
+
+Long contexts change the picture: KV cache grows with context length, so a model that fits at 8K can overflow at 64K. When a model "barely fits" below, assume short-to-medium contexts.
+
+## The best local LLMs in 2026, compared
+
+All file sizes are published Q4_K_M GGUF or native MXFP4 sizes from Hugging Face and Ollama listings; instance prices are from the [Glows.ai](https://glows.ai) homepage as of July 10, 2026 (per-second billing, rates can change).
+
+| Model | Params (total / active) | License | 4-bit weights | Comfortable VRAM | Glows.ai instance | Price/hr |
+| --- | --- | --- | --- | --- | --- | --- |
+| gpt-oss-20b | 21B / 3.6B | Apache 2.0 | ~13 GB (MXFP4) | 16 GB | RTX 4090 24 GB | $0.49 |
+| Mistral Small 3.2 | 24B (dense) | Apache 2.0 | ~14.3 GB | 20 GB | RTX 4090 24 GB | $0.49 |
+| Gemma 3 27B | 27B (dense) | Gemma license | ~14.1 GB (QAT int4) | 20 GB | RTX 4090 24 GB | $0.49 |
+| Qwen3-30B-A3B-2507 | 30.5B / 3.3B | Apache 2.0 | ~18.6 GB | 24 GB | RTX 4090 24 GB | $0.49 |
+| Llama 3.3 70B | 70B (dense) | Llama 3.3 license | ~42.5 GB | 48 GB | RTX 6000 Ada 48 GB | $0.72 |
+| GLM-4.5-Air | 106B / 12B | MIT | ~60 GB | 80–96 GB | A100 80 GB / RTX PRO 6000 96 GB | $1.20 / $1.68 |
+| gpt-oss-120b | 117B / 5.1B | Apache 2.0 | ~61 GB (MXFP4) | 80 GB | A100 80 GB or H100 | $1.20 / $2.96 |
+| DeepSeek-R1 (0528) | 671B / 37B | MIT | ~404 GB (Q4) | multi-GPU cluster | multi-node H100/L40S | from ~$6.89 |
+
+Now the picks, one by one.
+
+### gpt-oss-20b — the default for 16–24 GB cards
+
+OpenAI released gpt-oss-20b in August 2025 under Apache 2.0: 21B total parameters, 3.6B active per token, shipped natively in MXFP4 quantization. OpenAI's own spec says it runs within 16 GB of memory, and in practice the ~13 GB weights leave headroom on a 24 GB card for longer contexts. Because so few parameters are active per token, it's also fast — a sensible first model for agents, summarization, and everyday chat. We walk through deploying both gpt-oss sizes in our [gpt-oss on Glows.ai tutorial](https://glows.ai/article/run_gpt_oss).
+
+### Qwen3-30B-A3B-Instruct-2507 — the fast daily driver for 24 GB
+
+Alibaba's Qwen3-30B-A3B (July 2025 "2507" update, Apache 2.0) is the model many people mean when they say a local LLM finally replaced their API calls. It's a 30.5B MoE with 3.3B active parameters and native 262K context. The Q4_K_M file is about 18.6 GB, which makes a 24 GB RTX 4090 the natural home: it fits, with modest KV cache room. If you prefer dense models for more consistent quality per token, its sibling Qwen3-32B lands at ~20 GB in Q4 — same card, tighter fit, slower but stronger on hard prompts.
+
+### Gemma 3 27B — multimodal on a single consumer GPU
+
+Google's Gemma 3 27B (March 2025) reads images as well as text and carries a 128K context window. The notable engineering detail: Google published quantization-aware-trained (QAT) int4 checkpoints, cutting the 27B model to roughly 14.1 GB of VRAM by Google's own figures — quantization the model was trained to tolerate, not an afterthought. On a rented RTX 4090 it runs comfortably. License note: Gemma uses Google's own terms rather than Apache 2.0, so check them before commercial deployment.
+
+### Mistral Small 3.2 — instruction-following workhorse
+
+Mistral Small 3.2 (June 2025, Apache 2.0) is a dense 24B model with vision support that Mistral has positioned, since the 3.1 release, as runnable on a single RTX 4090 once quantized. The Q4_K_M file is ~14.3 GB. It's a strong pick when you want dependable instruction following and function calling in European languages, with a genuinely permissive license.
+
+### Llama 3.3 70B — the 48 GB workhorse
+
+Meta's Llama 3.3 70B (December 2024) remains the reference dense model in the 70B class, and the reason "48 GB" is a meaningful VRAM tier at all. At Q4_K_M the weights alone are ~42.5 GB — no 24 GB card will hold it, but a single RTX 6000 Ada (48 GB) runs it at $0.72/hr on Glows.ai. It's licensed under Meta's community license (fine for most users, with restrictions above 700M monthly actives). If your workload involves long documents at 70B scale, step up to an 80 GB A100 for KV cache room.
+
+### gpt-oss-120b — single-GPU frontier-adjacent reasoning
+
+The larger gpt-oss (August 2025, Apache 2.0) has 117B total parameters with 5.1B active, and OpenAI designed it to fit a single 80 GB GPU in native MXFP4 — the weights are ~61 GB. That makes it one of the strongest open-weight reasoning models you can run **without** multi-GPU orchestration: an A100 80 GB at $1.20/hr covers it, and an H100 at $2.96/hr runs it faster. Our [gpt-oss tutorial](https://glows.ai/article/run_gpt_oss) covers both the 20B and 120B deployments step by step.
+
+### GLM-4.5-Air — the agent specialist
+
+Z.ai's GLM-4.5-Air (July 2025, MIT license) is a 106B MoE with 12B active parameters, built explicitly for agentic tool use and coding. At 4-bit the weights come to roughly 60 GB, so it wants an 80 GB A100 — or, more comfortably, a 96 GB RTX PRO 6000 at $1.68/hr, where long agent trajectories have KV cache space. The MIT license is as clean as licenses get: no usage clauses to audit.
+
+### DeepSeek-R1 — the multi-node flagship
+
+DeepSeek-R1 (January 2025, updated May 2025 as R1-0528, MIT) is 671B parameters with 37B active. Even 4-bit quantized, the weights are around 404 GB — this is cluster territory, not single-GPU territory. On Glows.ai you can run it across machines with SGLang, following our [multi-machine DeepSeek-R1 tutorial](https://glows.ai/article/deepseek_r1_using_sglang); multi-GPU L40S clusters start at $6.89/hr. If you want R1-style reasoning on one card instead, the R1-Distill-Qwen-32B checkpoint is ~20 GB at Q4 and runs on a 4090 — see the [DeepSeek-R1 quick-start](https://glows.ai/article/deepseek_r1).
+
+## Renting vs buying a GPU for local LLMs
+
+Every list above assumed you can summon the right GPU on demand. The economics of that are worth spelling out, because most "best local LLM" guides quietly assume a hardware purchase.
+
+| Glows.ai instance | VRAM | Price/hr | 8-hour day | Runs (from this list) |
+| --- | --- | --- | --- | --- |
+| RTX 4090 | 24 GB | $0.49 | $3.92 | gpt-oss-20b, Qwen3-30B-A3B, Gemma 3 27B, Mistral Small 3.2, R1-Distill-32B |
+| RTX 6000 Ada | 48 GB | $0.72 | $5.76 | Llama 3.3 70B (Q4) |
+| L40S | 48 GB | $0.83 | $6.64 | Llama 3.3 70B (Q4) |
+| A100 SXM4 | 80 GB | $1.20 | $9.60 | gpt-oss-120b, GLM-4.5-Air, 70B with long context |
+| RTX PRO 6000 | 96 GB | $1.68 | $13.44 | GLM-4.5-Air with headroom |
+| H100 80 GB | 80 GB | $2.96 | $23.68 | gpt-oss-120b at higher throughput |
+
+Prices from glows.ai, July 10, 2026; billing is per second with no hourly minimum.
+
+The break-even math: at $0.49/hr, you would need more than 3,600 hours of 4090 time before renting costs as much as a ~$1,800 retail card — before counting electricity, the PSU upgrade, or the fact that next year's models may want more VRAM than the card you bought. Renting also removes the tier problem entirely: run Qwen3 on a $0.49/hr card on Monday and gpt-oss-120b on an $1.20/hr A100 on Tuesday, paying only for the seconds each instance is alive.
+
+Two practical tips for renters: mount Datadrive and [set a persistent Ollama model path](https://glows.ai/article/set_ollama_model_path) so downloaded weights survive between instances, and use the [Hugging Face download guide](https://glows.ai/article/download_huggingface_models) to pull large checkpoints at datacenter bandwidth instead of your home connection.
+
+## FAQ
+
+### What is the best local LLM in 2026?
+
+There is no single winner — the best local LLM in 2026 depends on your VRAM. gpt-oss-20b is the strongest starting point at 16 GB, Qwen3-30B-A3B and Gemma 3 27B lead the 24 GB class, Llama 3.3 70B owns the 48 GB tier, and gpt-oss-120b is the pick if you can reach 80 GB.
+
+### How much VRAM does a 70B model need?
+
+About 42–48 GB at 4-bit quantization: Llama 3.3 70B's Q4_K_M weights are ~42.5 GB before KV cache. That means one 48 GB card (RTX 6000 Ada, L40S) for short contexts, or an 80 GB card for long-context work. FP16 would need ~140 GB — nobody runs that on one GPU.
+
+### Is 24 GB of VRAM enough in 2026?
+
+Yes, for the strongest single-GPU class of models: everything from gpt-oss-20b through Qwen3-30B-A3B (~18.6 GB at Q4) fits in 24 GB. What 24 GB cannot hold is the 70B+ tier — for those, rent a 48–96 GB instance for the hours you need it instead of buying a second card.
+
+### Is it cheaper to rent a GPU or buy one for local LLMs?
+
+For intermittent use, renting wins on arithmetic: a rented RTX 4090 at $0.49/hr costs $3.92 per 8-hour day, and you would need 3,600+ hours to match a ~$1,800 purchase. Buying pays off mainly for 24/7 workloads — and even then only within the VRAM tier you bought.
+
+## Run any of these models in the next five minutes
+
+Every model in this guide has a home on [Glows.ai](https://glows.ai): preconfigured images for Ollama, vLLM, SGLang, DeepSeek-R1, and gpt-oss, instances that start in 30–60 seconds, and per-second billing from $0.49/hr for an RTX 4090. Pick the model, match the VRAM tier from the table above, and [create your first instance](https://docs.glows.ai/docs/create-new) — sign up at [glows.ai](https://glows.ai) and the 24 GB tier costs less than a coffee per session.

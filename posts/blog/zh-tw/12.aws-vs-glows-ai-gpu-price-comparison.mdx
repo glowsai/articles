@@ -1,0 +1,119 @@
+---
+id: aws_vs_glows_ai_gpu_price_comparison_zh_tw
+title: 'AWS GPU 價格 vs Glows.ai：同一個 AI 任務，帳單差 2～3 倍'
+date: '2026-07-10 10:00'
+description: '用 2026 年 7 月公開牌價，把同一個 AI 任務分別放到 AWS GPU 執行個體和 Glows.ai 上計價：同一顆 L40S，AWS 帳單貴 2.2 倍。完整算式一次公開。'
+tags:
+  - Blog
+---
+
+# AWS GPU 價格 vs Glows.ai：同一個 AI 任務，帳單差 2～3 倍
+
+先講結論：以 2026 年 7 月的公開牌價比較 AWS GPU 價格與 Glows.ai，**同一顆 NVIDIA L40S**，在 AWS 上（`g6e.xlarge`，us-east-1 隨需計價）是 **$1.861 美元/小時**（約 NT$60），在 [Glows.ai](https://glows.ai) 上是 **$0.83 美元/小時**（約 NT$27）——相同晶片，價差 2.2 倍。到了 A100 這一級，價差拉大到 **3.4 倍**，而且 AWS 給的 VRAM 只有一半。以一個 20 GPU 小時的微調任務計算，AWS 含儲存的帳單約 **$53 美元（約 NT$1,700）**，Glows.ai 是 **$16.60 美元（約 NT$530）**。
+
+本文每一個數字都來自公開價目表，附來源與日期。我們沒有跑任何「祕密實測」——只是把同一個任務放到兩張牌價上計價，每一行算式你都可以自己重算一次。
+
+![AWS GPU 價格與 Glows.ai 比較——雲端資料中心裡成排的伺服器機架](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1600&auto=format&fit=crop)
+
+## 計算方法：公開牌價，不是實驗室跑分
+
+「我們在兩朵雲上跑了同一個 AI 任務」這種標題，背後常常是無法驗證的跑分。所以先把方法講清楚。
+
+我們定義一個具體任務：**在 48GB 的 NVIDIA L40S 上跑 20 個 GPU 小時**——大約是 8B 等級模型做一次 QLoRA 微調加上評估的合理預算，而且時數可以線性換算（任務只要 10 小時？所有數字除以二）。接著用 2026 年 7 月公佈的隨需費率，把這個任務分別計價。選 L40S 是因為 AWS 和 Glows.ai 都出租這顆 GPU：同一顆晶片、同樣的 VRAM、兩張價格標籤，完全不需要任何效能假設。
+
+當兩邊 GPU 不同時（AWS 不出租 RTX 4090 這類消費級顯卡），我們會明講，並且只引用官方規格表，不編造速度測試。
+
+## 2026 年 7 月的 AWS GPU 執行個體價格
+
+AWS 把 GPU 藏在執行個體代號後面，先解碼，並附上 us-east-1 目前的隨需費率：
+
+| AWS 執行個體 | 內含 GPU | VRAM | 隨需 $/小時 | $/GPU·小時 | 來源 |
+| --- | --- | --- | --- | --- | --- |
+| `g6.xlarge` | 1× NVIDIA L4 | 24GB | $0.805 | $0.805 | [Vantage 價格追蹤](https://instances.vantage.sh/aws/ec2/g6.xlarge)，2026 年 7 月 |
+| `g5.xlarge` | 1× NVIDIA A10G | 24GB | $1.006 | $1.006 | [AWS G5 官方頁](https://aws.amazon.com/ec2/instance-types/g5/)，2026 年 7 月 |
+| `g6e.xlarge` | 1× NVIDIA L40S | 48GB | $1.861 | $1.861 | [Vantage 價格追蹤](https://instances.vantage.sh/aws/ec2/g6e.xlarge)，2026 年 7 月 |
+| `p4d.24xlarge` | 8× NVIDIA A100 | 每顆 40GB | $32.77 | $4.10 | [Vantage 價格追蹤](https://instances.vantage.sh/aws/ec2/p4d.24xlarge)，2026 年 7 月 |
+| `p5.48xlarge` | 8× NVIDIA H100 | 每顆 80GB | 約 $55 | 約 $6.88 | [IntuitionLabs 供應商調查](https://intuitionlabs.ai/articles/h100-rental-prices-cloud-comparison)，2026 年 4 月 |
+
+看表之前先記住兩件事：
+
+- **P 系列只賣 8 顆一組。**在 EC2 上你租不到單顆隨需的 H100 或 A100，最小單位就是整台 8 GPU 機器，每小時 $32～55 美元起。
+- **價格正在往上走，不是往下。**AWS 在 2026 年 7 月 1 日把 EC2 GPU Capacity Block 價格調漲約 20%，是半年內第二次調漲，年初已先漲過 15%（[Investing.com，2026 年 7 月](https://www.investing.com/news/stock-market-news/aws-raising-gpu-instance-prices-20-on-july-1-4762879)）。調漲後，美國區域的 P5 H100 預約價為每顆每小時 $5.191。
+
+## 同一個任務，兩邊各算一次
+
+Glows.ai 公佈的是固定時費、以秒計費（[glows.ai](https://glows.ai)，2026 年 7 月）：RTX 4090 24GB 每小時 $0.49（約 NT$16）、L40S 48GB $0.83、A100 SXM4 80GB $1.20、H100 80GB $2.96（約 NT$95）。
+
+以下是換算成每 GPU 小時的雲端 GPU 租用價格比較：
+
+| GPU 級距 | AWS 選項 | AWS $/GPU·小時 | Glows.ai 選項 | Glows.ai $/小時 | AWS 貴 |
+| --- | --- | --- | --- | --- | --- |
+| 24GB 入門 | `g6.xlarge`（L4） | $0.805 | RTX 4090 | $0.49 | 1.6 倍 |
+| 24GB 中階 | `g5.xlarge`（A10G） | $1.006 | RTX 4090 | $0.49 | 2.1 倍 |
+| 48GB——同一顆 GPU | `g6e.xlarge`（L40S） | $1.861 | L40S | $0.83 | 2.2 倍 |
+| A100 級 | `p4d`（A100 **40GB**） | $4.10 | A100 SXM4 **80GB** | $1.20 | 3.4 倍 |
+| H100 80GB | `p5`（H100） | 約 $6.88 | H100 | $2.96 | 2.3 倍 |
+
+24GB 那兩列還有一個對 AWS 更不利的註腳：`g5.xlarge` 裡的 A10G 是 31.2 TFLOPS（FP32）、記憶體頻寬 600 GB/s 的晶片；RTX 4090 則是 82.6 TFLOPS、1,008 GB/s（NVIDIA 官方規格）。在 24GB 這一級，AWS 用 2.1 倍的價格賣你比較慢的晶片——換算成「每個做完的任務」，差距比每小時價差更大。
+
+### 實例一：20 小時的 L40S 微調任務
+
+| 項目 | AWS（`g6e.xlarge`） | Glows.ai（L40S） |
+| --- | --- | --- |
+| 運算，20 GPU 小時 | 20 × $1.861 = **$37.22** | 20 × $0.83 = **$16.60** |
+| 儲存：200GB gp3 EBS，一個月 | 200 × $0.08 = **$16.00** | —（Datadrive 在關機期間保留檔案） |
+| 對外傳輸 | $0（每月 100GB 免費額度內） | $0 |
+| **任務總計** | **$53.22（約 NT$1,700）** | **$16.60（約 NT$530）** |
+
+同一顆 GPU、同樣 20 小時：含儲存差 **3.2 倍**，只算運算也差 2.2 倍。儲存的細節：EBS 磁碟區不管你用不用都在計費，而模型權重動輒 15～40GB，200GB 其實不算寬裕。在 Glows.ai 上，[Datadrive](https://docs.glows.ai/docs/datadrive-app) 會在執行個體關閉時替你保管模型檔案。
+
+### 實例二：72 小時的 H100 訓練
+
+單顆 H100 跑三天：AWS 以每 GPU 小時約 $6.88 計，是 **$495.36（約 NT$15,900）**——而且別忘了，隨需模式下你實際租的是整台 8 GPU 的 `p5.48xlarge`，72 小時要價約 $3,960，除非另外 7 顆閒置 GPU 也能幫你賺錢。Glows.ai 以 $2.96/小時計，你真正需要的那一顆 H100 是 **$213.12（約 NT$6,800）**。每跑一次差 $282 美元——這就是標題裡「難堪」的部分，而它純粹是牌價的四則運算。
+
+## AWS 牌價上看不到的那幾行
+
+為了兩邊都公平：EC2 Linux 執行個體是**以秒計費、最低 60 秒**，所以計費顆粒度不是 AWS 的問題，費率本身才是。真正要注意的是：
+
+- **EBS 儲存不會睡覺。**gp3 磁碟區每月每 GB $0.08，執行個體關了照收（[AWS EBS 定價](https://aws.amazon.com/ebs/pricing/)）。刪掉磁碟區省錢？下次開工就要重新下載所有模型。
+- **超過免費額度的對外流量。**資料流出 AWS，每月 100GB 之後每 GB 收 $0.09（[AWS 資料傳輸定價](https://aws.amazon.com/ec2/pricing/on-demand/)）。一個月抓兩次 40GB 的 checkpoint 回家，帳單就有感。
+- **開第一顆 GPU 前先申請配額。**新 AWS 帳號的 G 系列與 P 系列 vCPU 配額預設是 0，必須先送 Service Quotas 提高申請並等待核准（[AWS Service Quotas 文件](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-on-demand-instances.html)）。請用「數小時到數天」來估，不是數分鐘。
+- **整套環境自己組。**Deep Learning AMI 有幫助，但沒有一鍵啟動的 ComfyUI 或 Ollama 映像檔——驅動、CUDA、框架的安裝時間都算你的，而且裝機期間計費器照跑。
+
+## 什麼時候 AWS 仍然是對的選擇
+
+一篇假裝 AWS 一無是處的比價文沒有說服力，所以誠實列出另一面：
+
+- **法遵與稽核。**HIPAA 適用服務、FedRAMP、PCI DSS、SOC 1/2/3——如果你的工作負載需要通過認證的基礎設施與正式合約，hyperscaler 的溢價就是通過稽核的成本。
+- **Spot 執行個體。**AWS 標榜可中斷容量最高比隨需便宜 90%。只要你的任務會乖乖存 checkpoint、容忍被中途回收，`g6e.xlarge` 的 spot 價格幾乎無人能敵。
+- **資料引力。**訓練資料已經放在 S3 的話，把運算搬去資料旁邊，通常比用 $0.09/GB 把幾 TB 資料搬出來便宜。
+- **企業規模。**Savings Plans、預留執行個體、配 EFA 網路的 Capacity Block，適合一跑就是幾個月的多節點叢集——那和「租一顆 GPU 用一個晚上」是兩種運動。
+- **託管工具鏈。**SageMaker、Bedrock、IAM/VPC 這套機制，在 40 人團隊要把模型推上正式環境時才顯出價值。
+
+如果你的團隊有法遵主管，請認真評估 AWS。如果你是一個人、手上有一個微調任務，請繼續往下讀。
+
+## 如果你今晚就想跑模型，這些數字代表什麼
+
+對個人開發者來說，上面幾張表的結論很一致：**專門平台每 GPU 小時便宜 1.6～3.4 倍，還跳過配額排隊和裝機工程。**在 Glows.ai 上選一個預先設定好的映像檔——DeepSeek、Ollama、ComfyUI 等——執行個體 30～60 秒內啟動，以秒計費。我們用同樣的公開牌價算法比過[自組主機 vs 租用雲端 GPU](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_zh_tw)，也算過[花大約 2 美元批次生成 1,000 張圖](https://glows.ai/article/generate_1000_ai_images_for_2_dollars_zh_tw)；對個人工作負載，算式一直指向同一個方向。如果你的錢目前流向按月訂閱的 AI 影片服務，[這篇比較](https://glows.ai/article/ai_video_subscription_vs_gpu_rental_zh_tw)也值得花五分鐘。
+
+## 常見問題
+
+### AWS 的 GPU 執行個體每小時多少錢？
+
+以 2026 年 7 月為準，AWS 最便宜的 GPU 執行個體是 `g6.xlarge`（NVIDIA L4，24GB），us-east-1 隨需約每小時 $0.80 美元。24GB 的 A10G（`g5.xlarge`）是 $1.006，48GB 的 L40S（`g6e.xlarge`）是 $1.861，H100 換算約每顆每小時 $6.88——而且只以 8 顆一組出租，整台約 $55/小時。
+
+### 為什麼 AWS GPU 價格比專門 GPU 雲貴 2～3 倍？
+
+你付的是周邊平台：法遵認證、IAM 與 VPC 整合、貼著 S3 的資料、企業級支援。2026 年的產業調查一致顯示，相同硬體下 hyperscaler 的 GPU 費率比 GPU 專門商高 2～3 倍（[IntuitionLabs，2026 年 4 月](https://intuitionlabs.ai/articles/h100-rental-prices-cloud-comparison)）。但這些成本對一個人的微調任務毫無幫助。
+
+### 有沒有 AWS 反而比較便宜的情況？
+
+有，三種：spot 執行個體（最高省 90%，前提是任務容忍中斷）、資料已經在 S3 上的工作負載（流出費可能吃掉運算省下的錢），以及以 Savings Plans 或 Capacity Block 長期包下的企業叢集。
+
+### 可以在 AWS 上租 RTX 4090 嗎？
+
+不行。AWS 只提供資料中心級 GPU（L4、A10G、L40S、A100、H100 等）。RTX 4090 這類消費級顯卡——依官方規格 FP32 82.6 TFLOPS，對上同級距 A10G 的 31.2 TFLOPS——只在專門租用平台上有；Glows.ai 於 2026 年 7 月的牌價是每小時 $0.49 美元（約 NT$16）。
+
+## 自己把數字算一遍
+
+公開牌價數學的重點就是你不必相信我們：把 AWS 費率表和 [Glows.ai](https://glows.ai) 的定價頁並排打開，計價你自己的任務。如果算出來和我們一樣，就[註冊一個 Glows.ai 帳號](https://glows.ai)、照著[建立執行個體教學](https://docs.glows.ai/docs/create-new)開一台機器，把你的前 20 個 GPU 小時放進表格裡比較便宜的那一欄。L40S 每小時 $0.83，這場實驗的成本比等 AWS 配額核准還低。

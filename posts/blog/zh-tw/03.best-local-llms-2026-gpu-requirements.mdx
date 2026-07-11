@@ -1,0 +1,123 @@
+---
+id: best_local_llms_2026_gpu_requirements_zh_tw
+title: '2026 最佳地端 LLM 推薦：8 款開源模型的 VRAM 需求與 GPU 選擇'
+date: '2026-07-10 10:00'
+description: '2026 最佳地端 LLM 完整比較：gpt-oss、Qwen3、Llama 3.3、Gemma 3 各需要多少 VRAM？附量化後檔案大小、GPU 租用時價與換算成本。'
+tags:
+  - Blog
+---
+
+# 2026 最佳地端 LLM 推薦：8 款開源模型的 VRAM 需求與 GPU 選擇
+
+想找 2026 最佳地端 LLM？先講結論：16 GB VRAM 選 **gpt-oss-20b**；24 GB 顯卡（例如 RTX 4090）選 **Qwen3-30B-A3B** 或 **Gemma 3 27B**；到了 48 GB 可以跑 **Llama 3.3 70B**；80–96 GB 則是 **gpt-oss-120b** 與 **GLM-4.5-Air** 的天下。完整版 DeepSeek-R1 仍然需要多卡叢集。
+
+接下來這份指南會用你可以自行查證的數字支撐每一個推薦：參數量、授權條款、公開的 4-bit 檔案大小、實際需要的 VRAM——以及考量到不是每個人家裡都有 96 GB 工作站顯卡，我們也列出每款模型可以租用哪種 GPU、時價多少。
+
+![可執行 2026 最佳地端 LLM 的 GPU 顯示卡](https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=1920&auto=format&fit=crop)
+
+本文包含以下內容：
+
+- 30 秒估算任何模型 VRAM 需求的方法
+- 8 款開源模型的比較表，從 21B 到 671B 參數
+- 租用 GPU 跑這些模型的成本：每小時、每 8 小時工作天各是多少
+
+## 地端 LLM 需要多少 VRAM？30 秒學會估算
+
+4-bit 量化模型大約需要「**每 10 億參數 0.57 GB 的權重空間，再加 2–4 GB 給 KV cache 與執行環境**」（以 8K 上下文計）。訣竅就這一句。27B 模型的 Q4_K_M 檔案約 16 GB，給它 20–24 GB VRAM 就能順跑，還留有上下文空間。
+
+兩個補充：
+
+- **FP16 每 10 億參數約需 2 GB**——是 4-bit 的四倍。這就是為什麼地端幾乎人人跑量化模型：Q4_K_M 對多數工作的品質損失很小，省下的 VRAM 卻很可觀。
+- **MoE（混合專家）模型的全部權重仍要放進記憶體。** Qwen3-30B-A3B 每個 token 只啟用 3.3B 參數，所以速度快——但 30.5B 的完整權重還是得塞進 VRAM。MoE 買到的是速度，不是容量。
+
+長上下文會改變局面：KV cache 隨上下文長度增加，8K 塞得下的模型到 64K 可能就爆了。下文說某款模型「剛好塞得下」時，指的是中短上下文。
+
+## 2026 最佳地端 LLM 比較表
+
+以下檔案大小均取自 Hugging Face 與 Ollama 公開的 Q4_K_M GGUF 或原生 MXFP4 數字；租用價格取自 [Glows.ai](https://glows.ai) 首頁（2026 年 7 月 10 日查證，按秒計費，價格可能調整）。
+
+| 模型 | 參數（總量 / 啟用） | 授權 | 4-bit 權重 | 建議 VRAM | Glows.ai 機型 | 時價 |
+| --- | --- | --- | --- | --- | --- | --- |
+| gpt-oss-20b | 21B / 3.6B | Apache 2.0 | 約 13 GB（MXFP4） | 16 GB | RTX 4090 24 GB | $0.49 |
+| Mistral Small 3.2 | 24B（稠密） | Apache 2.0 | 約 14.3 GB | 20 GB | RTX 4090 24 GB | $0.49 |
+| Gemma 3 27B | 27B（稠密） | Gemma 授權 | 約 14.1 GB（QAT int4） | 20 GB | RTX 4090 24 GB | $0.49 |
+| Qwen3-30B-A3B-2507 | 30.5B / 3.3B | Apache 2.0 | 約 18.6 GB | 24 GB | RTX 4090 24 GB | $0.49 |
+| Llama 3.3 70B | 70B（稠密） | Llama 3.3 授權 | 約 42.5 GB | 48 GB | RTX 6000 Ada 48 GB | $0.72 |
+| GLM-4.5-Air | 106B / 12B | MIT | 約 60 GB | 80–96 GB | A100 80 GB / RTX PRO 6000 96 GB | $1.20 / $1.68 |
+| gpt-oss-120b | 117B / 5.1B | Apache 2.0 | 約 61 GB（MXFP4） | 80 GB | A100 80 GB 或 H100 | $1.20 / $2.96 |
+| DeepSeek-R1（0528） | 671B / 37B | MIT | 約 404 GB（Q4） | 多卡叢集 | 多節點 H100/L40S | 約 $6.89 起 |
+
+接著逐款說明。
+
+### gpt-oss-20b——16–24 GB 顯卡的預設首選
+
+OpenAI 在 2025 年 8 月以 Apache 2.0 授權釋出 gpt-oss-20b：總參數 21B、每 token 啟用 3.6B，原生採 MXFP4 量化。OpenAI 官方規格表明它能在 16 GB 記憶體內執行；實際上約 13 GB 的權重放到 24 GB 顯卡上，還留有跑長上下文的餘裕。因為每個 token 啟用的參數少，速度也快——拿來做 agent、摘要、日常對話都是合理的第一款模型。部署步驟可參考我們的 [gpt-oss 部署教學](https://glows.ai/article/run_gpt_oss)。
+
+### Qwen3-30B-A3B-Instruct-2507——24 GB 的高速日用主力
+
+阿里巴巴的 Qwen3-30B-A3B（2025 年 7 月「2507」更新版，Apache 2.0）就是許多人說「地端模型終於取代 API 呼叫」時指的那一款。它是 30.5B 的 MoE、啟用 3.3B 參數、原生 262K 上下文。Q4_K_M 檔案約 18.6 GB，24 GB 的 RTX 4090 剛好是它的家：塞得下，KV cache 空間不大但夠用。偏好稠密模型、想要每個 token 更穩定品質的話，同門的 Qwen3-32B 在 Q4 約 20 GB——同一張卡、更緊一點、速度較慢但難題表現更強。
+
+### Gemma 3 27B——單張消費級顯卡就能跑的多模態模型
+
+Google 的 Gemma 3 27B（2025 年 3 月）能讀圖也能讀文字，上下文窗口 128K。值得注意的工程細節是：Google 官方釋出了量化感知訓練（QAT）的 int4 檢查點，依 Google 自己的數字，27B 模型的 VRAM 需求壓到約 14.1 GB——這是模型在訓練階段就學會承受的量化，不是事後補救。租一張 RTX 4090 就能順跑。授權提醒：Gemma 用的是 Google 自訂條款而非 Apache 2.0，商用部署前請先確認。
+
+### Mistral Small 3.2——指令遵循的可靠工作馬
+
+Mistral Small 3.2（2025 年 6 月，Apache 2.0）是支援視覺的稠密 24B 模型；從 3.1 版起，Mistral 官方就將它定位為「量化後單張 RTX 4090 可執行」。Q4_K_M 檔案約 14.3 GB。需要穩定的指令遵循與函式呼叫、又想要真正寬鬆授權時，它是可靠的選擇。
+
+### Llama 3.3 70B——48 GB 級距的招牌
+
+Meta 的 Llama 3.3 70B（2024 年 12 月）仍是 70B 級距的稠密模型標竿，「48 GB」之所以成為一個有意義的 VRAM 級距，就是因為它。Q4_K_M 光權重就約 42.5 GB——任何 24 GB 顯卡都裝不下，但單張 RTX 6000 Ada（48 GB）在 Glows.ai 上以 $0.72/小時就能跑。授權為 Meta 社群授權（對多數使用者沒問題，月活超過 7 億才有額外限制）。若要在 70B 規模處理長文件，建議升級到 80 GB 的 A100 換取 KV cache 空間。
+
+### gpt-oss-120b——單卡可跑的準旗艦推理模型
+
+較大的 gpt-oss（2025 年 8 月，Apache 2.0）總參數 117B、啟用 5.1B，OpenAI 的設計目標就是讓它以原生 MXFP4 塞進單張 80 GB GPU——權重約 61 GB。這使它成為**不需要**多卡協調就能執行的最強開源推理模型之一：$1.20/小時的 A100 80 GB 就能承載，$2.96/小時的 H100 則跑得更快。20B 與 120B 兩種部署我們的 [gpt-oss 教學](https://glows.ai/article/run_gpt_oss)都有逐步說明。
+
+### GLM-4.5-Air——Agent 任務的專門選手
+
+智譜 Z.ai 的 GLM-4.5-Air（2025 年 7 月，MIT 授權）是 106B 的 MoE、啟用 12B 參數，專為 agent 工具呼叫與寫程式而生。4-bit 權重約 60 GB，所以它需要 80 GB 的 A100——或更寬裕地，$1.68/小時的 96 GB RTX PRO 6000，讓長 agent 軌跡有 KV cache 空間。MIT 授權乾淨俐落，沒有需要逐條稽核的使用限制。
+
+### DeepSeek-R1——多節點旗艦
+
+DeepSeek-R1（2025 年 1 月發布、5 月更新為 R1-0528，MIT）有 671B 參數、啟用 37B。即使 4-bit 量化，權重仍約 404 GB——這是叢集等級，不是單卡等級。在 Glows.ai 上可以用 SGLang 跨機執行，照著我們的[多機多卡 DeepSeek-R1 教學](https://glows.ai/article/deepseek_r1_using_sglang)操作即可；多卡 L40S 叢集約 $6.89/小時起。若想在單卡體驗 R1 式推理，R1-Distill-Qwen-32B 在 Q4 約 20 GB，一張 4090 就能跑——參考 [DeepSeek-R1 快速上手](https://glows.ai/article/deepseek_r1)。
+
+## 租 GPU 還是買 GPU？
+
+上面每個推薦都假設你能隨時召喚合適的 GPU。這筆帳值得算清楚，因為多數「最佳地端 LLM」指南都默默假設你要自己買硬體——在台灣，一張 RTX 4090 的行情仍在數萬元新台幣之譜。
+
+| Glows.ai 機型 | VRAM | 時價 | 8 小時工作天 | 可跑（本文清單） |
+| --- | --- | --- | --- | --- |
+| RTX 4090 | 24 GB | $0.49（約 NT$16） | $3.92（約 NT$125） | gpt-oss-20b、Qwen3-30B-A3B、Gemma 3 27B、Mistral Small 3.2、R1-Distill-32B |
+| RTX 6000 Ada | 48 GB | $0.72 | $5.76 | Llama 3.3 70B（Q4） |
+| L40S | 48 GB | $0.83 | $6.64 | Llama 3.3 70B（Q4） |
+| A100 SXM4 | 80 GB | $1.20（約 NT$38） | $9.60 | gpt-oss-120b、GLM-4.5-Air、長上下文 70B |
+| RTX PRO 6000 | 96 GB | $1.68 | $13.44 | GLM-4.5-Air（餘裕充足） |
+| H100 80 GB | 80 GB | $2.96 | $23.68 | gpt-oss-120b（更高吞吐） |
+
+價格取自 glows.ai，2026 年 7 月 10 日；按秒計費、無最低時數。新台幣為概算（1 美元約 NT$32，依匯率浮動）。
+
+損益平衡的算法：以 $0.49/小時計，你要用超過 3,600 小時的 4090，租用成本才會追上一張約 $1,800 美元（約 NT$5.8 萬）的零售卡——這還沒算電費、電源供應器升級，以及明年的新模型可能需要比你買的卡更多 VRAM。租用也徹底消除「級距」問題：星期一用 $0.49/小時的卡跑 Qwen3，星期二換 $1.20/小時的 A100 跑 gpt-oss-120b，只為實例存活的秒數付費。
+
+給租用者的兩個實用建議：掛載 Datadrive 並[設定 Ollama 模型儲存路徑](https://glows.ai/article/set_ollama_model_path)，讓下載好的權重在實例之間保留；再用 [Hugging Face 模型下載教學](https://glows.ai/article/download_huggingface_models)以機房頻寬拉取大型檢查點，不必耗自家網路。
+
+## 常見問題
+
+### 2026 年最佳的地端 LLM 是哪一款？
+
+沒有單一冠軍——2026 最佳地端 LLM 取決於你的 VRAM。16 GB 從 gpt-oss-20b 起步最穩；24 GB 級距由 Qwen3-30B-A3B 與 Gemma 3 27B 領先；48 GB 級距是 Llama 3.3 70B 的地盤；能上 80 GB 就選 gpt-oss-120b。
+
+### 70B 模型需要多少 VRAM？
+
+4-bit 量化約 42–48 GB：Llama 3.3 70B 的 Q4_K_M 權重約 42.5 GB，還不含 KV cache。也就是短上下文用一張 48 GB 卡（RTX 6000 Ada、L40S），長上下文工作要 80 GB。FP16 則需要約 140 GB——沒有人用單卡這樣跑。
+
+### 2026 年 24 GB VRAM 還夠用嗎？
+
+夠，而且正好覆蓋單卡最強的模型級距：從 gpt-oss-20b 到 Qwen3-30B-A3B（Q4 約 18.6 GB）都塞得進 24 GB。24 GB 裝不下的是 70B 以上級距——遇到那些，按需要的小時數租一台 48–96 GB 實例，比再買一張卡划算。
+
+### 跑地端 LLM 是租 GPU 便宜還是買便宜？
+
+間歇使用的話，租用在算術上就贏了：租一張 RTX 4090 每 8 小時工作天 $3.92（約 NT$125），要累積 3,600 小時以上才追平約 $1,800 美元的購卡成本。買卡主要在 24/7 工作負載才划算——而且只在你買下的那個 VRAM 級距內划算。
+
+## 五分鐘內跑起本文任何一款模型
+
+本指南的每一款模型在 [Glows.ai](https://glows.ai) 上都有現成的家：Ollama、vLLM、SGLang、DeepSeek-R1、gpt-oss 的預建映像檔，實例 30–60 秒啟動，按秒計費、RTX 4090 從 $0.49/小時起。選好模型、對照上表的 VRAM 級距，[建立你的第一台實例](https://docs.glows.ai/docs/create-new)——到 [glows.ai](https://glows.ai) 註冊，24 GB 級距一個工作階段的花費比一杯手搖飲還便宜。

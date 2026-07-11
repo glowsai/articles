@@ -1,0 +1,147 @@
+---
+id: taiwan_data_residency_ai_compute_en
+title: 'Data Residency in Taiwan: The AI Compute Question Every Local Company Is Asking'
+date: '2026-07-10 10:00'
+description: 'Which Taiwanese data can leave the country? PDPA Article 21, FSC and MOHW rules explained — plus in-Taiwan GPU compute from $0.49/hour. Read the guide.'
+tags:
+  - Blog
+---
+
+# Data Residency in Taiwan: The AI Compute Question Every Local Company Is Asking
+
+Here is the short answer on data residency in Taiwan: there is **no blanket law** that forbids sending data abroad, and for most companies, using overseas AI services with general business data is legal. But if you operate in finance, healthcare, or anything government-adjacent, data residency stops being optional — customer records and electronic medical records must be stored in Taiwan *as a matter of stated regulatory principle*, and moving them offshore requires meeting specific conditions or getting regulator approval first. After two laws landed in late 2025 (a major Personal Data Protection Act amendment and Taiwan's first AI Basic Act), "where does our AI compute run, and where does the data flow" has moved from an IT footnote to the first question Taiwanese companies must answer before deploying AI.
+
+This article collects the scattered rules into one table, turns "our data stays in Taiwan" into three verifiable conditions, and prices the in-country option by the hour.
+
+![Data residency in Taiwan illustrated: server racks in a data center — AI compute and data can stay in-country](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1600&auto=format&fit=crop)
+
+What this article covers:
+
+- Why "where does the data live" became the first AI question after late 2025
+- One table of Taiwan's actual residency rules — PDPA, FSC, MOHW — with official sources
+- The three verifiable conditions behind "data stays in Taiwan"
+- A four-way comparison of AI deployment options on compliance and cost
+- Real in-Taiwan GPU prices (checked July 2026)
+- A six-point pre-deployment checklist and FAQ
+
+**Note:** This is an orientation guide, not legal advice. For specific cases, consult counsel familiar with Taiwan's data protection and outsourcing rules.
+
+## Why "Where Does the Data Live" Became the First AI Question in 2026
+
+Three things happened within fourteen months.
+
+First, [amendments to Taiwan's Personal Data Protection Act (PDPA) were promulgated on November 11, 2025](https://www.pdpc.gov.tw/News_Content/20/1001/), with the effective date to be set by the Executive Yuan. The amendment builds enforcement powers for the incoming Personal Data Protection Commission (PDPC) and tightens breach notification — companies can no longer delay notifying affected individuals on the grounds that the incident is "not yet verified." When your AI supply chain leaks, "we don't know where the data went" will not be an acceptable answer.
+
+Second, the [Legislative Yuan passed Taiwan's AI Basic Act on December 23, 2025](https://moda.gov.tw/press/press-releases/18316) — the country's first AI framework law. It names seven governance principles, one of which is explicitly "privacy protection and data governance," and sets up a risk-tier framework that sector regulators will now translate into binding rules. The National Science and Technology Council is the competent authority.
+
+Third, enterprise risk rankings shifted. Deloitte's *State of AI in the Enterprise* survey (fielded August–September 2025, [as compiled by premai](https://blog.premai.io/ai-data-residency-requirements-by-region-the-complete-enterprise-compliance-guide/)) found that 73% of enterprises cite data privacy and security as their top AI risk — ahead of cost and talent.
+
+One thing worth stating plainly: none of these laws ban overseas clouds or overseas AI services. What they raise is the **burden of proof** — you must be able to document where data flows, where it rests, and how it is protected. The easiest architecture to document is the one where the data never leaves Taiwan.
+
+## What Taiwan's Rules Actually Say: One Table, Three Regulated Sectors
+
+Data residency in Taiwan is not one law. It is a general statute plus sector rules. This table is the core of the article, with every row linked to an official source:
+
+| Rule | Who it applies to | Residency requirement | Conditions for offshore transfer |
+| --- | --- | --- | --- |
+| [PDPA Article 21](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=21) | All non-government entities (i.e., ordinary companies) | International transfer allowed in principle | Regulators may restrict transfers in four cases: major national interests; treaty obligations; the receiving country lacks sound data protection; or the transfer circumvents the PDPA via a third country |
+| [FSC outsourcing regulation, Article 19-1](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=G0380200&flno=19-1) (amended August 2023, [FSC press release](https://www.fsc.gov.tw/ch/home.jsp?id=96&parentpath=0%2C2&mcustomize=news_view.jsp&dataserno=202308040001&toolsflag=Y&dtable=News)) | Banks, insurers, securities firms | Customer data and its storage location **in Taiwan as a principle** | Offshore storage requires: the right to designate processing/storage locations; recipient-country protection no weaker than Taiwan's; backups of important customer data kept in Taiwan. Offshoring significant consumer-finance systems needs prior FSC approval |
+| [Regulations on Electronic Medical Records](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=L0020121) (amended July 18, 2022, [MOHW notice](https://www.mohw.gov.tw/cp-16-70574-1.html)) | Hospitals and clinics | Cloud EMR permitted, but storage **limited to Taiwan as a principle** | Special cross-border arrangements require approval from the Ministry of Health and Welfare |
+| [Cyber Security Management Act](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=A0030297) | Government agencies, critical infrastructure providers | Obligations scale with assigned security responsibility level; stricter rules on where systems and data may sit | Case-by-case, determined by the competent authority |
+
+Read together, Taiwan's data residency structure has three tiers:
+
+- **Ordinary companies:** offshore transfer is legal by default, but regulators hold a statutory lever to restrict it — and the "receiving country lacks sound protection" clause gives them wide discretion.
+- **Finance and healthcare:** "in Taiwan as the principle, offshore as the exception" is written into the rules; exceptions carry conditions or approval requirements.
+- **Government and critical infrastructure:** the strictest tier in practice; in most scenarios, offshore is not on the table.
+
+And here is how this reaches companies that are not themselves regulated: if you supply software to a bank, integrate systems for a hospital, or bid on government contracts, your customer will pass these requirements down to you by contract. That is how most Taiwanese SMEs meet the data residency question for the first time.
+
+## What Actually Happens When Data Goes to an Overseas AI Service
+
+In fairness: mainstream overseas AI providers are not data black holes. Enterprise tiers from OpenAI, Anthropic, Google and others commonly offer zero-data-retention options, no-training commitments, and data processing agreements. For most unregulated Taiwanese companies, calling an overseas API is a lawful and common practice.
+
+The real problems are two, and neither involves conspiracy:
+
+1. **The burden of proof sits with you.** When the FSC, the MOHW, or the future PDPC asks "which offshore systems touched this data, for how long, and who could access it," you need contract clauses, audit reports, and technical evidence. Every additional overseas layer in the supply chain adds pages to that file.
+2. **Jurisdiction sits with someone else.** Once data lands in an offshore facility, local law and local legal process apply. PDPA Article 21's "insufficient protection" restriction exists precisely because of that structural fact.
+
+The practical conclusion is not "never use overseas services." It is: **process regulated and high-sensitivity data on architecture that never exports it, and keep evaluating overseas services on price-performance for everything else.** Which raises the next question — what does the no-export option cost?
+
+## Four Ways to Deploy AI, Compared on Compliance and Cost
+
+There are broadly four ways to get a model running. Sorted by the first question — does the data stay in Taiwan?
+
+| Deployment option | Data stays in Taiwan | Upfront cost | Time to running | Best fit |
+| --- | --- | --- | --- | --- |
+| Overseas AI SaaS / API (ChatGPT, hosted LLM APIs) | No — data is processed offshore | None | Minutes | General, unregulated data; fast idea validation |
+| Overseas GPU cloud (US / SEA regions) | No — instance and storage sit offshore | Low (hourly) | Minutes to hours | Cost-sensitive training and inference with no residency needs |
+| In-Taiwan GPU cloud (e.g., [Glows.ai](https://glows.ai)) | Yes — instance and storage in Taiwan facilities | Low (from $0.49/hour) | 30–60 seconds with prebuilt images | Regulated-industry PoCs through production; projects that must document data flows to customers or regulators |
+| On-premises build | Yes | High — a single H100 runs tens of thousands of US dollars before facilities, power, and staff | Weeks to months | Sustained full utilization; data that must never touch third-party hardware |
+
+The interesting row is the third. For years, "data residency" conversations in Taiwan jumped straight to on-prem builds, because flexible in-country GPU capacity simply wasn't rentable. In-Taiwan GPU clouds collapsed the entry cost from a capital expenditure to tens of NT dollars per hour — keeping data in Taiwan no longer means budgeting a server room first.
+
+So what does "data stays in Taiwan" mean, verifiably? We suggest three test conditions:
+
+1. **The instance is in Taiwan** — the GPU node physically sits in a Taiwanese facility, and the provider states the region.
+2. **Storage is in Taiwan** — model weights, inputs, outputs, and backups all rest in-country.
+3. **Inference makes no overseas API calls** — the model (open-weight options like DeepSeek, Llama, or GPT-OSS) computes locally on your instance instead of forwarding data to an offshore endpoint.
+
+Only when all three hold can you write "the data never left Taiwan" as an auditable statement rather than a hope.
+
+## What In-Taiwan GPU Compute Actually Costs
+
+Take [Glows.ai](https://glows.ai) as the worked example — its GPU nodes are located in Taiwan (listed as Asia-Pacific (Taiwan) with multiple availability zones), billed per second. Public rates checked July 2026 (NT$ at roughly 32.5 per USD):
+
+| GPU | VRAM | Price per hour (from) |
+| --- | --- | --- |
+| NVIDIA RTX 4090 | 24GB | $0.49 (≈ NT$16) |
+| RTX 6000 Ada | 48GB | $0.72 (≈ NT$23) |
+| L40S | 48GB | $0.83 (≈ NT$27) |
+| A100 SXM4 | 80GB | $1.20 (≈ NT$39) |
+| H100 HBM3 | 80GB | $2.96 (≈ NT$96) |
+
+In project terms: a two-week internal RAG proof of concept at 8 hours a day on a single RTX 4090 is 80 hours × $0.49 ≈ **$39 (about NT$1,280)** — less than the staff cost of one cross-department meeting. Scaling to production means stepping up to A100 or H100 instances, or going [multi-node with SGLang](https://glows.ai/article/deepseek_r1_using_sglang).
+
+Prebuilt images boot in 30–60 seconds: [DeepSeek-R1 quick start](https://glows.ai/article/deepseek_r1), [GPT-OSS-20B/120B deployment](https://glows.ai/article/run_gpt_oss), plus Ollama and ComfyUI. Weights and data stay on your instance and cloud drive, and inference completes entirely in-country — which is exactly the three-condition test from the previous section.
+
+**Reminder:** Choosing an in-Taiwan platform does not make you compliant by itself. Regulated firms still need their own outsourcing risk assessment, a data processing agreement, and encryption and access controls. The platform solves residency — the hardest condition to retrofit — but the procedural obligations remain yours.
+
+## A Six-Point Checklist Before You Deploy
+
+Before any data enters any AI system, in-country or not, walk through these six items:
+
+- **Classify the data.** Mark which fields are personal data and which fall under FSC or MOHW definitions of sensitive data. Good classification shrinks most later problems.
+- **Map your sector rules.** Check the table above and confirm which row applies to you — or to your customer.
+- **Contract and DPA.** Sign a data processing agreement with any compute or AI vendor, specifying storage location, retention, and deletion obligations.
+- **Encryption and key management.** Encrypt in transit and at rest; hold your own keys.
+- **Logs and auditability.** Record who accessed what data and when — the foundation of the amended PDPA's notification duties.
+- **In-Taiwan backups.** Even where offshore processing is approved (e.g., sanctioned financial outsourcing), keeping backups of important data in Taiwan is an explicit regulatory requirement.
+
+## FAQ
+
+### Does Taiwanese law ban sending data overseas?
+
+No. Taiwan works on "allowed in principle, restricted by exception": [PDPA Article 21](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=21) permits international transfers but lets regulators restrict them in four situations. Hard residency requirements live in sector rules — financial customer data and electronic medical records must be stored in Taiwan as a principle.
+
+### Is it illegal to use ChatGPT or an overseas LLM API?
+
+For most companies and most data, no. But if inputs contain personal data, PDPA protection and notification duties apply to you; and if you are a financial or medical institution (or their contractor), sector outsourcing and transfer rules come first. The practical pattern is a split: overseas services for general data, in-country compute for regulated data.
+
+### When does the amended PDPA take effect?
+
+The amendments were promulgated on November 11, 2025, but the effective date will be set by the Executive Yuan in step with the PDPC's organizational law — it was not fixed at promulgation. Watch the [PDPC preparatory office](https://www.pdpc.gov.tw/) for announcements. There is no reason to wait, though: breach-response processes and data-flow mapping can start now.
+
+### If I run a model on a cloud GPU, does my data count as "resident"?
+
+Not automatically. Three conditions must all hold: the instance sits in a Taiwan facility, data and model weights are stored in-country, and inference sends nothing to overseas APIs. Renting an in-Taiwan GPU but calling an offshore service mid-pipeline still exports the data.
+
+### Does data residency blow up AI costs?
+
+Not on rented compute. In-Taiwan GPU time starts around $0.49/hour (RTX 4090, checked July 2026), so an 80-hour PoC costs about $39. The expensive path is the on-prem build — and that is no longer the only way to keep data in Taiwan.
+
+## Next Step: Start With One GPU That You Can Point To on a Map
+
+However long the compliance discussion runs, it ends with a machine that runs your model and a plain answer to "where is it." Sign up at [Glows.ai](https://glows.ai), follow the [create-an-instance guide](https://docs.glows.ai/docs/create-new) to boot a Taiwan-based GPU in 30–60 seconds, load a prebuilt DeepSeek or GPT-OSS image, and validate your first no-export AI workflow for a few dollars.
+
+(Regulatory and pricing information checked July 2026; for legal developments, rely on official regulator announcements.)
