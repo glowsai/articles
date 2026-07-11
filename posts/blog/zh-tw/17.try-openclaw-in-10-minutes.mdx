@@ -1,0 +1,113 @@
+---
+id: try_openclaw_in_10_minutes_zh_tw
+title: '全網都在討論 OpenClaw：不用買 Mac Mini，10 分鐘上手試玩指南'
+date: '2026-07-11 10:00'
+description: 'OpenClaw 是什麼？不用衝去買 Mac Mini：用 Glows.ai 官方 OpenClaw 映像檔，在雲端 RTX 4090 上每小時 US$0.49 起（約 NT$16），10 分鐘就能親手試玩。'
+tags:
+  - Blog
+---
+
+# 全網都在討論 OpenClaw：不用買 Mac Mini，10 分鐘上手試玩指南
+
+想試用 OpenClaw，其實不必買 Mac Mini、不必租包月 VPS、也不必綁 API 按量計費——最快的路徑是按小時計費的雲端 GPU：Glows.ai 提供官方預裝的 OpenClaw 映像檔，在 NVIDIA RTX 4090 上 30–60 秒開機，內建 Ollama 可直接跑本地模型，每小時 US$0.49 起（約 NT$16，2026 年 7 月查核）。試玩兩小時大約 US$0.98（約 NT$31）；如果覺得 OpenClaw 不適合你，刪掉實例就能全身而退。
+
+本文包含以下內容：
+
+- OpenClaw 到底是什麼，以及爆紅背後的實際數字
+- 為什麼「裝起來就好」背後藏著一個「買硬體還是付 API 帳單」的選擇題
+- 四種試用 OpenClaw 的方式，用「退場成本」逐項比較
+- 10 分鐘上手路徑的完整步驟與實測時間
+
+![代表在雲端 GPU 上試用 OpenClaw 的 AI 抽象插圖](https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1965&auto=format&fit=crop)
+
+## OpenClaw 是什麼？為什麼大家都在討論它？
+
+OpenClaw 是一套開源、自架的 AI Agent 閘道：把你日常使用的通訊軟體——Telegram、WhatsApp、Discord、Slack 等——接上一個能在你掌控的機器上執行實際工具的 AI 模型。跟只能「回話」的聊天機器人不同，OpenClaw 的 Agent 可以管理檔案、執行指令、瀏覽網頁、跑排程自動化。模型負責決策，OpenClaw 負責執行。
+
+這波熱度是有數字可查的。專案在 2026 年 1 月 25 日以「Clawdbot」為名發布，24 小時內拿下 9,000 顆 GitHub 星星（[Elephas](https://elephas.app/blog/opean-claw-clawdbot-viral-launch)，2026 年 1 月）。一週內被迫改名兩次——Clawdbot → Moltbot → OpenClaw——熱度反而加速，約三週內從 2,000 星飆到超過 168,000 星（[HackerNoon](https://hackernoon.com/why-everyone-is-panic-buying-mac-minis-for-openclaw-moltbot-clawdbot)，2026 年 2 月）。作者 Peter Steinberger 曾出售 PDF 工具公司 PSPDFKit，第一版只花了大約一小時就寫出來（[36kr](https://eu.36kr.com/en/p/3655938014093701)，2026）。周邊效應也上了新聞：Solana 上的假代幣市值一度衝到 1,600 萬美元，Slashdot 則在 2026 年 1 月 28 日刊出「[『Clawdbot』讓 AI 圈搶購 Mac Mini](https://tech.slashdot.org/story/26/01/28/0510226/clawdbot-has-ai-techies-buying-mac-minis)」。
+
+最後那一條正是本文要解決的問題：想知道大家在瘋什麼，真的不需要先刷一台 Mac Mini。
+
+## 為什麼 OpenClaw 需要真正的硬體（和一顆 AI 大腦）
+
+OpenClaw 本體很輕量：閘道只需要 Node.js 22+ 和 4 GB RAM 就能運作（[Cherry Servers](https://www.cherryservers.com/blog/openclaw-hardware-requirements)，2026），連 Raspberry Pi 理論上都跑得動。那為什麼大家搶著買要價 US$599 的桌機？
+
+因為閘道不等於 Agent。OpenClaw 背後需要一個模型，而且需要一台你放心給它 shell 權限、可以長時間開機的機器。「大腦」只有兩種來源：
+
+**選項一：雲端 API 金鑰。** 簡單，但按量計費。Anthropic 自 2026 年 4 月 4 日起封鎖 Claude Pro 與 Max 訂閱在 OpenClaw 等第三方 Agent 框架的使用，把用戶推向按量 API 費率——Claude Sonnet 4.6 每百萬輸入 token US$3、每百萬輸出 US$15（[The Next Web](https://thenextweb.com/news/anthropic-openclaw-claude-subscription-ban-cost)，2026）。同一篇報導引述估算：一個全天自主運作的 OpenClaw 實例，依任務量不同可能消耗相當於 US$1,000–5,000 的 API 額度。一般玩家的實際帳單遠低於此，但重點不變：讓一個全天候 Agent 跑在按量計費的 token 上，是一筆上不封頂的開銷。
+
+**選項二：本地模型。** 每則訊息零成本，提示詞也不會離開你的機器——但前提是硬體裝得下模型權重。這正是 Mac Mini 搶購潮的真正原因：統一記憶體塞得下一個堪用的本地模型，又安靜省電。而另一條熱門路線——每月 US$5–20 的純 CPU VPS（[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/02/openclaw-hosting-mac-mini-vs-cloud-vps/)，2026 年 2 月）——裝得下閘道、裝不下像樣的模型，最後還是把你推回選項一和它的 token 帳單。
+
+租用 GPU 實例是第三條路：享有本地模型的成本結構，卻不必把硬體買回家。
+
+## 四種試用 OpenClaw 的方式比較
+
+以下是誠實計價後的試用選擇題。「退場成本」指的是：試玩一個晚上後決定不玩了，你總共花了多少。
+
+| | 買 Mac Mini | 每月 US$5–20 VPS + API 金鑰 | 自己的筆電 | 按小時雲端 GPU（Glows.ai） |
+| --- | --- | --- | --- | --- |
+| 前期投入 | US$599 起（M4 基本款，約 NT$1.9 萬） | US$0 | US$0 | US$0 |
+| 能跑本地模型？ | 可以（16 GB 統一記憶體） | 不行——純 CPU，得靠 API token | 很勉強——常見 8 GB VRAM 不夠用 | 可以——24 GB RTX 4090 |
+| 持續性 AI 成本 | US$0（本地） | 每百萬 token US$3–15（Sonnet 4.6 費率） | 通常還是要 API token | US$0——內建 Ollama |
+| 第一次對話前的設定 | 等出貨數天＋手動安裝 | 30 分鐘以上手動安裝 | 在日常電腦上裝 20–30 分鐘 | 約 10 分鐘，映像檔已預裝 |
+| Agent 的 shell 權限在… | 你自己的機器（還行） | 一台便宜的遠端主機 | 你的個人檔案（有風險） | 一個用完即刪的實例 |
+| 退場成本 | US$599 扣掉二手折價 | 第一個月月費＋token | US$0，但 Agent 碰過你的筆電 | 兩小時約 US$0.98（約 NT$31） |
+
+有兩列值得特別說明。第一，筆電路線雖然免費，但方向完全相反：OpenClaw 的核心賣點就是一個會執行指令的 Agent，爆紅當時就有評測點名這個安全面向（[Elephas](https://elephas.app/blog/opean-claw-clawdbot-viral-launch)，2026）。把一個實驗性的自主 Agent 放進存著報稅資料的電腦裡，實在不是理想的第一次見面。用完即刪的雲端實例，能把爆炸半徑壓到零。
+
+第二，VPS 路線「每月不到 10 美元」的說法迴避了模型問題：主機月費照付，大腦的 token 費另計。
+
+## 10 分鐘上手路徑：Glows.ai 官方 OpenClaw 映像檔
+
+Glows.ai 維護一個預裝好的 OpenClaw 映像檔——OpenClaw、Ollama、JupyterLab 全部就位——試用路徑因此跳過所有安裝步驟。完整圖文版請見教學文章〈How to Run OpenClaw on Glows.ai〉，以下是濃縮版：
+
+1. **註冊並建立實例。** 到 [Glows.ai](https://glows.ai) 點選 `Create New`，Workload Type 選 Inference GPU — 4090，映像檔選官方 **OpenClaw**（[建立實例教學](https://docs.glows.ai/docs/create-new)）。點 `Complete Checkout` 後，開機需時 30–60 秒。
+2. **打開終端機。** 在 `My Instances` 開啟 `HTTP Port 8888` 的連結——那是 JupyterLab——並建立一個 Terminal。Port 22 是 SSH，Port 11434 是 Ollama API。
+3. **執行初始設定。** `openclaw onboard` 會引導你同意條款，並可選擇性設定 Telegram 機器人 Token（向 `@BotFather` 申請）。模型設定先留空，下一步會處理。
+4. **啟動本地模型。** 一行指令就能下載模型並啟動 OpenClaw 服務：
+
+```bash
+ollama launch openclaw --model qwen3.5:4b
+```
+
+5. **開始對話。** 三個入口立即可用：直接在 CLI 對話、完成一行驗證指令後在 Telegram 機器人對話，或透過 SSH 連接埠轉發用瀏覽器開啟 Web UI。
+
+**Note:** 4B 模型是下載快的示範選擇。你租 24 GB RTX 4090 而不是 CPU 主機的理由正是餘裕——同一個實例可以換上大得多的本地模型，讓 Agent 推理能力更好；哪張卡裝得下哪種規模的模型，可參考我們的文章〈本地 LLM 主機 vs 雲端 GPU 成本：2026 自組電腦實價試算〉。
+
+**Reminder:** 計費以小時為單位。實驗結束記得關閉實例，計費就停止。
+
+## 試玩一趟到底要花多少錢
+
+給抱持懷疑、想先認真玩兩個晚上再下結論的人算一筆帳：
+
+| 路線 | 試用 OpenClaw 約 4 小時的花費 |
+| --- | --- |
+| Mac Mini M4 | 先付 US$599（約 NT$1.9 萬），還不知道會不會繼續用 |
+| VPS + Claude API | 至少 US$5–20 月費＋每百萬 token US$3–15 按量計費 |
+| Glows.ai RTX 4090（每小時 US$0.49） | **總共約 US$1.96（約 NT$63）**——沒有訂閱、沒有 token 費 |
+
+這就是全部的論點。這波熱潮已經造就了一波 Slashdot 記錄在案的硬體搶購；按小時租用讓你在錢包表態之前，先弄清楚「個人 AI Agent」到底適不適合自己的生活。而如果真的適合——每晚跑 8 小時、連跑一個月也只要約 US$118（約 NT$3,800），隨時可停，而且同一個平台還能一鍵切換 [Ollama、ComfyUI 等其他映像檔](https://glows.ai)。
+
+費率依 GPU 與地區而異；以上數字均於 2026 年 7 月在 Glows.ai 價目頁查核。
+
+## 常見問題
+
+### OpenClaw 是什麼？
+
+OpenClaw 是一套開源、自架的 AI Agent 閘道，把 Telegram、WhatsApp、Discord 等通訊軟體接上一個擁有實際工具權限的 AI 模型——可以管理檔案、執行指令、瀏覽網頁、跑排程自動化。它在 2026 年 1 月以 Clawdbot 之名發布，數週內 GitHub 星星數突破 168,000。
+
+### 一定要買 Mac Mini 才能跑 OpenClaw 嗎？
+
+不用。Mac Mini 之所以流行，是因為統一記憶體裝得下本地模型、又能安靜地 24 小時運作；但任何具備 Node.js 22+ 和 4 GB RAM 的機器都能跑閘道——而租一台雲端 GPU 就能獲得本地模型能力，不必花 US$599（約 NT$1.9 萬）買硬體。
+
+### 試用 OpenClaw 要花多少錢？
+
+兩小時大約 US$1（約 NT$31）。Glows.ai 的 OpenClaw 預裝映像檔在 RTX 4090 上每小時 US$0.49 起（2026 年 7 月查核），內建 Ollama，所以沒有 API token 費用，也沒有月費方案。
+
+### OpenClaw 可以用本地模型取代 Claude API 金鑰嗎？
+
+可以。在 Glows.ai 的 OpenClaw 映像檔上，一行指令——`ollama launch openclaw --model qwen3.5:4b`——就能下載本地模型並啟動服務。每則訊息零成本，提示詞也留在你的實例上；考量到 Anthropic 已於 2026 年 4 月切斷第三方 Agent 的 Claude 訂閱存取，這點格外重要。
+
+## 今晚試玩，明天再決定
+
+關於 OpenClaw，有趣的問題不是熱度是不是真的——168,000 顆 GitHub 星星已經回答了——而是*你自己*到底想不想在通訊軟體裡養一個 AI Agent。回答這個問題只要大約 NT$31。[註冊 Glows.ai](https://glows.ai)，用官方 OpenClaw 映像檔建立實例，約 10 分鐘後你就能跟自己的 Agent 對話——不需要任何一台 Mac Mini。

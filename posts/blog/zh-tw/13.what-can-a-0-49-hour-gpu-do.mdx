@@ -1,0 +1,140 @@
+---
+id: what_can_a_0_49_hour_gpu_do_zh_tw
+title: '每小時 0.49 美元的雲端 GPU 能做什麼？6 種用途完整實算'
+date: '2026-07-10 10:00'
+description: '租一小時雲端 GPU（0.49 美元，約新台幣 16 元）可生成最多 720 張 AI 圖片、轉錄 20 小時音訊，或訓練一個完整 SDXL LoRA。全部附公開基準來源。'
+tags:
+  - Blog
+---
+
+# 每小時 0.49 美元的雲端 GPU 能做什麼？6 種用途完整實算
+
+先講答案：租用雲端 GPU 一小時，實際可以換到 225 至 720 張 AI 圖片、6 支 5 秒 AI 影片、22 萬至 170 萬個 LLM token、約 20 小時的語音轉錄、6 至 30 小時的合成語音，或是一個完整訓練好的 SDXL LoRA。以上每個數字都來自公開基準測試，硬體統一是 NVIDIA RTX 4090 —— 也就是 [Glows.ai](https://glows.ai) 上每小時 0.49 美元（約新台幣 16 元）、按秒計費的那張卡（價格於 2026 年 7 月確認，會依地區與供應情況浮動）。
+
+這篇文章要做的事很單純：「每小時 0.49 美元」在換算成具體產出之前，只是一個抽象數字。所以我們來換算 —— 而且每一步都附來源。
+
+![便宜的雲端 GPU 在資料中心裡只是一塊電路板，直到你把一小時換成圖片、音訊與模型](https://images.unsplash.com/photo-1531297484001-80022131f5a1?q=80&w=1200&auto=format&fit=crop)
+
+本文涵蓋：
+
+- 計算前提：哪張 GPU、哪個價格、哪些基準測試
+- 一張總表：一個 GPU 小時在六種工作負載下各能產出多少
+- 每種用途的細節、吞吐量來源與單位成本
+- 一小時買「不到」什麼 —— 誠實列出限制
+- 如何在 Glows.ai 上重現文中任何一行數字
+
+## 計算前提：一小時、一張 RTX 4090、0.49 美元
+
+以下所有數字都基於同一組設定，方便互相比較：
+
+- **GPU：**NVIDIA RTX 4090（24 GB VRAM）。它是圖片生成、中小模型推論與 LoRA 訓練的消費級主力卡 —— [Tom's Hardware 的 45 張 GPU Stable Diffusion 對比](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks)把它排在消費級榜首。
+- **價格：**[Glows.ai](https://glows.ai) 每小時 0.49 美元，2026 年 7 月確認。按秒計費、沒有整點門檻 —— 當工作只跑 23 分鐘而不是 60 分鐘時，這點差很多。價格會依地區與供應情況變動，之後閱讀的讀者請以「每小時不到 1 美元」理解。
+- **吞吐量：**沒有一個是我們自己宣稱的。每一節都附上公開基準測試與其設定，你按小時租 GPU 時，可以拿結帳頁上看到的實際費率重算一次。
+
+在每小時 0.49 美元下，一個 GPU 秒的成本是 0.000136 美元。記住這個數字。
+
+## 一個 GPU 小時的六種花法：總表
+
+| # | 工作負載 | 工具 / 模型 | RTX 4090 實測吞吐量（附來源） | 一小時（0.49 美元）換到 |
+| --- | --- | --- | --- | --- |
+| 1 | AI 圖片 | SDXL / Flux（ComfyUI） | 每張 1024×1024 約 5–16 秒 | 225–720 張圖片 |
+| 2 | 照片轉影片 | Wan 2.2（5B） | 每支 5 秒 720p 影片低於 9 分鐘 | 6 支影片，約 30 秒成品 |
+| 3 | LLM 文字 | Llama 3.1 8B（Ollama / vLLM） | 每秒 62–485 個 token | 22.3 萬–170 萬 token |
+| 4 | 語音轉錄 | Whisper large-v3 | 約 20 倍即時速度起跳 | 約 20 小時音訊 |
+| 5 | 文字轉語音 | Kokoro / XTTS-v2 | 即時係數 0.03–0.15 | 6–30 小時語音 |
+| 6 | 微調訓練 | SDXL LoRA（kohya_ss） | 有效速度約每秒 2 張 | 1 個完整 LoRA，還有剩 |
+
+六種完全不同的工作，同一枚硬幣。接下來是細節與憑據。
+
+## 1. 生成 225 至 720 張 AI 圖片
+
+公開的 RTX 4090 數據：Flux.1 Schnell 在 4 步下每張 1024×1024 約 5 秒（[ComfyUI GitHub 討論串 #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571)，2024 年 8 月）；SDXL 在 20 步下約 7 秒（[Prompting Pixels GPU 基準](https://www.promptingpixels.com/gpu-benchmarks)）；全精度 Flux.1 Dev 則是 15–17 秒。用 3,600 秒去除，一個 GPU 小時可以產出：
+
+- **約 720 張**（Flux.1 Schnell）
+- **約 514 張**（SDXL）
+- **約 225 張**（Flux.1 Dev FP16）
+
+換算下來每張 0.0007–0.0022 美元（不到新台幣 1 角）。完整的成本拆解 —— 包括與每千張 8–120 美元的圖片 API 比較 —— 在[用 2 美元生成 1,000 張 AI 圖片](https://glows.ai/article/generate_1000_ai_images_for_2_dollars_zh_tw)這篇。Glows.ai 的一鍵 ComfyUI 映像檔 30–60 秒開機，搭配[自訂 ComfyUI 工作流](https://glows.ai/article/run_comfyui_on_glowsai)可以整批排隊、無人值守。
+
+## 2. 把 6 張照片變成 5 秒影片
+
+[Wan 2.2](https://github.com/Wan-Video/Wan2.2)（Apache 2.0 授權的開源影片模型）官方基準指出：TI2V-5B 版本在單張 RTX 4090 上，一支 5 秒 720p24 影片的算圖時間低於 9 分鐘。一小時大約能跑 6 支 —— 約 30 秒的 720p 成品 —— 每支算力成本約 0.07 美元（約新台幣 2 元）。
+
+30 秒聽起來不多，但先看替代方案的價格：主流線上影片生成服務月費多在 20–100 美元，免費方案還有每日額度與浮水印。完整操作流程（含 ComfyUI 內建範本）在[用 AI 在 10 分鐘內把照片變成影片](https://glows.ai/article/turn_photo_into_video_ai_10_minutes_zh_tw)。
+
+## 3. 產出 22 萬至 170 萬個 LLM Token
+
+對聊天等級的模型來說，租來的雲端 GPU 就是一座私人 token 工廠。RTX 4090 跑 Llama 3.1 8B 時，[SitePoint 2026 年的 Ollama 與 vLLM 對比測試](https://www.sitepoint.com/ollama-vs-vllm-performance-benchmark-2026/)量到：Ollama（Q4_K_M）單一串流約每秒 62 個 token、vLLM（FP16）約 71 個；而 vLLM 的連續批次處理在 10 個並行請求下，總吞吐約每秒 485 個 token。
+
+換算成一小時：
+
+- **單一串流：**約 22.3 萬 token —— 大約等於兩本長篇小說的文字量
+- **批次服務：**約 170 萬 token，相當於每百萬 token 約 0.28 美元（約新台幣 9 元）
+
+這個量足夠消化一疊待摘要文件、跑一輪合成資料，或讓小團隊的內部聊天機器人撐一整晚。平台上有預先配置好的 Ollama、vLLM 與 SGLang 映像檔；操作模式可參考[在 Glows.ai 上執行 DeepSeek-R1 的快速指南](https://glows.ai/article/deepseek_r1)。
+
+## 4. 轉錄積了 20 小時的 Podcast
+
+[Tom's Hardware 用 18 張 GPU 測試 Whisper 語音轉錄](https://www.tomshardware.com/news/whisper-audio-transcription-gpus-benchmarked)，頂級消費卡達到每分鐘約 3,000 個單字 —— 約為一般語速（每分鐘 140–160 字）的 20 倍。而且那還是用 OpenAI 原版實作測的：[faster-whisper](https://github.com/SYSTRAN/faster-whisper) 在相同 large-v3 精度下穩定快 4 倍，社群的批次管線在 RTX 4090 上更是達到 70–100 倍即時速度。
+
+保守採用 20 倍計算：一個 GPU 小時約可轉錄 **20 小時音訊** —— 一季的 Podcast、一學期的課堂錄音，或所有你一直想整理的訪談檔 —— 只要 0.49 美元，附字詞級時間軸，沒有按分鐘計價的 API 費用。若按 70 倍計，同一枚硬幣可以換到將近三天份的音訊。
+
+## 5. 合成 6 至 30 小時的語音
+
+GPU 上的文字轉語音用「即時係數」（RTF）衡量：運算時間除以產出的音訊長度。[GigaGPU 2026 年的 Kokoro 與 XTTS-v2 對比](https://gigagpu.com/kokoro-vs-xtts-v2-low-latency-tts/)給出 Kokoro 約 RTF 0.03（社群在 RTX 4090 上實測 0.04–0.06），XTTS-v2 約 RTF 0.15。
+
+倒過來算，一個 GPU 小時可以換到：
+
+- **約 16–33 小時**的 Kokoro 語音 —— 夠把一本有聲書初稿念好幾遍
+- **約 6.5 小時**的 XTTS-v2 輸出，*而且帶聲音克隆*
+
+中文使用者還有一個在地選項：Glows.ai 提供 BreezyVoice 的預配置映像檔 —— 這是針對台灣中文打造的聲音克隆模型，[BreezyVoice 教學](https://glows.ai/article/breezyvoice)帶你從一段參考音檔到生成語音，一個工作階段內完成。
+
+## 6. 訓練一個完整的 SDXL LoRA
+
+最讓人意外的一項：一個 GPU 小時裝得下一整次微調。kohya_ss 使用者回報，RTX 4090 上 SDXL LoRA 訓練在批次大小 5 時約每迭代 2.3–2.5 秒 —— 有效速度約每秒 2 張圖（[kohya_ss 討論串 #2166](https://github.com/bmaltais/kohya_ss/discussions/2166)，並與 [Puget Systems 的消費級 GPU LoRA 分析](https://www.pugetsystems.com/labs/articles/stable-diffusion-lora-training-consumer-gpu-analysis/)交叉驗證）。常見的角色或畫風 LoRA 總步數約 1,500–3,000 步，大約 15–45 分鐘就能跑完。
+
+換句話說：你自己的客製模型 —— 你的畫風、你的商品、你的吉祥物 —— 算力成本不到 0.4 美元（約新台幣 13 元），而且這一小時還剩下足夠時間用成品生幾張測試圖。基礎權重可以直接在執行個體內下載，[Hugging Face 模型下載指南](https://glows.ai/article/download_huggingface_models)有最快的路線。
+
+## 一小時買不到什麼
+
+誠實的菜單也要列出沒有的品項：
+
+- **首次執行的模型下載。**SDXL 約 7 GB、Flux.1 Dev FP16 約 23 GB、Wan 2.2 超過 15 GB。在資料中心的網路上是幾分鐘的事 —— 但第一次要預留這段時間；之後把權重放進 Datadrive，每次開機都能跳過下載。
+- **大模型訓練。**微調 70B 的 LLM 或任何預訓練，都是多卡、多小時的領域。一張 4090 一小時買到的是 LoRA 等級的調適，不是基礎模型工程。
+- **你的試錯成本。**沒有人每張圖都留、每個 LoRA 設定都一次到位。如果產出只有三分之一能用，每張「可用產出」的成本就是三倍 —— 這在任何平台都一樣，只是在這裡浪費的單位是零點幾分錢。
+- **這個價格的永久保證。**每小時 0.49 美元是 2026 年 7 月確認的 Glows.ai RTX 4090 費率。就算之後變動，文中所有公式照樣成立 —— 把結帳頁上的實際費率代進去即可。
+
+即使把這些限制都算進去，這張清單裡最貴的失誤也比一杯手搖飲便宜。這正是租用雲端 GPU 相對於花新台幣五萬到六萬五買卡的核心論點：做實驗不再需要寫企劃書。
+
+## 在 Glows.ai 上領取你的一小時
+
+### Step 1: 建立執行個體
+
+登入後打開 `Create New`，選 Inference GPU — 4090，挑一個預配置映像檔 —— ComfyUI、Ollama、vLLM、BreezyVoice —— 然後點 `Complete Checkout`。開機需要 30–60 秒；[執行個體建立指南](https://docs.glows.ai/docs/create-new)有完整截圖。
+
+### Step 2: 從總表挑一行來跑
+
+看你的待辦清單對上哪一列：排一批圖片生成、把 Podcast 資料夾丟給 Whisper，或把資料集指給 kohya。
+
+### Step 3: 記得停止執行個體
+
+按秒計費只有在 GPU 沒有整夜閒置時才省錢。你的帳單除以產出數量，就是本文每個數字的最終驗證。
+
+## 常見問題
+
+**對業餘玩家來說，租雲端 GPU 划算嗎？**
+在每小時 0.49 美元下，一個 GPU 小時能產出最多 720 張 AI 圖片、約 20 小時轉錄，或一個完整 SDXL LoRA —— 這些原本都需要一張約新台幣五到六萬五的 RTX 4090。如果你每週使用 GPU 不到 20 小時，租用明顯便宜得多。
+
+**在租來的 GPU 上微調一個 LoRA 要多少錢？**
+以 kohya_ss 使用者回報、Puget Systems 佐證的每秒約 2 張訓練速度計算，一個 1,500–3,000 步的 SDXL LoRA 在每小時 0.49 美元的 RTX 4090 上，算力成本不到 0.4 美元（約新台幣 13 元）。
+
+**0.49 美元實際租到的是什麼 GPU？**
+在 Glows.ai 上是 NVIDIA RTX 4090（24 GB VRAM，2026 年 7 月價格），按秒計費。也有更大的卡：RTX 6000 Ada 48 GB 每小時 0.72 美元起、A100 80 GB 每小時 1.20 美元起，供需要更大 VRAM 的工作使用。
+
+**除了每小時費率還有隱藏成本嗎？**
+主要是首次執行的模型下載（幾分鐘的計費時間）和忘記關的閒置執行個體。按秒計費與 Datadrive 持久儲存分別對應這兩點；沒有另外的按張、按 token 收費。
+
+## 花掉你的第一個小時
+
+從總表挑一行 —— 720 張圖、Podcast 積壓清單、那個 LoRA —— 對比你現在的做法算一次價。然後實際跑一遍：[註冊 Glows.ai](https://glows.ai)，用一鍵映像檔建立 RTX 4090 執行個體，讓帳單替這篇文章驗算。

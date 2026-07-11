@@ -1,0 +1,132 @@
+---
+id: run_deepseek_new_model_one_click_en
+title: 'How to Run DeepSeek V4: VRAM Math and the One-Click Way'
+date: '2026-07-10 10:00'
+description: 'DeepSeek V4 is MIT-licensed and free — but V4 Flash needs 48–192 GB of VRAM. Get the real cost-per-hour math, then launch it in one click. Start now.'
+tags:
+  - Blog
+---
+
+# How to Run DeepSeek V4: VRAM Math and the One-Click Way
+
+The cheapest realistic way to run DeepSeek V4 is a rented cloud GPU: the smallest practical quantization of V4 Flash needs roughly 48 GB of VRAM — double what a single RTX 4090 holds — and a 48 GB card rents from $0.72/hour on [Glows.ai](https://glows.ai) (pricing checked July 2026). The weights themselves are genuinely free: MIT license, downloadable from Hugging Face, no strings. The compute is not, and that gap is what this article prices out.
+
+Here is what we cover:
+
+- What DeepSeek actually shipped in 2026 (V4 Pro and V4 Flash), with sourced specs
+- The VRAM math, quantization tier by quantization tier — and the "active parameters" trap
+- A cost-per-hour table mapping each tier to a rentable GPU configuration
+- The rent-vs-buy break-even, in hours
+- The one-click path from signup to a running DeepSeek instance
+
+![GPU hardware needed to run DeepSeek V4, the kind you can rent by the hour instead of buying](https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop)
+
+## What DeepSeek Released in 2026: V4 Pro and V4 Flash
+
+On April 24, 2026, DeepSeek released V4, its first flagship since the V3 line, in two sizes ([TechCrunch](https://techcrunch.com/2026/04/24/deepseek-previews-new-ai-model-that-closes-the-gap-with-frontier-models/); [MIT Technology Review](https://www.technologyreview.com/2026/04/24/1136422/why-deepseeks-v4-matters/)). Both are mixture-of-experts models with a 1 million token context window — an 8× jump over V3.2's 128K — and both ship as open weights under an MIT license ([Artificial Analysis](https://artificialanalysis.ai/articles/deepseek-is-back-among-the-leading-open-weights-models-with-v4-pro-and-v4-flash), April 2026).
+
+The two variants, per Artificial Analysis:
+
+| | DeepSeek V4 Pro | DeepSeek V4 Flash |
+| --- | --- | --- |
+| Total parameters | 1.6T | 284B |
+| Active parameters per token | 49B | 13B |
+| Context window | 1M tokens | 1M tokens |
+| Intelligence Index score | 52 (V3.2 scored 42) | 47 |
+| API price per 1M tokens (in/out) | $1.74 / $3.48 | $0.14 / $0.28 |
+| License | MIT | MIT |
+
+A score of 52 makes V4 Pro the #2 open-weights reasoning model on that index. So the headlines are accurate: a near-frontier model, free to download. The part the headlines skip is the size of the download — and what has to hold it.
+
+## DeepSeek V4 VRAM Requirements: Why Open Weights ≠ Runs on Your PC
+
+First, the trap. "13B active parameters" sounds like a 13B model, and a 13B model fits on a gaming laptop. It does not work that way. In a mixture-of-experts model, active parameters determine per-token compute — inference *speed* — but every expert must be loaded, so the **full** weights have to sit in VRAM (or spill to system RAM at a 2–5× speed penalty). V4 Flash's official weight files are 159.61 GB; V4 Pro's are 864.70 GB ([knightli.com VRAM analysis](https://knightli.com/en/2026/05/01/deepseek-v4-local-vram-quantization-table/), May 2026).
+
+Quantization shrinks that, at some quality cost. Here is the tier table for V4 Flash, from the same analysis:
+
+| Quantization | Weight size | Minimum VRAM | Comfortable VRAM |
+| --- | --- | --- | --- |
+| FP8 (full) | 159.61 GB | 192 GB | 256 GB |
+| Q6 | 120 GB | 160 GB | 192 GB |
+| Q5 | 100 GB | 128 GB | 160 GB |
+| Q4 | 80 GB | 96 GB | 128 GB |
+| Q3 | 60 GB | 80 GB | 96 GB |
+| Q2 | 40 GB | 48 GB | 64 GB |
+
+Community dynamic quants push the floor a little lower — [WaveSpeed](https://wavespeed.ai/blog/posts/deepseek-v4-gpu-vram-requirements/) reports heavily quantized Flash builds around 33 GB — but even that number is 9 GB past a 24 GB RTX 4090. There is no tier of the *smaller* V4 model that fits a single consumer GPU.
+
+V4 Pro is another order of magnitude: 512 GB of VRAM at Q4, a full terabyte at FP8. That is a rack, not a workstation. For individuals, V4 Pro is an API model, full stop — and at $1.74/$3.48 per million tokens, the API is priced accordingly.
+
+**Note:** These minimums assume modest context. Push toward the 1M-token window and KV cache adds tens of GB on top of the weights.
+
+## What It Costs Per Hour to Run DeepSeek V4 in the Cloud
+
+Here is the table nobody publishes: each viable V4 Flash tier mapped to a GPU configuration you can rent by the hour on Glows.ai, at rates from the [pricing page](https://glows.ai) (checked July 2026; rates vary by GPU and region).
+
+| Tier | VRAM needed | Rentable configuration | Cost per hour |
+| --- | --- | --- | --- |
+| Flash Q2 (budget) | 48 GB min | 1× RTX 6000 Ada (48 GB) | from $0.72 |
+| Flash Q2 (alt) | 48 GB min | 2× RTX 4090 (2×24 GB) | from $0.98 |
+| Flash Q3–Q4 (sweet spot) | 80–96 GB | 1× RTX PRO 6000 (96 GB) | from $1.68 |
+| Flash FP8 (full quality) | 192 GB min | 2× RTX PRO 6000 (192 GB) | from $3.36 |
+| Flash FP8 (headroom) | 240 GB | 3× H100 (240 GB) | from $8.88 |
+| Pro Q4 | 512 GB min | 6× RTX PRO 6000 (576 GB) | from $10.08 |
+
+Read it as a decision tree:
+
+- **Trying V4 for an evening?** Q2 on a single 48 GB card. A three-hour session costs $2.16.
+- **Working with it seriously?** Q4 on a 96 GB RTX PRO 6000 keeps 16 GB of headroom for KV cache at $1.68/hour. This is the tier we'd pick for daily use.
+- **Need full-precision output quality?** FP8 across two 96 GB cards, $3.36/hour — still less per workday than one month of most AI coding subscriptions.
+- **V4 Pro?** Rentable in principle at around $10/hour, but for individual use the official API at $1.74/$3.48 per million tokens wins unless you have privacy or fine-tuning requirements.
+
+The multi-GPU rows are not exotic. Serving one model across several cards is what vLLM and SGLang do out of the box, and the setup is the same one we documented for R1 in the [multi-GPU SGLang tutorial](https://glows.ai/article/deepseek_r1_using_sglang).
+
+## Rent vs Buy: The Break-Even for a 96 GB Tier
+
+Suppose you wanted to own the Q4 tier instead. The cheapest consumer route to 96 GB of VRAM is four RTX 4090s at $1,599 MSRP each ([NVIDIA](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)) — $6,396 in cards, before the 1,800 W of combined board power, the motherboard that can seat them, and the PSU that can feed them.
+
+> $6,396 ÷ $1.68/hour ≈ 3,807 hours of rental before ownership breaks even.
+
+At 20 hours a month — an hour each weekday evening — that is roughly 190 months, or close to 16 years. At a heavy 60 hours a month, still over 5 years, by which point the cards and the model will both be museum pieces. We ran the same math for the single-4090 tier in the companion post "How to Run DeepSeek Without a GPU: The $0.49/Hour Trick" — the conclusion scales: unless you run inference several hours every day, renting wins, and it wins harder as the VRAM requirement grows.
+
+## The One-Click Path: DeepSeek on Glows.ai
+
+Free weights fail people at the same three steps: buying enough VRAM, building the CUDA/driver/runtime stack, and configuring multi-GPU serving. Glows.ai collapses all three into a menu. The platform ships official preconfigured DeepSeek images plus ready-to-run vLLM, SGLang, and Ollama stacks, so "setup" means choosing from a list.
+
+1. **Sign up** at [Glows.ai](https://glows.ai) and click `Create New` — the [instance creation guide](https://docs.glows.ai/docs/create-new) has screenshots.
+2. **Pick the GPU tier** from the table above: one RTX 6000 Ada for Q2, one RTX PRO 6000 for Q4, two for FP8.
+3. **Pick your image.** The official DeepSeek-R1 images run with zero configuration — model already in place. For V4 Flash, launch the preconfigured vLLM or SGLang image and pull your chosen quantization from Hugging Face; the [Hugging Face download tutorial](https://glows.ai/article/download_huggingface_models) covers the fastest way to do that, and a Datadrive keeps the 40–160 GB download persistent across sessions so you fetch it once.
+4. **Click `Complete Checkout`.** The instance starts in 30–60 seconds.
+5. **Point your client at the endpoint.** OpenAI-compatible API out of vLLM/SGLang, so Open WebUI, Continue, or your own scripts connect unchanged.
+
+**Reminder:** Billing is hourly and instances shut down cleanly. Stop the instance when you finish and a weekend of Q4 experiments (say, 6 hours) totals about $10.08.
+
+## If Your Budget Is One RTX 4090
+
+Honest advice: if $0.49/hour is the budget, don't force V4. DeepSeek-R1-Distill-Qwen-32B at 4-bit needs about 20 GB, fits a single rented RTX 4090 with room for KV cache, and runs from an official one-click image — the [DeepSeek-R1 quick start](https://glows.ai/article/deepseek_r1) goes from signup to first prompt in about 10 minutes. It scores below V4 on reasoning benchmarks, but it is a genuinely strong model that costs 29% as much per hour as the Q4 Flash tier. Start there, and move up the table when the model — not the hype — demands it.
+
+## FAQ
+
+### Is DeepSeek V4 really free?
+
+The weights are — MIT license, hosted on Hugging Face, usable commercially. The compute is not: V4 Flash needs 48–192 GB of VRAM depending on quantization, which means either $6,000+ of hardware or a cloud GPU rented from $0.72/hour.
+
+### Can I run DeepSeek V4 on a single RTX 4090?
+
+No. The smallest standard quantization (Q2) needs about 48 GB of VRAM and even aggressive community quants land around 33 GB — a 4090 has 24 GB. The single-4090 options are DeepSeek-R1-Distill-32B locally-in-the-cloud, or V4 via API.
+
+### What is the cheapest way to run DeepSeek V4 yourself?
+
+V4 Flash at Q2 quantization on a rented 48 GB GPU: from $0.72/hour on Glows.ai (July 2026 rates). For sustained use, Q4 on a 96 GB card at $1.68/hour is the better quality-per-dollar tier.
+
+### Can an individual run DeepSeek V4 Pro?
+
+Realistically no. The Pro weights are 864.70 GB, needing 512 GB of VRAM even at Q4 — about $10/hour across six 96 GB cards. Unless you need private inference or fine-tuning, the official API at $1.74/$3.48 per million tokens is the sensible route.
+
+### Why does a 13B-active model need 160 GB of VRAM?
+
+Because mixture-of-experts models activate 13B parameters per token but must keep all 284B loaded. Active parameters set the speed; total parameters set the memory bill.
+
+## Run the Free Model Without Buying the Unfree Hardware
+
+DeepSeek gave away a near-frontier model; the only thing standing between you and it is VRAM by the hour. [Sign up at Glows.ai](https://glows.ai), rent the tier that matches your quantization, launch a preconfigured DeepSeek image, and you can be prompting V4 Flash today — for the price of a sandwich, not a server.
