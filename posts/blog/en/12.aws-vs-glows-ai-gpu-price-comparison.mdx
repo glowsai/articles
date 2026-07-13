@@ -19,7 +19,7 @@ Every number in this article comes from public price sheets, with sources and da
 
 A headline like "we ran the same AI job on both clouds" usually hides an unverifiable benchmark. So let's be precise about what we did instead.
 
-We defined one concrete job: **20 GPU-hours on a 48GB NVIDIA L40S** — a realistic budget for a QLoRA fine-tune of an 8B-class model plus evaluation passes, and a duration you can scale linearly (10-hour job? halve every figure). Then we priced that job on both platforms using on-demand rates published in July 2026. The L40S is the cleanest possible comparison because both AWS and Glows.ai rent that exact GPU. No performance assumptions needed — same chip, same VRAM, two price tags.
+We defined one concrete job: **20 GPU-hours on an NVIDIA L40S** — a realistic budget for a QLoRA fine-tune of an 8B-class model plus evaluation passes, and a duration you can scale linearly (10-hour job? halve every figure). Then we priced that job on both platforms using on-demand rates published in July 2026. Both use the L40S; AWS documents 44 GiB of exposed GPU memory on `g6e.xlarge`, while Glows.ai presents the card as 48 GB. Treat those as different units for the same hardware, and confirm the complete instance configuration before treating the rates as a performance benchmark.
 
 Where GPUs differ between platforms (AWS doesn't rent consumer cards like the RTX 4090), we say so and compare published specs, not invented speed tests.
 
@@ -29,9 +29,9 @@ AWS hides its GPUs behind instance names, so here is the decoder ring with curre
 
 | AWS instance | GPU inside | VRAM | On-demand $/hr | $/GPU-hr | Source |
 | --- | --- | --- | --- | --- | --- |
-| `g6.xlarge` | 1× NVIDIA L4 | 24GB | $0.805 | $0.805 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/g6.xlarge), July 2026 |
+| `g6.xlarge` | 1× NVIDIA L4 | 22 GiB exposed | $0.805 | $0.805 | [AWS instance specifications](https://docs.aws.amazon.com/ec2/latest/instancetypes/ac.html), July 2026 |
 | `g5.xlarge` | 1× NVIDIA A10G | 24GB | $1.006 | $1.006 | [AWS G5 page](https://aws.amazon.com/ec2/instance-types/g5/), July 2026 |
-| `g6e.xlarge` | 1× NVIDIA L40S | 48GB | $1.861 | $1.861 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/g6e.xlarge), July 2026 |
+| `g6e.xlarge` | 1× NVIDIA L40S | 44 GiB exposed | $1.861 | $1.861 | [AWS instance specifications](https://docs.aws.amazon.com/ec2/latest/instancetypes/ac.html), July 2026 |
 | `p4d.24xlarge` | 8× NVIDIA A100 | 40GB each | $32.77 | $4.10 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/p4d.24xlarge), July 2026 |
 | `p5.48xlarge` | 8× NVIDIA H100 | 80GB each | ~$55 | ~$6.88 | [IntuitionLabs provider survey](https://intuitionlabs.ai/articles/h100-rental-prices-cloud-comparison), April 2026 |
 
@@ -48,13 +48,13 @@ Here is the cloud GPU price comparison, normalized to one GPU-hour:
 
 | GPU tier | AWS option | AWS $/GPU-hr | Glows.ai option | Glows.ai $/hr | AWS costs |
 | --- | --- | --- | --- | --- | --- |
-| 24GB, budget | `g6.xlarge` (L4) | $0.805 | RTX 4090 | $0.49 | 1.6× |
+| ~24GB, budget | `g6.xlarge` (L4, 22 GiB exposed) | $0.805 | RTX 4090 (24 GB) | $0.49 | 1.6× |
 | 24GB, mid | `g5.xlarge` (A10G) | $1.006 | RTX 4090 | $0.49 | 2.1× |
-| 48GB — same GPU | `g6e.xlarge` (L40S) | $1.861 | L40S | $0.83 | 2.2× |
+| L40S — same GPU | `g6e.xlarge` (44 GiB exposed) | $1.861 | L40S (48 GB listed) | $0.83 | 2.2× |
 | A100 class | `p4d` (A100 **40GB**) | $4.10 | A100 SXM4 **80GB** | $1.20 | 3.4× |
 | H100 80GB | `p5` (H100) | ~$6.88 | H100 | $2.96 | 2.3× |
 
-The 24GB rows deserve a footnote that makes them worse for AWS, not better. The A10G in `g5.xlarge` is a 31.2 TFLOPS (FP32) part with 600 GB/s of memory bandwidth; the RTX 4090 is an 82.6 TFLOPS part with 1,008 GB/s (NVIDIA published specs). At the 24GB tier, AWS charges 2.1× the price for the slower chip — so the cost per finished job spreads even further than the cost per hour.
+The roughly-24GB rows deserve a caveat: `g6.xlarge` exposes 22 GiB, while the RTX 4090 listing is 24 GB, so they are not an exact memory match. The A10G in `g5.xlarge` is a 31.2 TFLOPS (FP32) part with 600 GB/s of memory bandwidth; the RTX 4090 is an 82.6 TFLOPS part with 1,008 GB/s (NVIDIA published specs). Use these figures as a workload-fit comparison, not proof that two instances will complete every job at the same speed.
 
 ### Worked example: the 20-hour L40S fine-tune
 
@@ -100,7 +100,7 @@ For individual builders, the pattern from the tables is consistent: **the specia
 
 ### How much does an AWS GPU instance cost per hour?
 
-As of July 2026, the cheapest AWS GPU instance is the `g6.xlarge` (NVIDIA L4, 24GB) at about $0.80/hour on-demand in us-east-1. A 24GB A10G (`g5.xlarge`) is $1.006/hour, a 48GB L40S (`g6e.xlarge`) is $1.861/hour, and H100s work out to roughly $6.88 per GPU-hour — sold only in 8-GPU blocks at ~$55/hour.
+As of July 2026, the cheapest AWS GPU instance is the `g6.xlarge` (NVIDIA L4, 22 GiB exposed GPU memory) at about $0.80/hour on-demand in us-east-1. A 24GB A10G (`g5.xlarge`) is $1.006/hour, and an L40S `g6e.xlarge` exposes 44 GiB at $1.861/hour. H100s work out to roughly $6.88 per GPU-hour and are sold in 8-GPU blocks at about $55/hour.
 
 ### Why is AWS GPU pricing 2–3× higher than specialist GPU clouds?
 
