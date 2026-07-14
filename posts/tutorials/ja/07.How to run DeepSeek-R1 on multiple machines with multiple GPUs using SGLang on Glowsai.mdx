@@ -1,0 +1,195 @@
+---
+id: deepseek_r1_using_sglang
+title: 'Glows.ai で SGLang を使い、複数マシンと複数 GPU で DeepSeek-R1 を実行する方法'
+date: '2025-05-27 21:03'
+description: 'Glows.ai にマルチノード、マルチ GPU 環境を構築し、SGLang で DeepSeek-R1 を実行します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、Glows.ai で GPU をレンタルし、マルチノード、マルチ GPU 環境で SGLang を使って DeepSeek-R1 を実行する手順を説明します。
+
+## ステップ 1：ストレージ容量を設定する
+
+[Glows.ai](https://glows.ai/) に登録してログインしたら、[Space Management](https://platform.glows.ai/space) を開き、保存領域の `Datadrive` とスナップショット保存用の `Snapshot` を割り当てます。すでに購入済みの場合は、この手順を省略できます。
+
+画像の順序に沿って設定します。
+
+1. 画面の `Upgrade` をクリックし、5GB の容量を購入します。用途に応じて、より大きな容量も購入できます。
+
+![Space Storage](./img/tutorials-images/07.DeepSeekSGLang/01.SpaceStorage.png)
+
+2. ストレージプランの購入後、画像の順序に沿って `Modify` をクリックします。このチュートリアルでは `Snapshot` に 3GB、「TW-01」の `Datadrive` に 2GB を割り当て、`Update` をクリックします。この割り当ては例です。プロジェクトに合わせて調整してください。
+
+![Modify Quata](./img/tutorials-images/07.DeepSeekSGLang/02.ModifyQuota.png)
+
+## ステップ 2：インスタンスを作成する
+
+[Create New](https://platform.glows.ai/create) ページで ` Inference GPU` -- `NVIDIA GeForce RTX 4090` を選び、環境に `SGLang 0.4.2` を指定します。要件に応じて別のマシンや環境も選択できます。
+
+この例では `RTX 4090` GPU を 2 基使います。RTX 4090 は 1 基あたり 24GB の VRAM を搭載し、DeepSeek-R1-Distill-Qwen-14B を実行できます。テスト結果では、DeepSeek-R1 671B の実行には 8 基の H100 を搭載したマシン 2 台、または 8 基の H200 を搭載したマシン 1 台が必要です。設定中に問題が発生した場合はお問い合わせください。
+
+| モデル名                     | 推奨 GPU 構成         | 最小ノード数 | 備考                                    |
+| ---------------------------- | --------------------- | ------------ | --------------------------------------- |
+| DeepSeek-R1-Distill-Qwen-14B | 1x RTX 4090           | 2            | 各 GPU に 24GB の VRAM が必要           |
+| DeepSeek-R1 671B             | 8x H100               | 2            | 8 基の GPU を搭載したマシン 2 台を推奨 |
+| DeepSeek-R1 671B             | 8x H200               | 1            | 複数のハイエンド GPU を同一ノードで使用 |
+
+![CreateNew](./img/tutorials-images/07.DeepSeekSGLang/03.CreateNew.png)
+
+ページ下部の `Mount` をクリックし、自分の `Datadrive` をインスタンスへマウントします。複数のインスタンスでファイルを共有でき、マシン上のファイルを永続保存したり、後でローカルへダウンロードしたりできます。
+
+設定後、`Complete Checkout` をクリックしてインスタンスを作成します。
+
+![Mount Data Drive](./img/tutorials-images/07.DeepSeekSGLang/04.MountDataDrive.png)
+
+SGLang を使って複数のマシンと GPU で大規模モデルの推論サービスを実行するには、同じ手順でもう 1 台のインスタンスを作成します。2 台とも作成されると、**My Instances** ページに 2 件のインスタンスが表示されます。
+
+![My Instance](./img/tutorials-images/07.DeepSeekSGLang/05.MyInstance.png)
+
+インスタンスの起動には約 30～50 秒かかります。状態が `Running` になれば使用できます。
+
+## ステップ 3：プログラムを起動する
+
+### 1. モデルをダウンロードする
+
+インスタンスが起動すると、SSH（SSH Port 22）、JupyterLab（HTTP Port 8888）、HTTP Port 8000 のリンクが表示されます。利用しやすい方法でインスタンスに接続してください。ここでは JupyterLab を推奨します。
+
+**注意：** 追加ポートが必要な場合は `New Port Forwarding` をクリックします。HTTP プロトコルを使うポートでは、追加時に HTTP オプションを選択してください。
+
+![Port](./img/tutorials-images/07.DeepSeekSGLang/06.Port.png)
+
+HTTP Port 8888 の `Open` をクリックして JupyterLab を開きます。新しい Terminal を作成し、次のコマンドでモデルをインスタンスの /home/DeepSeek-R1-Distill-Qwen-14B ディレクトリへダウンロードします。モデルは約 28GB で、ダウンロードには 5～10 分ほどかかります。
+
+**注意：** 両方のノードで JupyterLab を開き、それぞれ次のコマンドを実行してください。
+
+```bash
+huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --local-dir /home/DeepSeek-R1-Distill-Qwen-14B
+```
+
+![Download](./img/tutorials-images/07.DeepSeekSGLang/07.Download.png)
+
+### 2. クラスターを作成する
+
+モデルのダウンロード中に、Glows.ai の **Mesh Clustering** 機能を使って 2 台のインスタンス間に内部ネットワークを設定します。
+
+**Mesh Clustering** ページを開き、画面の手順に沿って Network Group を作成します。
+
+**必須設定：**
+
+- Mesh Type：Network Group
+- Region：TW-01
+- Name：任意の名前を指定します。例：SGLang。
+
+![Create Network Group](./img/tutorials-images/07.DeepSeekSGLang/08.CreateNetworkGroup.png)
+
+`Add Instance` をクリックし、先ほど作成した 2 台のインスタンスを Network Group に追加します。
+
+![Add Instance](./img/tutorials-images/07.DeepSeekSGLang/09.AddInstance.png)
+
+追加後、Status が `Connected` に変われば内部ネットワークは接続済みです。先に表示された IP CIDR は内部 IP アドレスを表します。下図では、2 台の内部 IP は 192.168.1.1 と 192.168.1.2 です。
+
+![Connected](./img/tutorials-images/07.DeepSeekSGLang/10.Connected.png)
+
+### 3. サービスを起動する
+
+モデルのダウンロード後、`ip -4 a` を実行して内部ネットワークインターフェース名と IP アドレスを確認します。
+
+- 内部 IP：192.168.1.1
+- 内部ネットワークインターフェース：meth340
+
+![Internal Network](./img/tutorials-images/07.DeepSeekSGLang/11.InternalNetwork.png)
+
+両方のノードで、次のコマンドを順番に実行します。
+
+```bash
+# On Instance 1, run the following commands in order
+# Note: Replace the values of GLOO_SOCKET_IFNAME and NCCL_SOCKET_IFNAME with the network interface name you found using the ip -4 a command.
+# Note: Replace the values of SGLANG_HOST_IP and HOST_IP with the internal IP address of your designated master node.
+export GLOO_SOCKET_IFNAME=meth340
+export NCCL_SOCKET_IFNAME=meth340
+export SGLANG_HOST_IP=192.168.1.1
+export HOST_IP=192.168.1.1
+python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 0 --trust-remote-code --host 0.0.0.0
+```
+
+![Instance1](./img/tutorials-images/07.DeepSeekSGLang/12.Instance1.png)
+
+```bash
+# On Instance 2, run the following commands in order
+# Note: Replace the values of GLOO_SOCKET_IFNAME and NCCL_SOCKET_IFNAME with the network interface name you found using the ip -4 a command.
+# Note: Replace the values of SGLANG_HOST_IP and HOST_IP with the internal IP address of your designated master node.
+export GLOO_SOCKET_IFNAME=meth341
+export NCCL_SOCKET_IFNAME=meth341
+export SGLANG_HOST_IP=192.168.1.1
+export HOST_IP=192.168.1.1
+python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 1 --trust-remote-code --host 0.0.0.0
+```
+
+![Instance2](./img/tutorials-images/07.DeepSeekSGLang/13.Instance2.png)
+
+正常に動作すると下図のようになります。通常、モデルの読み込みは 1 分以内に完了します。
+
+![Model Loading](./img/tutorials-images/07.DeepSeekSGLang/14.ModelLoading.png)
+
+## ステップ 4：API をテストする
+
+**My Instances** ページで、マスターノードの HTTP Port 8000 リンクをコピーします。リンクの token 部分は省略できます。
+
+```bash
+Copied link：https://tw-03.access.glows.ai:24516?token=hSFGABSM
+Actual link：https://tw-03.access.glows.ai:24516
+```
+
+![HTTP Port 8000](./img/tutorials-images/07.DeepSeekSGLang/15.HTTPPort8000.png)
+
+次のテストコードで、base_url をコピーしたリンクに置き換えます。
+
+```python
+import openai
+client = openai.Client(
+    base_url="https://tw-03.access.glows.ai:24516/v1", api_key="EMPTY")
+
+# Chat completion
+response = client.chat.completions.create(
+    model="default",
+    messages=[
+        {"role": "system", "content": "You are a helpful AI assistant"},
+        {"role": "user", "content": "What model are you and who developed it?"},
+    ],
+    temperature=0.6
+)
+print(response)
+```
+
+![Demo](./img/tutorials-images/07.DeepSeekSGLang/16.Demo.png)
+
+## ステップ 5：データ保存とスナップショット
+
+データ保存とスナップショットを使うには、[Space Management](https://platform.glows.ai/space) ページでストレージ容量を購入します。
+
+### 1. データを保存する
+
+プログラムがインスタンスのハードディスクに大きな出力ファイルを生成し、インスタンスを動かし続けずにローカルへダウンロードしたい場合は、`cp/mv` コマンドでファイルを `/datadrive` に移動またはコピーします。プログラムの出力先を最初から `/datadrive` に設定してもかまいません。
+インスタンスをリリースした後も [**Data Drive**](https://platform.glows.ai/data) ページからファイルをダウンロードできます。複数のインスタンスで `/datadrive` のデータを共有することもできます。
+
+この例のような大規模モデルでは、通常はインスタンスごとにモデルをダウンロードします。モデルを `/datadrive` に直接ダウンロードするか、ローカルからアップロードすれば、新しく作成した各インスタンスからアクセスでき、再ダウンロードは不要です。
+
+### 2. スナップショットを作成する
+
+使用中に pip で Python パッケージを追加するなど、システム環境を変更した場合は Snapshot を作成できます。環境が正しく設定されたことを確認し、**My Instances** ページで `Take Snapshot` をクリックします。次回はスナップショットからインスタンスを作成でき、環境の再インストールや再設定は不要です。
+
+環境を変更していない場合は、スナップショットを作成する必要はありません。
+
+![Take Snapshot](./img/tutorials-images/07.DeepSeekSGLang/17.TakeSnapshot.png)
+
+## ステップ 6：インスタンスを終了する
+
+利用を終えて必要な環境やデータを保存したら、My Instances ページで Release をクリックしてインスタンスを終了します。リリースすると課金も停止します。
+リリースを忘れると課金が続きます。クレジットがゼロになると、システムがスナップショットを作成してからマシンをリリースします。
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、次のメールアドレスまでお問い合わせください。
+
+**Email: support@glows.ai**

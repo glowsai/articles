@@ -1,0 +1,166 @@
+---
+id: run_gpustack_on_glowsai
+title: 'Glows.ai で GPUStack を実行する方法'
+date: '2025-09-14 11:00'
+description: 'NVIDIA RTX 4090 を使って Glows.ai に GPUStack をデプロイし、インスタンス作成、WebUI、API 連携、Auto Deploy を設定します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、**Glows.ai** で **NVIDIA GeForce RTX 4090** GPU をレンタルし、**GPUStack** を実行する手順を説明します。
+
+扱う内容は次のとおりです。
+
+- Glows.ai でのインスタンス作成
+- GPUStack を使った任意のモデルサービスのデプロイ
+- コードからのデプロイ済みモデル呼び出し
+- **Auto Deploy** オンデマンドモードの概要
+
+---
+
+## GPUStack の概要
+
+**GPUStack** は AI モデルを実行するためのオープンソース GPU クラスター管理ツールです。NVIDIA CUDA や Apple Metal などの GPU、LLM、VLM、画像モデルなどのモデル、vLLM や Ascend MindIE などの推論バックエンドに対応しています。複数バージョンのバックエンドを同時に実行でき、単一ノードまたは複数ノードでのマルチ GPU 推論、自動障害復旧、負荷分散、リアルタイム GPU 監視も利用できます。
+
+GPUStack はさまざまな GPU、モデル、推論バックエンドを組み合わせ、異種 GPU 間で分散推論を実行できます。既存アプリケーションと連携しやすい **OpenAI-compatible API** も提供しています。
+
+主な機能：
+
+- 複数の GPU プラットフォームに対応（NVIDIA CUDA、Apple Metal など）
+- 複数のモデル形式に対応（LLM、VLM、画像モデルなど）
+- 複数の推論バックエンドに対応（vLLM、Ascend MindIE など）
+- 複数バージョンのバックエンドを並行実行し、単一ノードまたは複数ノードでマルチ GPU 推論を実行
+- 自動障害復旧、負荷分散、リアルタイム GPU 監視
+
+同種のツールと比べて、GPUStack には次の特徴があります。
+
+- 多様な GPU とモデルに対応
+- 柔軟なバックエンド連携
+- 異なるベンダーの GPU を組み合わせた分散推論
+- 連携を簡単にする **OpenAI-compatible API**
+
+---
+
+## インスタンスを作成する
+
+1. **Glows.ai** にログインし、用途に合わせて新しいインスタンスを作成します。[公式チュートリアル](https://docs.glows.ai/docs/create-new)を参照してください。
+2. **Create New** ページで次の項目を設定します。
+
+   - **Workload Type**：**Inference GPU -- 4090** を選択
+   - **Image**：公式の **GPUStack (img-rgqwxrpy)** イメージを選択。GPUStack サービスが設定済みで、ポート 80 で待ち受けます。
+
+![image-20250908104737276](./img/tutorials-images/GPUStack/01.png)
+
+### Datadrive を使う（任意）
+
+**Datadrive** は Glows.ai のクラウドストレージサービスで、インスタンス作成前にデータ、モデル、コードをアップロードできます。
+作成時に **Mount** をクリックすると Datadrive が接続され、直接読み書きできます。
+このチュートリアルでは推論サービスだけを扱うため、Datadrive のマウントは任意です。
+
+設定後、**Complete Checkout** をクリックしてインスタンスを作成します。
+
+![image-20250908172833649](./img/tutorials-images/GPUStack/02.png)
+
+> **注意**：GPUStack イメージの起動には約 30～60 秒かかります。
+> **My Instances** ページで状態を確認できます。起動後は次のポートを利用できます。
+
+- **SSH Port 22** → SSH ログイン
+- **HTTP Port 8888** → JupyterLab
+- **HTTP Port 80** → GPUStack WebUI
+
+---
+
+## GPUStack WebUI を使う
+
+### 1. ユーザー名とパスワードを取得する
+
+- 既定のユーザー名：`admin`
+- パスワードはインスタンス内で取得します。
+
+1. **HTTP Port 8888 → Open** をクリックして JupyterLab を開きます。
+
+![image-20250821162610764](./img/tutorials-images/GPUStack/03.png)
+
+2. 新しい **Terminal** を開きます。
+
+![image-20250821162648937](./img/tutorials-images/GPUStack/04.png)
+
+3. 次のコマンドで GPUStack WebUI のパスワードを取得します。
+
+   ```bash
+   cat /var/lib/gpustack/initial_admin_password
+   ```
+
+![image-20250821162729721](./img/tutorials-images/GPUStack/05.png)
+
+### 2. WebUI にログインする
+
+- インスタンス画面で **HTTP Port 80 → Open** をクリックします。
+  ![image-20250821162755137](./img/tutorials-images/GPUStack/06.png)
+
+- 取得したユーザー名とパスワードを入力し、`Log in` をクリックします。
+
+![image-20250821162818233](./img/tutorials-images/GPUStack/07.png)
+
+- ログイン後、パスワードの変更を求められます。
+
+![image-20250821162841553](./img/tutorials-images/GPUStack/08.png)
+
+### 3. GPUStack WebUI を操作する
+
+- **Dashboards**：現在の worker、GPU、デプロイ済みモデル、GPU/CPU 使用率などのリソース情報を表示します。
+  ![image-20250821162859700](./img/tutorials-images/GPUStack/09.png)
+
+- **Catalog**：Ollama や HuggingFace などからモデルを直接デプロイします。
+  ![image-20250821171409795](./img/tutorials-images/GPUStack/10.png)
+
+設定後、**Deployments** ページへ移動してモデルのダウンロードが始まります。
+
+![image-20250821171445281](./img/tutorials-images/GPUStack/11.png)
+
+モデルのダウンロードと起動が完了すると、状態が **Running** になります。
+
+![image-20250821171944239](./img/tutorials-images/GPUStack/12.png)
+
+**Chat** ページへ切り替えると、モデルと対話できます。
+
+![image-20250821173105073](./img/tutorials-images/GPUStack/13.png)
+
+GPUStack でデプロイしたモデルは **API** からも呼び出せます。画面の **View Code** をクリックすると公式のサンプルコードを確認できます。
+
+![image-20250821172308362](./img/tutorials-images/GPUStack/14.png)
+
+---
+
+## API Key を取得する
+
+1. 左下のユーザーアバター → **API Keys** をクリックします。
+   ![image-20250821172135022](./img/tutorials-images/GPUStack/15.png)
+2. **New API Key** をクリックして項目を入力します。
+   ![image-20250821172216747](./img/tutorials-images/GPUStack/16.png)
+3. 生成された API Key で GPUStack モデルの API を呼び出します。
+   ![image-20250821173253057](./img/tutorials-images/GPUStack/17.png)
+
+---
+
+## Auto Deploy：オンデマンドモード
+
+従来のデプロイではインスタンスを手動で作成、リリースするため、利用頻度が低い場合や第三者へ API を提供する場合には手間がかかります。**Glows.ai Auto Deploy** は、リクエストを受信するとインスタンスを作成して処理を開始します。
+
+- 各 Auto Deploy には固定のサービス URL があります
+- リクエストを受信するとインスタンスを作成します
+- 5 分間新しいリクエストがなければインスタンスをリリースします
+
+📘 詳しい手順は [Auto Deploy ドキュメント](https://docs.glows.ai/docs/auto-deploy-usage)を参照してください。
+
+---
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、Email、Discord、Line からお問い合わせください。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG

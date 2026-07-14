@@ -1,0 +1,224 @@
+---
+id: run_gpt_oss
+title: 'Glows.ai で GPT-OSS-20B と GPT-OSS-120B を実行する方法'
+date: '2025-08-14 10:18'
+description: 'NVIDIA RTX 4090 を使って Glows.ai で GPT-OSS-20B と GPT-OSS-120B を実行し、インスタンス作成、API 呼び出し、Auto Deploy を設定します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、Glows.ai で **NVIDIA GeForce RTX 4090** GPU をレンタルし、**gpt-oss-20b** を実行する手順を説明します。同じ方法で **NVIDIA H100 SXM5** 上の **gpt-oss-120b** も実行できます。
+
+扱う内容は次のとおりです。
+
+- Glows.ai でのインスタンス作成
+- gpt-oss-20b の使用
+- ほかのユーザーとのアクセス共有
+- API からの gpt-oss-20b 呼び出し
+- Auto Deploy を使ったオンデマンド起動
+
+**GPT-OSS-20B** は OpenAI が 2025 年 8 月に公開したオープンソース大規模言語モデルで、約 210 億のパラメーターがあります。**Mixture-of-Experts（MoE）** アーキテクチャを採用し、各 token で有効になるパラメーターは約 36 億です。この仕組みにより、推論に必要なリソースを抑えています。ローカル環境へデプロイでき、MoE レイヤー向けの性能最適化によって 16GB の GPU メモリーで動作します。公式ベンチマークでは、複数の一般的なテストで **OpenAI o3-mini** に近い性能を示しています。
+
+![image-20250811161540192](./img/tutorials-images/12_gpt_oss/01.png)
+
+## インスタンスを作成する
+
+[このガイド](https://docs.glows.ai/docs/create-new)に沿って、Glows.ai でオンデマンドインスタンスを作成します。公式の設定済み **GPT OSS 20B** イメージ（img-neqm8dp2）を選択してください。
+
+**Create New** ページで `Workload Type` を **Inference GPU -- 4090** に設定し、**GPT OSS 20B** イメージを選びます。このイメージには必要な実行環境が含まれ、Ollama（ポート 11434）と OpenWebUI（ポート 8080）が起動済みです。
+
+![image-20250811142101261](./img/tutorials-images/12_gpt_oss/02.png)
+
+**Datadrive** は Glows.ai のクラウドストレージサービスです。インスタンス作成前にデータ、モデル、コードをアップロードできます。作成時に `Mount` をクリックすると Datadrive がマウントされ、インスタンスから直接アクセスできます。
+
+このチュートリアルでは推論だけを扱うため、Datadrive のマウントは不要です。
+
+設定後、右下の `Complete Checkout` をクリックしてインスタンスを作成します。
+
+![image-20250811142313589](./img/tutorials-images/12_gpt_oss/03.png)
+
+**GPT OSS 20B** インスタンスの起動には約 30～60 秒かかります。起動後、`My Instances` で状態とアクセスリンクを確認できます。
+
+- **SSH Port 22**：SSH 接続
+- **HTTP Port 8888**：JupyterLab
+- **HTTP Port 11434**：Ollama API
+- **HTTP Port 8080**：OpenWebUI
+
+![image-20250811142452011](./img/tutorials-images/12_gpt_oss/04.png)
+
+## GPT OSS 20B を使う
+
+`My Instances` ページで **HTTP Port 8080** の `Open` をクリックし、**Open WebUI** を開きます。初回は管理者アカウントを作成します。
+
+![image-20250811142719474](./img/tutorials-images/12_gpt_oss/05.png)
+
+アカウント作成後、チャット画面で **gpt-oss-20b** モデルと対話できます。
+
+![image-20250811143014826](./img/tutorials-images/12_gpt_oss/06.png)
+
+**Open WebUI** は現在の会話に基づいて次の質問も提案します。
+
+![image-20250811150602422](./img/tutorials-images/12_gpt_oss/07.png)
+
+## ほかのユーザーと共有する
+
+OpenWebUI には会話をユーザーごとに分離するアカウント管理機能があります。左上のメニュー → 左下のアバター → **`Admin Panel`** の順にクリックします。
+
+![image-20250811143426787](./img/tutorials-images/12_gpt_oss/08.png)
+
+`Settings` を開き、**Default User Role** を `user` に設定して **New Sign Ups** を有効にし、`Save` をクリックします。
+
+![image-20250811144203704](./img/tutorials-images/12_gpt_oss/09.png)
+
+`My Instances` にある **HTTP Port 8080** のリンクを共有します。受け取ったユーザーはブラウザーでリンクを開き、`Sign up` をクリックしてアカウントを作成できます。
+
+![image-20250811144249486](./img/tutorials-images/12_gpt_oss/10.png)
+
+ユーザーの登録後、管理者は **`Admin Panel`** でアカウントと質問履歴を確認できます。
+
+![image-20250811144448371](./img/tutorials-images/12_gpt_oss/11.png)
+
+## API から GPT OSS 20B を呼び出す
+
+GPT-OSS-20B をプログラムから呼び出すには API サービスを有効にします。
+
+**`Admin Panel` → `Settings`** を開いて **Enable API Key** までスクロールし、有効にして **Save** をクリックします。
+
+![image-20250811144752670](./img/tutorials-images/12_gpt_oss/12.png)
+
+個人アカウントの `Settings` → `Account` で API key を表示または作成します。このキーは後の **Auto Deploy** 例で使うため、安全に保管してください。
+
+![image-20250811144841124](./img/tutorials-images/12_gpt_oss/13.png)
+![image-20250811144912480](./img/tutorials-images/12_gpt_oss/14.png)
+
+**API key** を取得したら、次の形式でリクエストを送信できます。API endpoint の形式：
+
+```bash
+API Endpoint = HTTP Port 8080 link + /api/chat/completions
+Example: https:/tw-05.access.glows.ai:25947/api/chat/completions
+```
+
+リクエスト例：
+
+```bash
+curl -X POST https:/tw-05.access.glows.ai:25947/api/chat/completions \
+  -H "Authorization: Bearer sk-f9xxxxxxxxxxxx0" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "messages": [
+          {
+            "role": "user",
+            "content": "I just started college and want to learn Python artificial intelligence. Please help me plan my study content."
+          }
+        ],
+        "model": "gpt-oss:20b",
+        "temperature": 0.7
+      }'
+```
+
+推論後、モデルが結果を返します。
+
+![image-20250811150332264](./img/tutorials-images/12_gpt_oss/15.png)
+
+OpenAI の Python SDK も利用できます。
+
+```python
+import openai
+client = openai.Client(
+    base_url="https:/tw-06.access.glows.ai:25947/api", api_key="sk-f9xxxxxxxxxxxx0")
+
+# Chat completion
+response = client.chat.completions.create(
+    model="gpt-oss:20b",
+    messages=[
+        {"role": "system", "content": "You are a helpful AI assistant"},
+        {"role": "user", "content": "Tell me which is bigger, 9.11 or 9.8"},
+    ],
+    temperature=0.6
+)
+print(response)
+```
+
+![image-20250811170502665](./img/tutorials-images/12_gpt_oss/16.png)
+
+## 高度な使い方：**Auto Deploy**
+
+従来の GPU デプロイではインスタンスを手動で作成、リリースするため、利用頻度が低い場合や第三者へ API アクセスを提供する場合には手間がかかります。
+
+**Glows.ai Auto Deploy** は固定のサービスリンクを発行します。リンクがリクエストを受信すると Glows.ai がインスタンスを作成し、5 分間新しいリクエストがなければ自動でリリースします。これによりオンデマンドで起動できます。
+
+### スナップショットを作成する
+
+API key と環境設定を保存するには、Glows.ai で **`Take Snapshot`** を実行します。
+
+![image-20250811170732162](./img/tutorials-images/12_gpt_oss/17.png)
+
+スナップショット名を入力して **`automatically released`** を選択し、作成後にインスタンスをリリースします。
+
+![image-20250811170845190](./img/tutorials-images/12_gpt_oss/18.png)
+
+ストレージを購入していない場合、Glows.ai はスナップショットを **Snapshots → Restorable** に保存します。このチュートリアルのスナップショットは小さいため、[Storage Space](https://platform.glows.ai/space) で月額 \$0.5 の 5GB プランを購入し、1GB をスナップショットへ割り当てられます。その後、[Snapshots](https://platform.glows.ai/snapshots) で **Available** へ移動します。
+
+![image-20250811171559043](./img/tutorials-images/12_gpt_oss/19.png)
+
+### Auto Deploy を設定する
+
+[Auto Deploy](https:/platform.glows.ai/deploy) → `New Deploy` を開き、新しい設定を作成して識別しやすい名前を付けます。
+
+![image-20250811171843622](./img/tutorials-images/12_gpt_oss/20.png)
+
+GPU と環境を選択します。スナップショットまたはシステムイメージを利用できます。ここでは先ほど作成したスナップショットを選びます。
+
+![image-20250811171948063](./img/tutorials-images/12_gpt_oss/21.png)
+
+サービスのポートと起動コマンドを設定します。この例では Open WebUI がポート 8080 で自動起動するため、ポートだけを設定します。
+
+```bash
+Port: 8080
+```
+
+![image-20250811172106189](./img/tutorials-images/12_gpt_oss/22.png)
+`Confirm` をクリックして設定を完了します。
+
+### 設定を確認する
+
+設定後、固定リンクと設定内容が表示されます。
+
+![image-20250811172148517](./img/tutorials-images/12_gpt_oss/23.png)
+
+### Auto Deploy リンクを呼び出す
+
+API endpoint を Auto Deploy リンクに置き換え、Authorization に API key を指定します。
+
+```bash
+curl -X POST https:/tw-05.sgw.glxxxxxx224w/api/chat/completions \
+  -H "Authorization: Bearer sk-f9xxxxxxxxxxxx0" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "messages": [
+          {
+            "role": "user",
+            "content": "I just started college and want to learn Python artificial intelligence. Please help me plan my study content."
+          }
+        ],
+        "model": "gpt-oss:20b",
+        "temperature": 0.7
+      }'
+```
+
+![image-20250811173542494](./img/tutorials-images/12_gpt_oss/24.png)
+
+5 分間新しいリクエストがなければ、システムはインスタンスをリリースします。**Auto Deploy** には合計コストと **Instance Status** も表示されます。
+
+- **Standby**：設定は正常で、インスタンスは起動していません。
+- **Idle**：リクエストを受信してインスタンスを作成中、または自動リリース中です。
+- **Running**：インスタンスがリクエストを処理中です。5 分間アイドル状態が続くと自動でリリースします。
+
+大規模に利用する場合は、イメージやスナップショットの事前キャッシュについて Glows.ai へお問い合わせください。起動時間を短縮できます。
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、次の窓口までお問い合わせください。
+
+- **Email:** [support@glows.ai](mailto:support@glows.ai)
+- **Line link:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

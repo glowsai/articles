@@ -1,0 +1,191 @@
+---
+id: breezyvoice
+title: 'Glows.ai の BreezyVoice で自然な音声を作成し、音声を生成する方法'
+date: '2025-06-10 14:34'
+description: 'Glows.ai で音声合成システム BreezyVoice を実行し、パーソナライズした音声ファイルを生成します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、Glows.ai の **NVIDIA GeForce RTX 4090** GPU で音声合成システム **BreezyVoice** を実行し、パーソナライズした音声ファイルを生成する手順を説明します。
+
+**[BreezyVoice](https://github.com/mtkresearch/BreezyVoice)** は、中国語の Text-to-Speech（TTS）合成に特化したオープンソースシステムで、次の機能があります。
+
+- **5 秒**の音声サンプルを使った声のクローン
+- 人間の声に近い、自然で滑らかな音声出力
+- Breeze2 シリーズの一部である [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) 拡張を使用
+
+以下では Glows.ai のクラウド GPU で **BreezyVoice** を実行し、声を作成して音声ファイルを生成します。
+
+![image-20250527143008021](./img/tutorials-images/08.BreezyVoice/05.png)
+
+## ステップ 1：インスタンスを作成する
+
+この[チュートリアル](https://docs.glows.ai/docs/Create%20New)に沿って Glows.ai でインスタンスを作成し、公式の **BreezyVoice WebUI** イメージを選択します。
+
+`Create New` ページで **Inference GPU -- 4090** を選び、**BreezyVoice WebUI** イメージを指定します。このイメージには必要な環境が含まれており、ポート 8080 で BreezyVoice WebUI サービスを起動します。
+
+![image-20250527142118492](./img/tutorials-images/08.BreezyVoice/01.png)
+
+**Data Drive** は Glows.ai のクラウドストレージサービスです。データ、モデル、コードを先に Data Drive へアップロードできます。インスタンスの作成時に **Mount** をクリックすると Data Drive がインスタンスへマウントされ、保存したファイルへアクセスできます。
+
+設定が終わったら、右下の `Complete Checkout` をクリックしてインスタンスを作成します。
+
+![image-20250527142206510](./img/tutorials-images/08.BreezyVoice/02.png)
+
+**BreezyVoice WebUI** インスタンスの起動には約 30～60 秒かかります。起動後、`My Instances` ページで状態と情報を確認できます。使用するポートは次のとおりです。
+
+- **SSH Port 22**：SSH 接続
+- **HTTP Port 8888**：JupyterLab
+- **HTTP Port 8080**：BreezyVoice WebUI サービス
+
+![image-20250527142608982](./img/tutorials-images/08.BreezyVoice/03.png)
+
+## ステップ 2：BreezyVoice WebUI を使う
+
+`My Instances` ページで **HTTP Port 8080** の `Open` をクリックし、**BreezyVoice WebUI** を開きます。
+
+![image-20250527142840557](./img/tutorials-images/08.BreezyVoice/04.png)
+
+**BreezyVoice WebUI** へ録音済みの音声ファイルをアップロードするか、`Record` をクリックして音声サンプルを録音します。20～30 秒の音声を推奨します。
+
+次に、対応する書き起こしをテキストボックスへ入力します。
+
+![image-20250527143100877](./img/tutorials-images/08.BreezyVoice/06.png)
+
+「Enter text to synthesize」欄に AI で合成する文章を入力し、`Synthesize Audio` をクリックします。生成には約 7 秒かかりますが、音声ファイルのサイズと合成する文章の長さによって変わります。
+
+合成が終わったら `Play` をクリックして再生するか、右上の `Download` をクリックして音声ファイルを **Data Drive** へ保存します。
+
+![image-20250527143541680](./img/tutorials-images/08.BreezyVoice/07.png)
+
+## ステップ 3：BreezyVoice API を呼び出す
+
+**BreezyVoice** はブラウザーだけでなく API サービスとしても利用できます。
+
+`My Instances` で **HTTP Port 8888** の `Open` をクリックして JupyterLab を起動します。`Other` カテゴリーの `Terminal` を開き、コマンドラインを表示します。
+
+![image-20250527145829523](./img/tutorials-images/08.BreezyVoice/08.png)
+
+左側のサイドバーで `BreezyVoice-api.py` を開き、ポートを 8080 から 8081 へ変更します。`Ctrl + S` で保存し、BreezyVoice WebUI のポートとの競合を避けます。
+
+![image-20250527150120234](./img/tutorials-images/08.BreezyVoice/09.png)
+
+独自の音声サンプルを使う場合は `api.py` を開き、コード内の音声ファイルパスと対応する書き起こしを自分の音声と文章に変更します。
+
+![image-20250527153430931](./img/tutorials-images/08.BreezyVoice/11.png)
+
+ターミナルで次のコマンドを順に実行し、API サービスを起動します。
+
+```bash
+cd /BreezyVoice/
+python api.py
+```
+
+![image-20250527153307923](./img/tutorials-images/08.BreezyVoice/10.png)
+
+サービスはポート 8081 で待ち受けます。**My Instances** ページで `New Port Forwarding` をクリックし、ポート転送ルールを追加します。次の情報を入力して `Create` をクリックします。
+
+- ポート番号：8081
+- プロトコル：HTTPS
+
+![image-20250527153652631](./img/tutorials-images/08.BreezyVoice/12.png)
+
+ポートの設定には約 15 秒かかります。ページが自動更新されない場合は、手動で更新してください。HTTP Port 8081 の横にある `Copy` をクリックすると、API リンクをコピーできます。
+
+```bash
+https://tw-02.access.glows.ai:23197?token=jrF2uJF3yj
+# The token part is a parameter tag and can be omitted
+```
+
+![image-20250527153921579](./img/tutorials-images/08.BreezyVoice/13.png)
+
+ローカルに OpenAI パッケージをインストールしたら、次のコードで API をテストできます。
+
+```python
+# If OpenAI is not installed, install it first via: pip install openai
+import openai
+
+client = openai.Client(base_url="https://tw-02.access.glows.ai:23197", api_key="sk-template")
+
+response = client.audio.speech.create(
+    model="tts-1",
+    voice="alloy",
+    input="放學我們一起去打籃球怎麼樣，今天天氣不錯",
+)
+
+speech_file_path = "./test_speech.wav"
+with open(speech_file_path, "wb") as audio_file:
+    audio_file.write(response.content)
+```
+
+次の curl コマンドで API を直接呼び出すこともできます。
+
+```bash
+curl -X POST "https://tw-02.access.glows.ai:23197/v1/audio/speech" \
+  -H "Authorization: Bearer sk-template" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "model": "tts-1",
+    "voice": "alloy",
+    "input": "放學我們一起去打籃球怎麼樣，今天天氣不錯"
+  }' --output test_speech.wav
+```
+
+実行後、合成音声を保存した `test_speech.wav` がローカルに生成されます。
+
+## 高度な使い方：**Auto Deploy**
+
+これまでの方法ではインスタンスを手動で作成、リリースするため、利用頻度が低い場合は手間がかかります。
+
+Glows.ai の **Auto Deploy** サービスも利用できます。設定すると固定リンクが発行されます。このリンクがリクエストを受信すると、Glows.ai がインスタンスを作成してリクエストを処理します。5 分間新しいリクエストがなければ、インスタンスを自動でリリースします。
+
+次の手順で設定します。
+
+### **Auto Deploy** を設定する
+
+`Auto Deploy` ページを開き、右上の `New Deploy` をクリックしてデプロイ設定を追加します。
+
+![image-20250527162345042](./img/tutorials-images/08.BreezyVoice/14.png)
+
+![image-20250527162731979](./img/tutorials-images/08.BreezyVoice/15.png)
+
+![image-20250527162828692](./img/tutorials-images/08.BreezyVoice/16.png)
+
+### 設定情報を確認する
+
+![image-20250527162928849](./img/tutorials-images/08.BreezyVoice/17.png)
+
+### Auto Deploy リンクを呼び出す
+
+API の呼び出し方法は同じです。API リンクを **Auto Deploy** リンクに置き換えます。
+
+```bash
+curl -X POST "https://tw-01.sgw.glows.ai:xxxxxx/v1/audio/speech" \
+  -H "Authorization: Bearer sk-template" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "model": "tts-1",
+    "voice": "alloy",
+    "input": "放學我們一起去打籃球怎麼樣，今天天氣不錯"
+  }' --output test_speech.wav
+```
+
+![image-20250527163237581](./img/tutorials-images/08.BreezyVoice/18.png)
+
+リクエストの完了後、5 分間新しい API 呼び出しがなければ、システムはインスタンスのリソースを自動でリリースします。
+
+Auto Deploy ページには、各デプロイの合計コストとインスタンスの状態が表示されます。各状態の意味は次のとおりです。
+
+- **Standby**：設定済みで、現在実行中のインスタンスはありません。
+- **Idle**：リクエストを受信し、インスタンスを作成中です。またはインスタンスを自動リリースしています。
+- **Running**：インスタンスが作成され、リクエストを処理しています。完了後は新しいリクエストを待ち、5 分間リクエストがなければ自動でリリースします。
+
+![image-20250527163744664](./img/tutorials-images/08.BreezyVoice/19.png)
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、次の窓口までお問い合わせください。
+
+- **Email:** [support@glows.ai](mailto:support@glows.ai)
+- **Line link:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

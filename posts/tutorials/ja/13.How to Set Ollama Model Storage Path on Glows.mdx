@@ -1,0 +1,87 @@
+---
+id: set_ollama_model_path
+title: 'Glows.ai で Ollama モデルの保存先を設定する方法'
+date: '2025-09-14 11:00'
+description: 'Glows.ai インスタンスの Ollama モデルを /datadrive に保存し、スナップショット作成とモデルの再利用を効率化します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、**Glows.ai** インスタンスの **Ollama モデル保存先**を `/datadrive/ollama` に設定します。
+
+スナップショットはインスタンス内の変更を保存しますが、`/datadrive` ディレクトリは対象外です。
+モデルファイルをインスタンスのローカルディスクへ保存すると Snapshot が大きくなり、再起動時の読み込みにも時間がかかります。
+
+モデル、データ、コードは `/datadrive` へ保存し、Snapshot には `pip` や `apt` で追加したパッケージなどの環境変更だけを保存することを推奨します。
+
+---
+
+## Ollama モデルの保存先を設定する
+
+作業を始める前に、インスタンス作成時に **Mount** を選び、`Datadrive` を接続したことを確認してください。
+
+![image-20250906115435105](./img/tutorials-images/Ollama/01.png)
+
+インスタンス作成後、インスタンス画面で **HTTP 8888 Port（JupyterLab サービス）**を開き、下図のように新しい **Terminal** を作成します。
+
+![image-20250906110026201](./img/tutorials-images/Ollama/02.png)
+
+Terminal で次の操作を順に行います。
+
+1. 実行中の Ollama サービスを停止する
+2. Ollama モデルの保存先を `/datadrive/ollama` に設定する
+3. Ollama サービスを再起動する
+
+```bash
+pkill -f ollama
+export OLLAMA_HOST=0.0.0.0
+export OLLAMA_MODELS=/datadrive/ollama
+nohup ollama serve > ollama.log 2>&1 &
+```
+
+![image-20250906110430019](./img/tutorials-images/Ollama/03.png)
+
+設定して再起動すると、`ollama pull` でダウンロードしたモデルは `/datadrive/ollama` に保存されます。
+次回は Snapshot を作成しなくても、Datadrive を再マウントすればダウンロード済みモデルを利用できます。
+
+![image-20250906110704574](./img/tutorials-images/Ollama/04.png)
+
+---
+
+## 起動時に Ollama モデルの保存先を設定する
+
+新しいインスタンスを起動するたびに保存先を設定したくない場合は、**Glows.ai インスタンスの起動ファイル**へ環境変数を追加します。
+
+起動ファイルは `/usr/bin/glows_init.sh` にあります。編集しやすいよう、Terminal で `/root/glows_init.sh` へのシンボリックリンクを作成します。
+
+```bash
+ln -sf /usr/bin/glows_init.sh /root/glows_init.sh
+```
+
+JupyterLab の左側ナビゲーションで **root directory** を開き、`glows_init.sh` をダブルクリックして編集します。**Ollama が起動する前**に次の行を追加します。
+
+```bash
+export OLLAMA_MODELS=/datadrive/ollama
+```
+
+**Ctrl + S** でファイルを保存します。
+
+![image-20250906114655391](./img/tutorials-images/Ollama/05.png)
+
+設定後、Snapshot を作成できます。インスタンス画面で **Take Snapshot** をクリックし、名前を入力します。現在のインスタンスが不要な場合は **Release instance after Snapshot completes** を選択できます。
+
+![image-20250908180754775](./img/tutorials-images/Ollama/06.png)
+
+この Snapshot から作成する新しいインスタンスでは、Ollama モデルが `/datadrive/ollama` に保存されるため、再設定は不要です。
+
+---
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、Email、Discord、Line からお問い合わせください。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG

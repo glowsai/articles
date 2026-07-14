@@ -1,0 +1,151 @@
+---
+id: cloud_drive_file
+title: 'Glows.ai でクラウドドライブのデータをダウンロード、アップロードする方法'
+date: '2025-03-17 10:05'
+description: 'Glows.ai から Google Drive などのクラウドストレージへファイルやデータセットをアップロード、ダウンロードします。'
+tags:
+  - Tutorial
+---
+
+このガイドでは、Glows.ai のマシンから Google Drive などのクラウドストレージへファイルをアップロードする方法と、クラウドストレージからファイルをダウンロードする方法を説明します。選択したイメージに **SSH または JupyterLab の機能が含まれていること**を確認してください。
+
+---
+
+## **ステップ 1：インスタンスを作成する**
+
+用途に合わせて Glows.ai で新しいインスタンスを作成します。操作方法がわからない場合は、[新規インスタンス作成ガイド](https://docs.glows.ai/docs/Create%20New)を参照してください。
+
+---
+
+## **ステップ 2：Rclone をインストールする**
+
+> **Rclone** は、ローカルと各種クラウドストレージ間でファイルを同期するコマンドラインツールです。暗号化、圧縮、マルチスレッド転送に対応しています。
+
+インスタンスの状態が `Running` になったら `Access` セクションを開き、ポート `8888` の横にある `Open` ボタンをクリックして JupyterLab を起動します。
+
+![Create an Instance](./img/tutorials-images/04.CloudDrive/01.CreateAnInstance.png)
+
+**JupyterLab** の Launcher で Terminal アイコンをクリックし、ターミナルを開きます。
+
+![Launcher](./img/tutorials-images/04.CloudDrive/02.Lancher.png)
+
+ターミナルで次のコマンドを実行し、Rclone をインストールします。
+
+```bash
+curl https://rclone.org/install.sh | bash
+```
+
+インストール後、次のコマンドで Rclone が正しくインストールされたことを確認します。
+
+```bash
+rclone --version
+```
+
+![Rclone Version](./img/tutorials-images/04.CloudDrive/03.RcloneVersion.png)
+
+---
+
+## **ステップ 3：Google Drive を設定する**
+
+次のコマンドで設定を開始します。
+
+```bash
+rclone config
+```
+
+画面の案内に従って操作します。
+
+1. `n` を入力して新しい remote を作成します。remote は Rclone 上でクラウドドライブを表すストレージ設定です。後のコマンドで使う名前を自由に設定できます。
+
+2. remote に `glows` や `mydrive` などの名前を付けます。
+
+![Create New Remote](./img/tutorials-images/04.CloudDrive/04.CreateNewRemote.png)
+
+接続するクラウドストレージを選択します。このガイドでは Google Drive を使うため、`drive` または対応する番号（例：`20`）を入力します。
+
+![Choose Cloud Storage](./img/tutorials-images/04.CloudDrive/05.ConfigureCloudStorage.png)
+![Google Drive](./img/tutorials-images/04.CloudDrive/06.GoogleDrive.png)
+
+- `client_id` と `client_secret` は `Enter` キーを押し、既定値を使います。
+- 権限は `1` を入力し、フルアクセスを許可します。
+
+![Access Permission](./img/tutorials-images/04.CloudDrive/07.AccessPermission.png)
+
+残りの項目は `Enter` キーを押して既定値を選択できます。
+
+---
+
+### 注意：認証方法を選択する
+
+この段階で、Google Drive の認証方法を 2 つから選びます。
+
+- **方法 1：** ブラウザーで直接認証します。ローカルマシンでのみ利用できます。
+- **方法 2：** ローカルコンピューターに Rclone をインストールし、SSH ポートフォワーディングを使います。✅ **推奨**
+
+認証処理は Glows.ai サーバーから始まるため、ローカルブラウザーでリンクを開くだけでは認証できません。方法 2 を使ってください。
+
+**ローカルのターミナル（CMD/Terminal）**を開き、次のコマンドで SSH ポートフォワーディングを開始します。
+
+```bash
+ssh -p 23482 -NL 53682:localhost:53682 root@tw-02.access.glows.ai
+```
+
+**コマンド形式：**
+`ssh -p [SSH port] -NL 53682:localhost:53682 root@[SSH host]`
+
+![SSH Password](./img/tutorials-images/04.CloudDrive/09.SSH%20Password.png)
+
+SSH パスワードを入力して `Enter` キーを押します。エラーが表示されなければ、ポートフォワーディングは成功です。Rclone のターミナルに表示された Google 認証リンクを**ローカルブラウザー**で開き、Google アカウントにログインしてアクセスを許可します。
+
+![Google Authorization](./img/tutorials-images/04.CloudDrive/10.GoogleAccountAccess.jpg)
+
+ページに `Success!` と表示されたら認証完了です。
+
+![Success](./img/tutorials-images/04.CloudDrive/11.Success.png)
+
+サーバーの Rclone 設定に戻ります。Team Drive を設定するか尋ねられたら `Enter` キーを押してスキップします。設定内容と `Configuration complete` が表示されます。
+
+![Configuration Complete](./img/tutorials-images/04.CloudDrive/12.ConfigurationComplete.png)
+
+---
+
+## **ステップ 4：ファイルをアップロード、ダウンロードする**
+
+### Google Drive からインスタンスへダウンロードする
+
+```bash
+# Format:
+rclone copy [Remote Name]:[Google Drive file path] [Local path] --progress
+
+# Example:
+rclone copy glows:/data/glows.zip ./ --progress
+```
+
+このコマンドは、Google Drive の `/data/glows.zip` を現在のローカルディレクトリへダウンロードします。`--progress` を付けるとダウンロードの進捗が表示されます。
+
+![Download File](./img/tutorials-images/04.CloudDrive/13.DownloadFile.png)
+
+---
+
+### インスタンスから Google Drive へアップロードする
+
+```bash
+# Format:
+rclone copy [Local file path] [Remote Name]:[Google Drive destination path] --progress
+
+# Example:
+rclone copy 123.txt glows:/data --progress
+```
+
+このコマンドは、ローカルファイル `123.txt` を Google Drive の `/data` フォルダーへアップロードします。
+
+![Upload File](./img/tutorials-images/04.CloudDrive/14.UploadFile.png)
+![Upload Result](./img/tutorials-images/04.CloudDrive/15.UploadResult.png)
+
+---
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、次のメールアドレスまでお問い合わせください。
+
+**Email: support@glows.ai**
