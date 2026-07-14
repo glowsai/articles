@@ -1,0 +1,164 @@
+---
+id: ollama_timeout_slow_fix_cloud_gpu_en
+title: 'Ollama Keeps Timing Out? 7 Fixes and a Real-GPU Plan B'
+date: '2026-07-10 10:00'
+description: 'Ollama timing out or slow? Diagnose it with ollama ps, apply 7 quick fixes, or run the same commands on a rented RTX 4090 from $0.49/hr.'
+tags:
+  - Blog
+---
+
+# Ollama Keeps Timing Out? 7 Fixes and a Real-GPU Plan B
+
+An **Ollama timeout** almost always means one thing: the model is producing tokens slower than some deadline allows. Either a client — Cline, Open WebUI, a Python script — gives up waiting for the response, or Ollama's own server hits its model-load limit (5 minutes by default). The repair order that works: confirm the model is actually running on your GPU with `ollama ps`, extend the deadline, shrink the workload, and keep the model warm between requests. And if your hardware tops out at single-digit tokens per second, there is a plan B that requires zero new skills: run the identical Ollama commands on a rented RTX 4090 — from $0.49/hour on [Glows.ai](https://glows.ai) — where a 500-token answer takes roughly 5 seconds instead of 50 or more.
+
+![Diagnosing an Ollama timeout on GPU hardware](https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80)
+
+This article covers:
+
+- Why timeouts happen: the two clocks running against your model
+- How to tell "Ollama is slow" apart from "Ollama got cut off"
+- 7 fixes, ordered from fastest to most invasive
+- The throughput ceiling no environment variable can fix — with sourced numbers
+- How to run the same commands on a cloud GPU when local hardware is the bottleneck
+
+## Why Ollama Times Out: Two Clocks Are Running
+
+Every Ollama request races two separate deadlines, and most guides conflate them.
+
+**Clock 1: the client's request timeout.** Ollama itself will happily generate tokens for as long as it takes. The tool calling it usually won't. Cline's Ollama integration historically shipped with a 30-second request timeout ([since made configurable](https://localllm.in/blog/cline-ollama-timeout-fix)), LangChain and plain Python `requests` calls default to finite deadlines, and many chat frontends cut off long generations. If a 7B model on CPU needs 60 seconds to answer, a 30-second client deadline fails every single time — with an error that looks like Ollama's fault.
+
+**Clock 2: the server's model-load timeout.** Ollama gives a model 5 minutes to load into memory by default (`OLLAMA_LOAD_TIMEOUT`). A 30B+ model pulled from a slow hard drive into limited RAM can exceed that before generating a single token.
+
+There is also a trap between the two: `OLLAMA_KEEP_ALIVE` defaults to 5 minutes ([Ollama FAQ](https://docs.ollama.com/faq)), so after 5 idle minutes the model unloads. Your next request pays the full reload cost — often tens of seconds — which is exactly when client deadlines expire. This is why the *first* message after a coffee break fails and the retry succeeds.
+
+**Note:** There is no `OLLAMA_CLIENT_TIMEOUT` environment variable, despite what several blog posts claim. Client deadlines are configured in the client, not in Ollama.
+
+## Step 1: Check Whether Ollama Is Slow or Just Cut Off
+
+Before changing any setting, find out where your tokens are being generated. Run this while a model is loaded:
+
+```bash
+ollama ps
+```
+
+Look at the `PROCESSOR` column:
+
+- `100% GPU` — the model fits in VRAM. Timeouts are probably a client deadline or cold-reload issue.
+- `100% CPU` — Ollama never found a usable GPU. Expect 5–15 tokens/sec on a modern desktop CPU.
+- A split like `41%/59% CPU/GPU` — the model is bigger than your VRAM, and the CPU-resident layers drag every token down.
+
+As a rough sizing rule at Q4 quantization: an 8B model needs about 5–6 GB of VRAM, a 14B model about 9–10 GB, a 32B model about 20 GB, and a 70B model over 40 GB. If your card has 8 GB and you pulled a 14B model, spillover — not configuration — is your real problem.
+
+For deeper digging, the [official troubleshooting guide](https://docs.ollama.com/troubleshooting) shows where server logs live on each platform and how to verify GPU driver detection.
+
+## 7 Fixes That Stop Most Ollama Timeouts
+
+Work top to bottom; each fix is independent.
+
+### Fix 1: Raise the client-side timeout
+
+Set the deadline where the request originates. In Python:
+
+```python
+import requests
+r = requests.post(
+    "http://localhost:11434/api/generate",
+    json={"model": "llama3.1:8b", "prompt": "..."},
+    timeout=600,  # seconds
+)
+```
+
+In Cline, Open WebUI, and similar tools, look for a request-timeout or keep-alive setting in the Ollama provider configuration. A practical floor: 300 seconds for 7–8B models on weak hardware, more for anything larger.
+
+### Fix 2: Stream the response
+
+A streaming request (`"stream": true`) delivers tokens as they are generated, so the connection shows activity immediately instead of sitting silent until the full answer is ready. Many client timeouts measure silence, not total duration — streaming defuses them.
+
+### Fix 3: Keep the model warm
+
+```bash
+export OLLAMA_KEEP_ALIVE=30m
+```
+
+This stops the 5-minute auto-unload, so intermittent requests skip the reload penalty. Set `-1` to keep the model resident until you unload it manually. Cost: the model occupies RAM/VRAM the whole time.
+
+### Fix 4: Extend the load timeout for big models
+
+```bash
+export OLLAMA_LOAD_TIMEOUT=10m
+```
+
+Only relevant if the failure happens *before* any tokens appear and your model is large relative to your RAM and disk speed.
+
+### Fix 5: Pull a Q4_K_M quantization
+
+```bash
+ollama pull llama3.1:8b-instruct-q4_K_M
+```
+
+Lower-precision weights mean fewer bytes moved per token. On CPU-only systems, [Markaicode's CPU benchmarks](https://markaicode.com/benchmarks/tool-cpu-benchmark/) measured Q4_K_M variants running at a fraction of the inference time of full-precision equivalents — the single biggest software-side speedup available.
+
+### Fix 6: Right-size the context window
+
+If your prompts are a few hundred tokens, a 128K `num_ctx` wastes memory and compute. Setting `num_ctx` to 4096 in a Modelfile (or per-request via the API) frees VRAM, which can be the difference between full GPU offload and spillover.
+
+### Fix 7: Get spilled layers back onto the GPU
+
+Close VRAM-hungry apps (games, browsers with hardware acceleration), drop to a smaller model or tighter quantization, and re-check `ollama ps` until it reads `100% GPU`. Partial offload is the most common cause of "Ollama got 10× slower overnight" reports.
+
+## The Ceiling No Setting Fixes: Tokens per Second
+
+Here is the part most guides skip. Config tuning can recover maybe 2–3× on bad setups, but the gap between CPU inference and a real GPU is measured in multiples of that — and no environment variable closes it.
+
+| Hardware | Llama 3.1 8B Q4_K_M throughput | Time for a 500-token answer | Survives a 30 s client timeout? |
+|---|---|---|---|
+| Modern desktop CPU (no GPU offload) | ~5–15 tok/s ([Markaicode benchmark](https://markaicode.com/benchmarks/tool-cpu-benchmark/): 14.2 tok/s at 12 threads) | 33–100 s | Usually not |
+| 8 GB GPU with partial CPU spillover | varies, often 15–40 tok/s | 12–33 s | Sometimes |
+| NVIDIA RTX 4090, 24 GB | ~95–110 tok/s ([Database Mart benchmark](https://www.databasemart.com/blog/ollama-gpu-benchmark-rtx4090)) | ~5 s | Always |
+
+Read the middle column twice. At CPU speeds, every substantial answer flirts with a default deadline; at RTX 4090 speeds, the deadline never comes into play. That is why "my Ollama times out" and "my Ollama is slow" are usually the same problem wearing two error messages.
+
+If you already own a 24 GB GPU, tune and enjoy. If you're on a laptop or an older card, the honest answer is that fixes 1–7 make timeouts rarer, not gone.
+
+## Plan B: Same Ollama Commands on a Rented GPU
+
+You don't need to buy hardware or learn a new stack. Ollama's CLI and API are identical on a cloud GPU — only the hostname changes.
+
+On [Glows.ai](https://glows.ai), the flow looks like this:
+
+1. [Create an instance](https://docs.glows.ai/docs/create-new) and pick an Ollama-preconfigured image — the same images used in the [Llama 3.1 quick-start guide](https://glows.ai/article/llama3.1) and the [DeepSeek-R1 guide](https://glows.ai/article/deepseek_r1). Startup takes 30–60 seconds.
+2. Open the JupyterLab link (HTTP Port 8888), start a terminal, and run exactly what you run locally: `ollama pull llama3.1:8b`, `ollama run llama3.1:8b`.
+3. The instance exposes the Ollama API on HTTP Port 11434. Point your local tools (Open WebUI, Cline, your scripts) at that URL instead of `localhost:11434` — no other change.
+
+**Reminder:** [Set Ollama's model storage path to Datadrive](https://glows.ai/article/set_ollama_model_path) so downloaded models persist across sessions and you don't re-pull gigabytes each time.
+
+The math, using Glows.ai's published rates (checked July 2026; rates vary by GPU and region):
+
+| Usage pattern | Hours | RTX 4090 at $0.49/hr |
+|---|---|---|
+| One evening session | 3 | $1.47 |
+| Two sessions a week, for a month | 24 | $11.76 |
+| Full-time week of experimentation | 40 | $19.60 |
+
+Billing is per-second, so a 20-minute debugging session costs cents, not an hour block.
+
+## FAQ
+
+**What does "context deadline exceeded" mean in Ollama?**
+A deadline expired before the operation finished — either your client's request timeout or the server's model-load window. Extend the client timeout first; if the error fires before any token is generated with a large model, raise `OLLAMA_LOAD_TIMEOUT`.
+
+**How do I check whether Ollama is using my GPU?**
+Run `ollama ps` while a model is loaded and read the `PROCESSOR` column. `100% GPU` means full offload; any CPU percentage means the model doesn't fit in VRAM and throughput drops sharply.
+
+**Why does only the first request after a break time out?**
+`OLLAMA_KEEP_ALIVE` defaults to 5 minutes, so the model unloads when idle and the next request pays a full reload before generating. Set `OLLAMA_KEEP_ALIVE=30m` (or `-1`) to keep it resident.
+
+**Do my Ollama commands change on a cloud GPU?**
+No. `ollama pull`, `ollama run`, the REST API on port 11434, Modelfiles — all identical. On Glows.ai you get a terminal via JupyterLab and a public URL for the API port; your local tooling just points at a different host.
+
+**What does a cloud GPU for Ollama cost?**
+On Glows.ai, an RTX 4090 (24 GB) starts at $0.49/hour with per-second billing (July 2026). An 8B model that crawls at 5–15 tok/s on CPU runs at roughly 95–110 tok/s on that card.
+
+## Stop Fighting the Timeout
+
+You can spend another evening tuning `num_ctx`, or you can run the same two commands on a card that generates tokens 7–20× faster and make the deadline irrelevant. [Sign up at Glows.ai](https://glows.ai), create an instance with an Ollama-ready image, and your model is answering at RTX 4090 speed about a minute later.

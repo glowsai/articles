@@ -1,0 +1,122 @@
+---
+id: lambda_vs_glows_ai_en
+title: 'Lambda vs Glows.ai: H100 Price, APAC Latency, and Bursty Jobs'
+date: '2026-07-13 11:15'
+description: 'Compare Lambda and Glows.ai on matched H100 pricing, billing, GPU access, storage, and the AI workloads each platform fits best.'
+tags:
+  - Blog
+---
+
+# Lambda vs Glows.ai: H100 Price, APAC Latency, and Bursty Jobs
+
+Lambda and Glows.ai are both GPU clouds, but the comparison changes dramatically with the workload. Lambda is a natural candidate for teams that need a mature GPU cloud, larger capacity, or a specific Lambda configuration. Glows.ai is a natural candidate for self-serve work that benefits from per-second billing, consumer GPUs, public rates, and Taiwan-local access.
+
+The first rule is not to compare the word “H100.” Compare the full configuration. H100 PCIe and H100 SXM are different hardware contexts. GPU memory, host RAM, CPU, network, storage, region, and commitment terms affect what a project costs and whether it works.
+
+![Lambda vs Glows.ai H100 comparison: compare the complete GPU configuration and workload, not only the hourly rate](https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1600&auto=format&fit=crop)
+
+## Lambda vs Glows.ai at a Glance
+
+| Decision | Lambda | Glows.ai |
+| --- | --- | --- |
+| Best starting point | Larger or Lambda-specific GPU capacity | Self-serve, short or recurring GPU work |
+| Hardware question | Check current Lambda configuration, availability, and commitment | Check public GPU tier, region, and availability |
+| Billing question | Verify the current Lambda term for the selected product | Per-second billing is published |
+| Consumer GPUs | Confirm current catalog | RTX 4090 and RTX 5090 are listed publicly |
+| Persistent workflow | Verify selected product’s storage model | Runtime storage, Snapshot + Datadrive |
+| Taiwan interactive access | Test current region and connection path | Taiwan-local infrastructure should be verified on selected instance |
+
+The [Lambda pricing page](https://lambda.ai/pricing) and [Glows.ai public page](https://glows.ai/) should be the sources of record on publication day. The goal is not to force a price winner; it is to identify the configuration that completes your job with the right capacity and operational model.
+
+## Match the H100 Before You Compare Price
+
+Use this checklist for an H100 comparison:
+
+1. **Form factor:** Is each GPU PCIe or SXM?
+2. **VRAM:** Is the listed memory the same?
+3. **Host configuration:** How much CPU, system RAM, disk, and network come with the instance?
+4. **Cluster needs:** Does the job require NVLink, InfiniBand, or a multi-node network?
+5. **Billing:** Is the price on-demand, reserved, hourly, per-minute, or per-second?
+6. **Location:** Where will compute, storage, and users be located?
+
+This matters because a 45-minute evaluation, a 20-hour fine-tune, and a 72-hour training run are different economic problems. A tiny hourly gap has little effect on a short test. A different storage policy or a missing cluster feature can dominate a week-long job.
+
+## The Cost of a Bursty Job
+
+### A 45-minute model test
+
+For a short model test, billing granularity and setup time matter. Per-second billing on Glows.ai lets you pay for the active interval rather than round up a short experiment. But if the model requires a Lambda-only environment or the selected GPU is available there first, availability is more valuable than a theoretical rounding advantage.
+
+### A 20-hour fine-tune
+
+At 20 hours, match GPU memory and then calculate compute plus storage. If a model and dataset occupy 100GB, include the price of keeping that data before and after the run. Include time spent provisioning or moving weights if it is material.
+
+### A 72-hour run
+
+At 72 hours, raw GPU rate has more influence, but configuration still wins. A job that needs a particular interconnect or capacity guarantee should pay for it. A job that fits one GPU should not rent a cluster because the comparison article used a cluster rate.
+
+The practical formula is:
+
+`total project cost = GPU time + storage + transfer + setup/restart time + required support or commitment`
+
+For another worked cost model, see [AWS GPU pricing vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_en). It shows why identical silicon is the cleanest possible comparison.
+
+## When Lambda Is the Better Choice
+
+Choose Lambda when the current Lambda offering gives you the exact GPU configuration, capacity, region, support, or cluster environment required for your job. It can be the better answer for research groups and teams whose work is already operationalized around Lambda’s tooling. Do not migrate merely because another provider advertises a small single-GPU price advantage.
+
+## When Glows.ai Is the Better Choice
+
+Choose Glows.ai when the work is self-serve, bursty, or fits a listed RTX 4090, A100, or H100 tier. The public rate card and per-second billing simplify small experiments; snapshots and Datadrive reduce the effort of returning to a recurring workspace. Taiwan teams can also evaluate the local connection path for interactive work.
+
+If the real question is whether to buy a workstation, not choose a cloud, read [our rent-versus-buy GPU guide](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_en).
+
+## A Configuration Sheet That Makes Quotes Comparable
+
+When you request a Lambda quote or select a cloud GPU, create a one-page configuration sheet. It should include the model, required precision, expected context length, batch size, GPU count, VRAM per GPU, host RAM, local disk, persistent storage, network requirement, region, and expected run length.
+
+That sheet fixes a common H100 comparison error: treating a model’s inference requirement as if it were a training requirement. A model that serves comfortably on one H100 may need a different memory or network profile for fine-tuning. A workflow that runs overnight may need capacity guarantees that a 45-minute experiment does not.
+
+| Question | Why it changes the quote |
+| --- | --- |
+| Does the model fit one GPU? | It decides whether a cluster is necessary. |
+| Is it training, batch inference, or a live API? | It changes network, storage, and recovery requirements. |
+| How long will it run? | It changes the value of per-second billing and a small rate difference. |
+| Do users connect interactively from APAC? | It changes the value of region and latency testing. |
+| Is capacity guaranteed? | It determines whether an on-demand rate is actually usable. |
+
+## Avoid the “Cheapest H100” Trap
+
+The cheapest H100 quote can be correct for a narrow workload and wrong for the next one. If the GPU is not available when the job starts, the rate has no value. If it is a different form factor or network, it may not deliver the expected behavior. If a team needs a multi-node cluster, the single-GPU rate does not measure the real product.
+
+Use a lower hourly rate as a reason to investigate, not as the conclusion. Confirm configuration, capacity, data path, and support. Then run a short proof-of-work. This is particularly important for large models because moving dozens or hundreds of gigabytes of weights can cost more in time than a small difference in compute pricing.
+
+## Questions to Put in the First Capacity Call
+
+Ask each provider the same questions: Is this exact GPU available in the region and time window we need? Is the configuration on-demand or committed? What storage is attached, where is it stored, and what survives shutdown? What networking exists between GPUs? What support path applies during an active job? A written answer makes the eventual choice auditable and prevents a sales quote from being confused with an immediately launchable configuration.
+
+Finally, keep the first test separate from the production contract. Use a representative model and a small, non-sensitive dataset. Measure memory use, setup time, checkpoint recovery, and the quality of the connection from the people who will use it. These four observations are usually more actionable than a generic cloud benchmark.
+
+Save the test results with the configuration sheet. They become the baseline for future capacity planning, renewal discussions, and model upgrades.
+
+Re-run the test after a major framework, model, or region change. A configuration that worked for one release may need different memory, storage, or network settings for the next.
+
+## FAQ
+
+### Is Glows.ai a Lambda alternative?
+
+Yes, for many self-serve GPU workloads. The right choice depends on the required hardware, memory, region, capacity, billing, and whether the job needs a single GPU or a connected cluster.
+
+### How much does an H100 cost per hour?
+
+There is no one H100 price. It changes by PCIe or SXM form factor, VRAM, host configuration, region, billing model, and whether capacity is on-demand or reserved. Always compare the full configuration.
+
+### Is per-second billing useful for AI work?
+
+It is most useful for short or irregular jobs: testing a model, debugging a deployment, or running a few interactive sessions. For a continuous multi-day job, the hardware, storage, and capacity terms usually matter more.
+
+### How do I check APAC latency?
+
+Launch a small instance in the selected region and test the actual protocol you use—SSH, browser UI, file transfer, or API. Record the region, date, method, and results instead of relying on a generic distance estimate.
+
+Use the same container and workload in a small paid test before choosing a long-term GPU provider.
