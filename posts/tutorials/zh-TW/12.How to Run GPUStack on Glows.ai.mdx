@@ -1,0 +1,166 @@
+---
+id: run_gpustack_on_glowsai
+title: '如何在 Glows.ai 執行 GPUStack'
+date: '2025-09-14 11:00'
+description: '使用 NVIDIA RTX 4090 在 Glows.ai 部署 GPUStack，包含建立執行個體、使用 WebUI、整合 API 與 Auto Deploy。'
+tags:
+  - Tutorial
+---
+
+本教學說明如何在 **Glows.ai** 租用 **NVIDIA GeForce RTX 4090** GPU 並執行 **GPUStack**。
+
+內容包括：
+
+- 在 Glows.ai 建立執行個體
+- 使用 GPUStack 部署任意模型服務
+- 透過程式碼呼叫已部署的模型
+- **Auto Deploy** 隨需啟動模式簡介
+
+---
+
+## GPUStack 簡介
+
+**GPUStack** 是用來執行 AI 模型的開放原始碼 GPU 叢集管理工具。它支援多種 GPU，例如 NVIDIA CUDA 與 Apple Metal；也支援 LLM、VLM、圖片模型等模型，以及 vLLM、Ascend MindIE 等推論後端。其他功能包括同時執行多個後端版本、單節點或多節點多 GPU 推論、自動故障復原、負載平衡與即時 GPU 監控。
+
+GPUStack 可搭配不同 GPU、模型與推論後端，也能在異質 GPU 之間進行分散式推論。它提供 **OpenAI-compatible API**，方便與既有應用程式整合。
+
+主要功能：
+
+- 支援多種 GPU 平台（NVIDIA CUDA、Apple Metal 等）
+- 支援多種模型類型（LLM、VLM、圖片模型等）
+- 支援多種推論後端（vLLM、Ascend MindIE 等）
+- 可同時執行多個後端版本，並支援單節點或多節點多 GPU 推論
+- 自動故障復原、負載平衡與即時 GPU 監控
+
+相較於同類工具，GPUStack 提供：
+
+- 多種 GPU 與模型的相容性
+- 彈性的後端整合
+- 跨異質 GPU 的分散式推論，不同廠商的 GPU 可共同執行
+- 可簡化整合的 **OpenAI-compatible API**
+
+---
+
+## 建立執行個體
+
+1. 登入 **Glows.ai**，依需求建立新執行個體。操作方式請參閱[官方教學](https://docs.glows.ai/docs/create-new)。
+2. 在 **Create New** 頁面設定：
+
+   - **Workload Type**：選擇 **Inference GPU -- 4090**
+   - **Image**：選擇官方 **GPUStack (img-rgqwxrpy)** 映像檔。該映像檔已設定 GPUStack 服務，並監聽連接埠 80。
+
+![image-20250908104737276](./img/tutorials-images/GPUStack/01.png)
+
+### 使用 Datadrive（選用）
+
+**Datadrive** 是 Glows.ai 的雲端儲存服務，可在建立執行個體前上傳資料、模型或程式碼。
+建立執行個體時點選 **Mount**，即可掛載 Datadrive 並直接讀寫。
+本教學只示範推論服務，因此可不掛載 Datadrive。
+
+設定完成後，點選 **Complete Checkout** 建立執行個體。
+
+![image-20250908172833649](./img/tutorials-images/GPUStack/02.png)
+
+> **注意**：GPUStack 映像檔約需 30–60 秒啟動。
+> 你可以在 **My Instances** 頁面查看狀態。啟動後可使用以下連接埠：
+
+- **SSH Port 22** → SSH 登入
+- **HTTP Port 8888** → JupyterLab
+- **HTTP Port 80** → GPUStack WebUI
+
+---
+
+## 使用 GPUStack WebUI
+
+### 1. 取得使用者名稱與密碼
+
+- 預設使用者名稱：`admin`
+- 密碼需在執行個體內取得：
+
+1. 點選 **HTTP Port 8888 → Open**，開啟 JupyterLab。
+
+![image-20250821162610764](./img/tutorials-images/GPUStack/03.png)
+
+2. 開啟新的 **Terminal**。
+
+![image-20250821162648937](./img/tutorials-images/GPUStack/04.png)
+
+3. 執行以下命令取得 GPUStack WebUI 密碼：
+
+   ```bash
+   cat /var/lib/gpustack/initial_admin_password
+   ```
+
+![image-20250821162729721](./img/tutorials-images/GPUStack/05.png)
+
+### 2. 登入 WebUI
+
+- 在執行個體介面點選 **HTTP Port 80 → Open**。
+  ![image-20250821162755137](./img/tutorials-images/GPUStack/06.png)
+
+- 輸入取得的使用者名稱與密碼，再點選 `Log in`。
+
+![image-20250821162818233](./img/tutorials-images/GPUStack/07.png)
+
+- 登入後，系統會要求你變更密碼。
+
+![image-20250821162841553](./img/tutorials-images/GPUStack/08.png)
+
+### 3. 使用 GPUStack WebUI
+
+- **Dashboards**：顯示目前的 worker、GPU、已部署模型和資源監控資料，包括 GPU/CPU 使用率。
+  ![image-20250821162859700](./img/tutorials-images/GPUStack/09.png)
+
+- **Catalog**：直接部署 Ollama、HuggingFace 等來源的模型。
+  ![image-20250821171409795](./img/tutorials-images/GPUStack/10.png)
+
+完成設定後，系統會前往 **Deployments** 頁面並開始下載模型。
+
+![image-20250821171445281](./img/tutorials-images/GPUStack/11.png)
+
+模型下載並啟動成功後，狀態會顯示 **Running**。
+
+![image-20250821171944239](./img/tutorials-images/GPUStack/12.png)
+
+切換到 **Chat** 頁面，即可直接與模型互動。
+
+![image-20250821173105073](./img/tutorials-images/GPUStack/13.png)
+
+GPUStack 部署的模型也能透過 **API** 呼叫。點選介面中的 **View Code**，即可查看官方範例程式碼。
+
+![image-20250821172308362](./img/tutorials-images/GPUStack/14.png)
+
+---
+
+## 取得 API Key
+
+1. 點選左下角的使用者頭像 → **API Keys**。
+   ![image-20250821172135022](./img/tutorials-images/GPUStack/15.png)
+2. 點選 **New API Key** 並填寫資料。
+   ![image-20250821172216747](./img/tutorials-images/GPUStack/16.png)
+3. 使用產生的 API Key 呼叫 GPUStack 模型 API。
+   ![image-20250821173253057](./img/tutorials-images/GPUStack/17.png)
+
+---
+
+## Auto Deploy：隨需啟動模式
+
+傳統部署需要手動建立及釋放執行個體，不適合低頻率使用或提供第三方 API。**Glows.ai Auto Deploy** 會在收到請求時建立執行個體並處理工作。
+
+- 每個 Auto Deploy 都有固定的服務 URL
+- 收到請求時，系統會建立執行個體
+- 5 分鐘內沒有新請求時，系統會釋放執行個體
+
+📘 詳細操作請參閱：[Auto Deploy 文件](https://docs.glows.ai/docs/auto-deploy-usage)
+
+---
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 Email、Discord 或 Line 聯絡我們。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG

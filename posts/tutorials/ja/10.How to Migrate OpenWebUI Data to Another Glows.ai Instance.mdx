@@ -1,0 +1,80 @@
+---
+id: migrate_openwebui_to_another_instance
+title: 'OpenWebUI のデータを別の Glows.ai インスタンスへ移行する方法'
+date: '2025-08-28 10:18'
+description: 'Glows.ai インスタンス間で OpenWebUI データをエクスポート、転送、インポートする手順と、Datadrive の使い方、サービスの再起動方法を説明します。'
+tags:
+  - Tutorial
+---
+
+## OpenWebUI データベースをエクスポートする
+
+OpenWebUI のプロジェクトデータは、Python のサードパーティーパッケージフォルダー内にある `open_webui/data` ディレクトリへ保存されます。miniconda を使っていない場合や Python 3.11 以外を使っている場合はパスが異なるため、環境に合わせて変更してください。
+
+```bash
+/root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
+```
+
+![image-20250819105656605](./img/tutorials-images/13_migrate_openwebui/01.png)
+
+最初に、データを Glows.ai の /datadrive へコピーします。ここでは `/datadrive/open_webui` を使います。次のコマンドを実行してください。
+
+```bash
+mkdir /datadrive/open_webui
+cp -r /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data/* /datadrive/open_webui
+```
+
+インスタンス作成時に Datadrive をマウントしなかった場合は、`scp` コマンドで `open_webui/data` フォルダーをローカルへダウンロードし、Glows.ai の Datadrive へアップロードします。ローカルで Terminal または CMD を開き、次のコマンドを入力します。
+
+```bash
+scp -P [Service Port] -r root@[Service Host] /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data ./
+
+# Example
+scp -P 26608 -r root@tw-06.access.glows.ai /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data ./
+```
+
+![image-20250825103447671](./img/tutorials-images/13_migrate_openwebui/02.png)
+
+## OpenWebUI データベースを別のインスタンスへインポートする
+
+OpenWebUI データベースをローカルへダウンロードした場合は、先に関連ファイルを新しいインスタンスの Datadrive へアップロードします。[Datadrive クライアント](https://docs.glows.ai/docs/datadrive-app)を使った OpenWebUI フォルダーのアップロードを推奨します。
+
+新しいインスタンスを作成するときに Datadrive をマウントしてください。新しいインスタンスへ接続し、次のコマンドを実行します。
+
+```bash
+# Check if the data exists under Datadrive
+# If you don't see the data, you may not have mounted Datadrive when creating the instance, or the directory path is incorrect. Please change /datadrive/open_webui to your actual path.
+ls /datadrive/open_webui/
+# Delete the original openwebui data folder
+rm -rf /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
+# Create a symbolic link to point the openwebui data folder to the backup data under datadrive
+ln -sf /datadrive/open_webui /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
+# Check the contents of the symbolic link
+ls /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
+cache  readme.txt  uploads  vector_db  webui.db
+```
+
+![image-20250819111108445](./img/tutorials-images/13_migrate_openwebui/03.png)
+
+OpenWebUI データベースのパスを設定したら、変更を反映するために OpenWebUI サービスを再起動します。
+
+```bash
+pkill -f open-webui
+nohup /root/miniconda3/envs/workenv/bin/open-webui serve > open_webui.log 2>&1 &
+```
+
+新しいインスタンスのポート 8080 へ接続し直すと、元のアカウントでログインできます。
+
+![image-20250819112828928](./img/tutorials-images/13_migrate_openwebui/04.png)
+
+---
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、Email、Discord、Line からお問い合わせください。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG

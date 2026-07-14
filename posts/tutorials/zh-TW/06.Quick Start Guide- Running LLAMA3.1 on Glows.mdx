@@ -1,0 +1,63 @@
+---
+id: llama3.1
+title: '快速入門：在 Glows.ai 執行 LLAMA3.1'
+date: '2025-05-04 11:23'
+description: '在 Glows.ai 上啟動並執行 Llama。'
+tags:
+  - Tutorial
+---
+
+LLaMA 是 Meta 開發的自然語言處理（NLP）模型，提供 70 億至 650 億參數的多種規模，可處理多語文字生成、對話式 AI 與語言推理等工作。
+
+社群與平台整合已提供可直接執行 LLaMA 的環境，其中包含預訓練模型檔案、運算資源和操作工具。依照以下步驟即可設定環境並開啟 WebUI。
+
+## 步驟一：登入 Glows.ai 並啟動環境
+
+1. **註冊並登入**
+   前往 [Glows.ai](https://glows.ai/) 完成註冊並登入帳號。
+
+2. **啟動環境**
+   在控制台中找到 **LLAMA** 工作範本。點選後，系統會設定所需的資源與相依套件。
+   **注意：** Glows.ai 提供兩種 Llama 3.1 設定：
+
+- **8B**：適合在消費級 GPU 上部署與開發。
+- **70B**：適合大規模 AI 原生應用。使用 70B 設定至少需要 **2 Unit Qty NVIDIA GeForce RTX 4090 GPUs**。
+
+![Llama3.1](./img/tutorials-images/06.LLAMA3.1/01.Llama3.1.png)
+
+## 步驟二：存取 Llama 3.1
+
+你可以透過以下方式存取 Llama 3.1 環境：
+![MyInstance](./img/tutorials-images/06.LLAMA3.1/02.MyInstance.png)
+
+1. **VNC（Port 5901）**
+
+- 前往 `My Instances` > `Access` > `VNC Port`，查看 VNC Command 與其他必要資訊。
+- 詳細操作請參閱：[如何使用 VNC 連線 Glows.ai 的運算資源](https://glows.ai/article/vnc)。
+
+2. **HTTP WebUI（Port 8080）**
+
+- 開啟 URL：`https://tw-03.access.glows.ai:24527?token=iOuz4vDMME`
+- 你可以在介面中輸入文字並調整語音參數。
+
+3. **SSH 存取（Port 22）**
+
+- SSH 提供後端環境的命令列存取方式，適合進階操作。
+
+- **SSH 命令**：
+
+```bash
+   ssh user@<your-instance> -p 22
+```
+
+- **密碼**：請查看 Glows.ai 控制台中的執行個體詳細資料。
+
+## 步驟三：儲存並整合結果
+
+1. **匯出輸出內容**
+
+- 你可以透過 WebUI 將產生的內容儲存到本機裝置，供後續使用。
+
+2. **進一步整合**
+
+- 若要進行大規模文字處理或整合到企業工作流程，請使用 Glows.ai 的 API 部署工具，將 Llama 3.1 串接至應用程式或服務。

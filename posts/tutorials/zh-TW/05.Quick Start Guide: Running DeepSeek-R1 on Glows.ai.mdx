@@ -1,0 +1,60 @@
+---
+id: deepseek_r1
+title: '快速入門：在 Glows.ai 執行 DeepSeek-R1'
+date: '2025-04-25 15:17'
+description: '透過 Glows.ai 一鍵取得 GPU，執行 DeepSeek-R1。'
+tags:
+  - Tutorial
+---
+
+DeepSeek-R1 是由 DeepSeek 團隊開發的 AI 模型，以現有的開放原始碼大型語言模型為基礎，透過微調與強化學習改善效能，並非從頭開始訓練。
+
+DeepSeek-R1 採用知識蒸餾等方法，壓縮及精簡模型參數，在保留原始模型核心知識與推理能力的同時提高運算效率。因此，它能提供語言理解與生成能力，所需的運算資源也相對較少。
+
+DeepSeek-R1 兼具開放原始碼模型的效率與彈性，可用於文字分析、對話式 AI、程式碼輔助和知識檢索。它能部署在雲端運算環境、個人電腦或企業伺服器上，供 AI 研究與商業應用使用。
+
+## 步驟一：登入 Glows.ai 並啟動環境
+
+1. **註冊並登入**：前往 [Glows.ai](https://glows.ai/) 完成註冊並登入帳號。
+2. **點選右上角的 `Create New`。** 選擇 GPU 規格後，頁面會顯示數個官方映像檔。找到 DeepSeek-R1 官方映像檔。
+   ![DeepSeek-R1](./img/tutorials-images/05.DeepSeekR1/01.DeepSeek-R1.PNG)
+
+3. **選擇要租用的數量。** 接著點選「Complete Checkout」。系統會設定所需的資源與相依套件。
+   ![Unit Quantity](./img/tutorials-images/05.DeepSeekR1/02.UnitQuantity.PNG)
+
+**注意：** Glows.ai 提供兩種 DeepSeek-R1 設定：
+**32B：** 適合在消費級 GPU 上部署與開發。
+**70B：** 適合大規模 AI 原生應用。使用 70B 設定至少需要 **2 Unit Qty NVIDIA GeForce RTX 4090 GPUs**。
+
+## 步驟二：存取 DeepSeek-R1
+
+以下以 DeepSeek-R1 32B 為例。Glows.ai 提供兩種存取入口：
+![Portals](./img/tutorials-images/05.DeepSeekR1/03.Portals.PNG)
+
+1. **SSH 存取（Port 22）**
+
+- SSH 提供後端環境的命令列存取方式，適合進階操作。
+- SSH 命令：
+  ```
+  ssh user@<your-instance>-p22
+  ```
+- 密碼：請查看 Glows.ai 控制台中的執行個體詳細資料。
+
+2. **JupyterLab（HTTP Port 8080）**
+   JupyterLab 是用來建立工作流程的互動式開發環境。
+
+- 開啟 URL：
+  ```
+    http://<your-instance>:8080
+  ```
+- 登入資訊：由系統自動設定，或顯示於控制台中。
+
+## 步驟三：儲存並整合結果
+
+1. **匯出輸出內容**
+
+- 你可以透過 WebUI 將產生的內容儲存到本機裝置，供後續使用。
+
+2. **進一步整合**
+
+- 若要進行大規模文字處理，或整合到企業工作流程，請使用 Glows.ai 的 API 部署工具，將 DeepSeek-R1 串接至應用程式或服務。

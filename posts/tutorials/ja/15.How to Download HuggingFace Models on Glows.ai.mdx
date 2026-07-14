@@ -1,0 +1,101 @@
+---
+id: download_huggingface_models
+title: 'Glows.ai で HuggingFace モデルをダウンロードする方法'
+date: '2025-12-01 16:30'
+description: 'Glows.ai で HuggingFace モデルをダウンロードする手順を説明します。'
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、**Glows.ai** で HuggingFace モデルをダウンロードする 2 つの方法を説明します。Glows.ai Datadrive を使ってローカルでダウンロード後にアップロードする方法と、インスタンス内へ直接ダウンロードする方法があります。
+
+- **Glows.ai Datadrive ストレージ**：Storage Space Plan の有効期間中はデータを継続して読み書きできます。ダウンロード速度はローカルネットワークに依存します。同じデータを繰り返し使うモデルサービスなどに適しています。
+- **インスタンス内ストレージ**：データはインスタンスの実行中だけ保持され、リリースすると削除されます。インスタンスがあるデータセンターの帯域を使うため高速で、一度だけデータを使うモデル性能テストなどに適しています。
+
+------
+
+## Glows.ai Datadrive ストレージ
+
+この方法では **Glows.ai Datadrive** にデータを保存します。`Space Storage` プランに十分な容量があることを確認し、使用するリージョンの DataDrive へ容量を割り当ててください。
+
+### ストレージを割り当てる
+
+**65GB** のモデルをダウンロードし、**TW-03 リージョン**で **NVIDIA GeForce RTX 4090** GPU を使う例です。[Storage Space](https://platform.glows.ai/space) を開き、**100GB** のストレージパッケージを購入します。
+
+![image-20251125180753151](./img/tutorials-images/15.HuggingFace/01.png)
+
+**Storage Space** 画面で `Modify` をクリックし、**TW-03 リージョンの Datadrive** に **70GB** を割り当てます。
+
+![image-20251125181002653](./img/tutorials-images/15.HuggingFace/02.png)
+
+### Datadrive クライアントでダウンロードする
+
+**Data Drive クライアント**は、HuggingFace のモデルを各リージョンの Datadrive へ直接ダウンロードできます。
+クライアントはローカルネットワークで HuggingFace モデルのチャンクをローカルへダウンロードし、Datadrive と同期します。
+
+- Data Drive クライアントをインストール：[ダウンロード](https://glows.ai/datadrive)
+- チュートリアル：[HuggingFace からモデルをダウンロード](https://docs.glows.ai/docs/datadrive-app)
+
+------
+
+## インスタンス内ストレージ
+
+### インスタンスを作成する
+
+この方法では **Glows.ai** にインスタンスを作成します。ここでは **TW-03 リージョン**で **NVIDIA GeForce RTX 4090 GPU** を使用し、環境に **CUDA 12.8 Torch 2.8.0 Base** を指定します。
+
+![image-20251125120458313](./img/tutorials-images/15.HuggingFace/03.png)
+
+インスタンス作成後、**SSH** または **HTTP Port 8888（JupyterLab）**で接続できます。
+
+![image-20251125121244598](./img/tutorials-images/15.HuggingFace/04.png)
+
+### コマンドでモデルをダウンロードする
+
+以下では JupyterLab での操作を示します。新しい **Terminal** を開きます。
+
+![image-20251125121423526](./img/tutorials-images/15.HuggingFace/05.png)
+
+次のコマンドで HuggingFace 公式のモデル管理ツール **huggingface_hub** をインストールします。
+
+```bash
+pip install -U huggingface_hub
+```
+
+![image-20251125121510970](./img/tutorials-images/15.HuggingFace/06.png)
+
+インストール後、`hf` コマンドでモデルファイルをインスタンスへ直接ダウンロードできます。
+たとえば `openai/gpt-oss-20b` を `/gpt-oss-20b` ディレクトリへダウンロードするには、次のコマンドを使います。
+
+```bash
+hf download openai/gpt-oss-20b --local-dir /gpt-oss-20b
+```
+
+![image-20251125122005123](./img/tutorials-images/15.HuggingFace/07.png)
+
+------
+
+## Glows.ai で HuggingFace モデルを実行する
+
+**Transformers**、**SGLang**、**GPUStack** などのフレームワークは HuggingFace モデルを直接読み込んで実行できます。
+使い慣れたソフトウェアでデプロイするか、次のチュートリアルを参照してください。
+
+- [Glows.ai で SGLang を使い、複数マシンと複数 GPU で DeepSeek-R1 を実行する方法](https://glows.ai/article/deepseek_r1_using_sglang)
+- [Glows.ai で GPUStack を実行する方法](https://glows.ai/article/run_gpustack_on_glowsai)
+
+HuggingFace の公式サイトにも使用例があります。
+Glows.ai での実装中に質問やご意見がある場合は、[お問い合わせ](../c/692cf77a-1754-8326-82ef-a2ec6beb1010#contact-us)に記載した窓口をご利用ください。
+
+![image-20251126140029352](./img/tutorials-images/15.HuggingFace/08.png)
+
+------
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、email、Discord、Line からお問い合わせください。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

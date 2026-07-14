@@ -1,0 +1,142 @@
+---
+id: mimictalk
+title: '快速入門：在 Glows.ai 執行 MimicTalk'
+date: '2025-04-06 18:00'
+description: 'MimicTalk 是文字轉語音（TTS）工具，可生成自然、接近真人的語音。'
+tags:
+  - Tutorial
+---
+
+**MimicTalk** 是文字轉語音（TTS）工具，可生成自然、接近真人的語音。它支援多種語言、語調與自訂選項，可用於虛擬助理、內容製作和教育應用。
+
+使用 **Glows.ai**，不需自行處理繁複的安裝與設定，即可在雲端環境執行 MimicTalk。本指南說明如何設定 MimicTalk，並透過 HTTP 或 SSH 連線。
+
+## **步驟一：登入 Glows.ai 並啟動 MimicTalk 環境**
+
+1. **註冊並登入**：前往 [Glows.ai](https://glows.ai/)，註冊帳號並登入。
+2. **啟動 MimicTalk 環境**：在控制台找到 **MimicTalk** 工作範本，點選「Complete Checkout」。Glows.ai 會分配資源並設定相依套件。
+
+## **步驟二：存取 MimicTalk 環境**
+
+環境啟動後，可透過以下方式存取：
+
+### **1. HTTP WebUI（Port 7860）**
+
+這是用來生成語音的 MimicTalk 主要網頁介面。
+
+- 開啟 URL：
+- plaintext
+- [`https://tw-03.access.glows.ai:24527?token=iOuz4vDMME`](https://tw-03.access.glows.ai:24527/?token=iOuz4vDMME)
+- 你可以在介面中輸入文字並調整語音參數。
+
+### **2. SSH 存取（Port 22）**
+
+SSH 提供後端環境的命令列存取方式，適合進階操作。
+
+- SSH Command：
+- `ssh user@<your-instance> -p 22`
+- **密碼**：請查看 Glows.ai 控制台中的執行個體詳細資料。
+
+![Glows.ai’s interface](./img/1_IiSRiOYGHOL-gRSWvlU3bA.webp)
+
+## **步驟三：使用 MimicTalk 生成語音**
+
+### **1. 使用 WebUI 生成語音**
+
+(1) 開啟 WebUI。
+
+(2) 在輸入方塊中輸入文字，例如：
+
+(3) Plaintext `Hello, welcome to MimicTalk on Glows.ai!`
+
+(4) 調整語調、速度與聲音風格等參數。
+
+(5) 點選 **Generate** 生成語音，再進行預覽或下載。
+
+![MimicTalk’s interface](./img/1_Z5h0zXiOX3TnjKsHOjbA2w.webp)
+
+### **2. 使用 Python 腳本生成語音**
+
+(a) 透過 SSH 進入容器
+
+(b) 設定環境變數
+
+(c) 檢查並關閉現有程序
+
+(d) 程序參數設定：修改 train_once_args 參數：
+
+`*vim /root/MimicTalk/inference/app_mimictalk.py*`
+
+(e) 變更主要參數
+
+`*torso_ckpt: from 'checkpoints/mimictalk_orig/os_secc2plane_torso/' to 'checkpoints_mimictalk/<VIDEO_NAME>/'*`
+
+_max_updates: from 10000 to 2000_
+
+(f) 檔案設定：複製參數檔案
+
+`*cp -r /root/MimicTalk/checkpoints_mimictalk/German_20s /root/MimicTalk/checkpoints_mimictalk/<VIDEO_NAME>*`
+
+(g) 啟動服務：選擇以下其中一種方式
+
+(h) 直接啟動：
+
+`*cd /root/MimicTalk*`
+
+`*python inference/app_mimictalk.py --share --server 0.0.0.0*`
+
+(i) 背景執行
+
+`*nohup python inference/app_mimictalk.py --share --server 0.0.0.0 &*`
+
+## **步驟四：儲存並匯出輸出內容**
+
+1. **從 WebUI 下載檔案**：使用 MimicTalk WebUI 的 **Download** 按鈕，將生成的音訊檔案儲存至本機裝置。
+2. **透過 SSH 管理檔案**：使用 SCP（Secure Copy）將伺服器檔案傳輸到本機：`*scp -P 22 user@<your-instance>:~/output.wav ./output.wav*`
+3. **輸出路徑：** `infer_out/tmp/demo.mp4`
+
+## **疑難排解**
+
+### **服務啟動失敗**
+
+1. 檢查連接埠是否被占用
+2. 查看系統記錄
+3. 確認環境變數設定
+
+### **訓練失敗**
+
+1. 檢查訓練資料格式
+2. 確認 checkpoint 設定
+3. 查看錯誤記錄
+
+## **支援與資源**
+
+### **技術支援**
+
+1. 聯絡 [Glows.ai 支援團隊](https://discord.gg/DFhTBX7t)
+2. 查看[官方文件](https://github.com/yerfor/MimicTalk)
+3. 查閱社群論壇
+
+### **其他資源**
+
+1. MimicTalk 文件
+2. Glows.ai 平台指南
+3. 訓練教學
+
+## **為何在 Glows.ai 使用 MimicTalk？**
+
+1. **簡化設定**：預先設定的環境可直接使用。
+2. **高效能運算**：提供語音合成所需的運算資源。
+3. **多種存取方式**：支援 HTTP WebUI 與 SSH。
+4. **可自訂工作流程**：以不同語言、語調與風格生成語音。
+
+## **開始使用 MimicTalk**
+
+內容創作者、開發者與教育工作者都可以使用 **MimicTalk** 生成語音。請前往 Glows.ai 開始使用。
+
+若需協助，請聯絡 Glows.ai 團隊或參閱官方文件。
+
+更多資訊：
+
+- **Website**：[https://glows.ai](https://glows.ai/)
+- **Discord**：[https://discord.gg/glowsai](https://discord.gg/glowsai)
