@@ -1,0 +1,47 @@
+---
+id: vnc
+title: 'VNC で Glows.ai のコンピューティングリソースに接続する方法'
+date: '2025-01-15 13:56'
+description: 'VNC 対応の Glows.ai インスタンスとイメージを選択すれば、グラフィカルインターフェースで作業を続けられます。'
+tags:
+  - Tutorial
+---
+
+# VNC で Glows.ai のコンピューティングリソースに接続する方法
+
+現在、Glows.ai の一部のインスタンスとイメージは VNC プロトコルに対応しており、VNC を使ってインスタンスのグラフィカルインターフェースにアクセスできます。
+必要なバージョンは [VNC Viewer 公式サイト](https://www.realvnc.com/en/)からダウンロードできます。
+
+## **ステップ 1：インスタンスを作成する**
+
+インスタンスをセットアップする際に、使用したいイメージを選択してください。作成前に、そのイメージが VNC に対応しているか確認できます。
+
+![Create an Instance](./img/tutorials-images/03.VNC/01.CreateAnInstance.PNG)
+
+## **ステップ 2：VNC Viewer でマシンに接続する**
+
+My `Instances` - `Access` - `VNC Port` から、VNC Command などの必要な情報を確認します。
+
+![VNC Port](./img/tutorials-images/03.VNC/02.VNCPort.PNG)
+
+VNC Viewer を開き、VNC サーバーのアドレスを入力します。Enter キーを押すと自動的に接続されます。
+
+![Connect](./img/tutorials-images/03.VNC/03.Connect.PNG)
+
+「Unencrypted connection」ウィンドウが表示されたら、`Continue` をクリックして先に進みます。
+
+![Continue](./img/tutorials-images/03.VNC/04.Continue.PNG)
+
+パスワードの入力を求めるウィンドウが表示されます。
+
+![Password](./img/tutorials-images/03.VNC/05.Password.png)
+
+パスワードはページ上で確認できます。
+
+また、`Copy Password` アイコンをクリックして直接コピーすることもできます。
+
+![Copy Password](./img/tutorials-images/03.VNC/06.CopyPassword.png)
+
+パスワードを正しく入力すると、以下のようにサーバーの VNC インターフェースにアクセスできます。
+
+![VNC Interface](./img/tutorials-images/03.VNC/07.VNCInterface.png)
