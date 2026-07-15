@@ -1,1 +1,4 @@
 .DS_Store
+
+# Personal Claude/Codex workspace configuration and skills
+.claude/
