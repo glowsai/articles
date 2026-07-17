@@ -1,0 +1,141 @@
+---
+id: run_kimi_k3_hardware_cost_guide_zh_tw
+title: '今天就能用 Kimi K3？1.4TB VRAM 現實與自架時機 | Glows.ai'
+date: '2026-07-17 16:00'
+lastUpdated: '2026-07-17'
+description: 'Kimi K3 已可透過 API 使用，但權重尚未下載。本文說明 4-bit 為何從約 1.4TB 起跳，以及何時才值得規劃自架。'
+tags:
+  - Blog
+  - Model Deployment
+  - Inference Economics
+---
+
+> **最近查核：2026 年 7 月 17 日。** Kimi K3 的資訊變動很快；本文刻意區分 Moonshot 已確認的事項，以及完整權重與技術報告發布前無法驗證的事項。
+
+# Kimi K3 說是開放的：為什麼你現在還不能在本機執行？
+
+**現在可以使用 Kimi K3，但只能透過 Kimi 的託管產品與 API。** Moonshot 表示完整權重會在 **2026 年 7 月 27 日前**發布，因此目前沒有已驗證的 checkpoint 可以下載或自行部署。真正的門檻是規模：2.8 兆參數模型即使只看 4-bit 權重，規劃下限也接近 **1.4 TB**，還沒計入執行期開銷與長上下文的 KV cache。這是叢集規劃問題，不是「我的 4090 放不放得下？」的問題。
+
+> **快速結論：** 今天要用 Kimi K3，請使用 API 或 Kimi 產品。要做自架規劃，先等 Moonshot 發布 checkpoint、授權、支援的執行環境與實測記憶體建議。
+
+本文會說明：
+
+- Moonshot 已公開的 Kimi K3 規格與可用方式；
+- 為何 2.8T 模型即使低精度也需要多 GPU 規劃；
+- API 與未來自架該怎麼選；以及
+- 權重發布當天，如何安全地驗證與部署。
+
+## Kimi K3 已確認的規格
+
+Moonshot 將 Kimi K3 描述為 2.8T 參數、原生支援視覺、擁有 100 萬 token 上下文視窗的模型。它採用 Kimi Delta Attention、Attention Residuals 與稀疏 MoE 架構；每個 token 有效啟用 896 個專家中的 16 個。發布時可在 Kimi.com、Kimi Work、Kimi Code 與 Kimi API 使用，預設 reasoning effort 為 `max`。以上皆以 [Moonshot 官方公告](https://www.kimi.com/fr-fr/blog/kimi-k3)為準。
+
+| 項目 | 2026 年 7 月 17 日已確認資訊 |
+| --- | --- |
+| 總參數量 | 2.8 兆 |
+| 上下文視窗 | 100 萬 token |
+| 輸入／輸出 | 文字與視覺輸入；文字輸出 |
+| 託管版可用位置 | Kimi.com、Kimi Work、Kimi Code、Kimi API |
+| 預設推理強度 | 發布時為 `max` |
+| 完整權重 | 預計於 2026 年 7 月 27 日前發布 |
+| 技術報告 | 預計與權重一同發布 |
+
+這張表最重要的詞是**總參數量**。稀疏模型每個 token 只會計算部分專家，但本機推論仍需能存取完整 checkpoint。激活參數有助於理解每 token 的運算量，卻不會讓 2.8T 權重變成桌機大小的下載檔。
+
+## Kimi K3 已可使用，但還不能下載自架
+
+**目前無法從官方已驗證的 checkpoint 在本機執行 Kimi K3。** Kimi K3 已能以託管模型使用，但 Moonshot 尚未發布完整權重或技術報告。在那之前，沒有人能可靠地給出最低 VRAM、服務指令、量化建議或商業授權解讀。
+
+這不代表應忽略模型，而是要選對路徑：
+
+- **現在就要拿 K3 做程式或知識工作？** 用 Kimi 產品或 API。
+- **要預估未來部署？** 使用下文的規劃數學，並保留充足餘裕。
+- **這週就需要一個可控的開放權重模型？** 選擇已有權重、支援執行環境與實測硬體建議的模型。可先參考我們的[本地 LLM GPU 需求指南](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)。
+
+最後一條並不一定是妥協。一個你能量測、保護並穩定服務的 32B 或 120B 模型，常常比等待部署細節未知的超大型模型更有用。
+
+## Kimi K3 硬體需求：1.4 TB 的現實
+
+官方目前沒有發布 Kimi K3 的 VRAM 最低需求。下表是**規劃估算**，不是官方需求。
+
+權重儲存有一個簡單下限：總參數量 × 每個參數所佔位元組數。忽略檔案封裝與執行期開銷時，2.8 兆參數在 16-bit 約需 5.6 TB、8-bit 約 2.8 TB、4-bit 約 1.4 TB。
+
+| 權重精度 | 僅權重的理論下限 | 這個數字代表什麼 |
+| --- | ---: | --- |
+| BF16 / FP16 | 約 5.6 TB | 尚未計入執行期開銷的參考大小 |
+| 8-bit | 約 2.8 TB | 仍是大型多節點部署 |
+| 4-bit | 約 1.4 TB | 只是下限，不是可直接採用的 VRAM 建議 |
+
+真正服務模型需要更多記憶體：模型 metadata、CUDA workspace、tensor parallelism 通訊 buffer，以及每個請求的 KV cache 都會佔空間。模型支援 100 萬 token 上下文，不代表跑滿 100 萬 token 會很便宜。正式環境還要為批次、錯誤處理與維護保留餘裕。
+
+因此，4-bit Kimi K3 也應從**多張高記憶體 GPU 或叢集**開始規劃，而不是找一張「比較大」的卡。RTX 4090 只有 24 GB；即使只看 4-bit 權重的下限，仍大約差 58 倍，還沒算 overhead。權重發布後，CPU offloading 或許能做實驗，但會用明顯變慢的生成速度交換記憶體需求。
+
+**注意：** 在官方 checkpoint 尺寸與實測配置出來前，不要根據這個估算挑硬體或向客戶報自架價格。
+
+## API 與自架：現在該選哪一條路？
+
+多數團隊目前應優先選 API。它避開了兩個最重要的未知數：相容權重何時發布，以及正式硬體需求到底是多少。
+
+| 路徑 | 最適合的情境 | 你要管理什麼 | 今天已知什麼 |
+| --- | --- | --- | --- |
+| Kimi 產品 | 互動式研究、程式與知識工作 | 帳號與工作流程 | 現在可用 |
+| Kimi API | 應用整合與早期評估 | token 用量、速率限制、應用安全 | 現在可用 |
+| 未來自架 | 私有資料、客製服務、長期高用量 | checkpoint、GPU、runtime、安全、監控 | 等官方權重與文件 |
+
+Moonshot 公開的 Kimi K3 API 價格為每百萬 input token $3.00、output token $15.00、cache-hit input token $0.30。費率與產品條款可能變動，估算前請到 [Kimi API 平台](https://platform.kimi.ai/)確認最新資訊。
+
+早期評估的成本公式很直接：
+
+> **預估 API 成本 = input token × input 單價 + output token × output 單價。**
+
+用你的代表性 prompt 實際量測輸入／輸出長度，再依即時價卡計算。這能建立未來和叢集成本比較的真實基準，而不是根據未驗證權重想像出一個每小時價格。
+
+## 權重發布日的安全自架清單
+
+權重一出來，很容易直接拉第一個鏡像、拿通用 server 指令就上。建議按下面順序操作：
+
+1. **確認來源與授權。** 從 Moonshot 官方 repository 或模型頁開始，記錄 revision、可用範圍與存取限制。
+2. **讀技術報告與 model card。** 記下官方 context limit、所需的 Transformers 或 serving engine 版本、prompt 格式與建議精度。
+3. **先從保守的上下文開始。** 長上下文會放大 KV cache；先證明短請求可用，再規劃接近標稱上限的容量。
+4. **刻意設定多 GPU runtime。** vLLM 與 SGLang 都能跨 GPU 分配模型，但正確的 tensor parallel 與 pipeline parallel 設定取決於發布後的架構細節。
+5. **先量測，再加使用者。** 先記錄單一請求的 VRAM、首 token 時間、tokens/s、錯誤率與品質，再逐步提高併發。
+6. **把 checkpoint 留在持久儲存。** 多 TB 模型不該每次開機重抓；保存已驗證的權重、checksum 與 revision。
+
+在 Glows.ai 上，這個流程會是以預配置的 vLLM 或 SGLang 環境建立多 GPU instance，再把模型放到持久儲存。基礎做法可參考[多機 DeepSeek-R1 SGLang 教學](https://glows.ai/article/deepseek_r1_using_sglang)，但在 K3 官方 serving 指南發布前，請不要直接套用模型設定。checkpoint 的保存與下載方式請看[Glows.ai Hugging Face 模型下載指南](https://glows.ai/article/download_huggingface_models)。
+
+## 等權重期間可以跑什麼？
+
+如果你真正需要的是一個自己可控的強大模型，先讓模型規模對應你能租用或擁有的 GPU。24 GB 適合較小的推論工作；80 GB 能打開更大的開放權重模型；完整權重塞不進單卡的模型才需要多 GPU 叢集。細節可見[2026 年本地模型 GPU 指南](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)。
+
+如果你要的就是 Kimi K3，今天最合理的是 API。這能讓團隊先評估它的程式、視覺與長上下文表現，等權重、授權與實測吞吐量確定後，再判斷是否符合隱私或用量需求。
+
+## 常見問題
+
+### Kimi K3 是開源嗎？
+
+Moonshot 稱 Kimi K3 為 open 3T-class model，並表示會在 2026 年 7 月 27 日前發布完整權重。在權重與授權條文公開前，請將精確的自架與商用條件視為尚未確認；託管產品與 API 已經可用。
+
+### 單張 RTX 4090 能跑 Kimi K3 嗎？
+
+目前沒有已驗證的自架配置。模型總參數為 2.8T，僅 4-bit 權重的算術下限就約 1.4 TB，RTX 4090 則有 24 GB。這個差距指向多 GPU 基礎設施，而不是單張消費級卡。
+
+### Kimi K3 需要多少 VRAM？
+
+Moonshot 尚未公布官方最低值。1.4 TB 是未計 runtime overhead 與 KV cache 的 4-bit 權重算術，不能當成正式需求。請等 checkpoint、量化選項與實測服務報告出來後再選配置。
+
+### Kimi K3 有 API 嗎？
+
+有。Moonshot 已將 Kimi K3 列在 Kimi API，並同步提供 Kimi.com、Kimi Work 與 Kimi Code。請到[官方 API 平台](https://platform.kimi.ai/)查詢目前 model ID、價格與限制。
+
+### 什麼時候自架才合理？
+
+當你需要私有推論、固定模型 revision、客製基礎設施，或長期穩定的大量用量時，自架才可能合理。先把實測 API 花費與 GPU、儲存、網路、維運及人力的完整成本相比。
+
+## 相關指南
+
+- [哪些本地模型適合 24 GB、80 GB 與多 GPU 配置？](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [你的電腦跑不動新模型時，如何不用買 GPU 就能執行？](https://glows.ai/article/new_model_your_pc_cant_run_it_plan_b_zh_tw)
+- [如何用 SGLang 跨機部署大型模型？](https://glows.ai/article/deepseek_r1_using_sglang)
+
+## 先從已驗證的路徑開始
+
+Kimi K3 的規模確實罕見，但發布當天有用的決策很簡單：現在用託管 K3 或 API；在官方 artifact 出來前，不要為它租一個叢集。如果你今天就需要私有模型端點，可先在 [Glows.ai](https://glows.ai) 依已發布權重與已驗證 runbook 建立 GPU instance。等 K3 權重發布，再將 checkpoint 放到 Datadrive，用你的工作負載而非別人的估算做 benchmark。
