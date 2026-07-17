@@ -1,0 +1,195 @@
+---
+id: run_hunyuanocr_on_gpu_ja
+title: '$0.49/時間のGPUでHunyuanOCRを実行：vLLMセットアップ | Glows.ai'
+date: '2026-07-17 16:30'
+lastUpdated: '2026-07-17'
+description: 'TencentはHunyuanOCRのvLLMに20GB GPUを案内しています。$0.49/時間からの24GB RTX 4090で実データを検証し、安全にスケールしましょう。'
+tags:
+  - Blog
+  - Model Deployment
+  - AI Operations
+---
+
+> **最終確認日：2026年7月17日。** この記事はHunyuanOCR-1.5の現行model cardとrepositoryに基づきます。推論依存関係は変わりやすいため、実際のデプロイ前にはリンク先の公式手順を最終情報として確認してください。
+
+# HunyuanOCRは20GB GPUで動く：$0.49/時間のvLLMテスト手順
+
+**TencentのHunyuanOCR向けvLLM公式ガイドはGPUメモリ20GBを案内しているため、24GBのRTX 4090で実データの検証を始められます。** Glows.aiではこのGPUは **$0.49/時間から**（2026年7月17日確認）。2時間のOCR試行は、永続ストレージを除けば約 **$0.98** です。自社の表、領収書、スキャン文書を検証してから本番OCRスタックに投資する、低リスクな方法になります。画像解像度、出力トークン上限、同時リクエスト数は、サービスの速度と安定性を引き続き左右します。
+
+> **結論：** 24GB GPU一枚で始め、Transformersで実際の文書を一つテストします。同じページをvLLMまたはSGLang endpointにも送り、メモリ、レイテンシ、表の精度を測ってから同時実行数やバッチを増やしてください。
+
+この記事で扱う内容:
+
+- HunyuanOCRに適したサービング経路の選択
+- GPUワークスペースの作成と公式モデルの取得
+- 再現可能な文書パーステスト
+- バッチを大きくする前の出力品質とリソース利用の確認
+
+## HunyuanOCRでできること、使うべき場面
+
+HunyuanOCR-1.5はTencent Hunyuanの軽量なエンドツーエンドOCR特化VLMです。従来のOCRパイプラインは文字検出、認識、レイアウト解析、後処理を連結しますが、このモデルは画像と指示を受けて回答を直接生成します。[公式repository](https://github.com/Tencent-Hunyuan/HunyuanOCR)では、文書パース、文字スポッティング、情報抽出、テキスト画像翻訳、複数画像の文字中心タスクが説明されています。
+
+レイアウトそのものが答えの一部になる場合に向いています。
+
+| タスク | HunyuanOCRに期待する出力 |
+| --- | --- |
+| 文書パース | 読み順に並んだMarkdown、表・数式の表現を含む |
+| 文字スポッティング | 画像内テキストの位置または構造化結果 |
+| 情報抽出 | 領収書、名刺、フォームなどのフィールド |
+| 表パース | 下流で検証できる構造化表データ |
+| テキスト画像翻訳 | 文書の文脈を保った翻訳結果 |
+
+モデルカードのcheckpointは`tencent/HunyuanOCR`、サイズは1B、型はBF16、ライセンスはTencent Hunyuan Community Licenseです。製品で利用する前に[モデルカードとライセンス](https://huggingface.co/tencent/HunyuanOCR)を読んでください。オープンウェイトでも利用条件の確認は必要です。
+
+## Transformers、vLLM、SGLangのどれを選ぶか
+
+フレームワークではなく目的から選びます。
+
+| 経路 | 最初に選ぶ場面 | 検証する出力 | 主なトレードオフ |
+| --- | --- | --- | --- |
+| Transformers | 動作する品質baselineが必要 | 画像一枚とprompt一つ | テスト向きで、必ずしも最大スループットではない |
+| vLLM | OpenAI互換HTTP endpointが必要 | baselineと同じ画像・prompt | 依存関係の版管理が重要 |
+| SGLang | チームがすでにSGLangを運用 | OpenAI互換responseとスループット | 実文書での検証は依然必要 |
+
+公式model cardは三つの経路を文書化しています。repositoryには重要な制約もあります。native Transformersと対応するvLLM/DFlashのセットアップは互換性のないTransformers版を要求するため、**同じPython environmentでは共存できません**。動いているテストを壊すパッケージ更新を避け、environmentまたはcontainerを分けてください。最新の依存関係は[公式環境ガイド](https://github.com/Tencent-Hunyuan/HunyuanOCR)で確認します。
+
+**推奨手順：** まずTransformersで代表的な一枚の品質baselineを作り、そのまったく同じサンプルをvLLMまたはSGLangでサーブします。出力が大きく違うなら、バッチ処理を始める前に原因を調べます。
+
+## Step 1: 24GB GPUを選び、モデルをダウンロードする
+
+Tencentの現行vLLM quick startは **GPUメモリ20GB** と **ディスク6GB** をシステム要件として記載しています。[Glows.ai](https://glows.ai)では24GB RTX 4090から始め、クリーンなPython環境またはvLLM/SGLang対応imageを選びます。[instance作成ガイド](https://docs.glows.ai/docs/create-new)に基本の流れがあります。余分な4GBはランタイムの余裕になりますが、決まった同時実行数を保証するものではありません。自分の文書で解像度、最大出力長、同時リクエスト数を測ってから上位GPUを選んでください。
+
+ダウンロード前に**Datadrive**をマウントします。モデルと環境の準備には時間がかかるため、永続ストレージがあれば短いテストごとにcheckpointを取得し直さずに済みます。[Glows.aiでHugging Faceモデルをダウンロードするガイド](https://glows.ai/article/download_huggingface_models)にはDatadriveとinstanceローカルの手順があります。
+
+ターミナルで公式checkpointを取得します。
+
+```bash
+hf download tencent/HunyuanOCR --local-dir ./HunyuanOCR --exclude "v1.0/*"
+```
+
+`--exclude "v1.0/*"`はTencentの現在のllama.cppガイドに沿った例で、rootの1.5 releaseを使うときにアーカイブ済み1.0フォルダを避けます。library cacheを使うなら`--local-dir`は省略できます。どちらの場合も、テストしたmodel revisionを記録し、あとから更新を追跡できるようにします。
+
+**注意：** 認証なしのモデルportをそのままインターネットへ公開しないでください。テストはプライベートにbindし、本番前に認証と必要最小限の受信アクセス制限を追加します。
+
+## Step 2: Transformersで品質baselineを作る
+
+Hugging Faceのmodel cardではHunyuanOCRは`image-text-to-text`モデルです。画像一枚と短いpromptから始めます。目的はベンチマークスループットではなく、environment、processor、model、入力形式が正しく協調することを確認することです。
+
+```python
+from transformers import pipeline
+
+pipe = pipeline("image-text-to-text", model="tencent/HunyuanOCR")
+
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "path": "/workspace/sample-page.png"},
+            {
+                "type": "text",
+                "text": "Extract the document body in reading order. Return Markdown; use HTML for tables and LaTeX for formulas.",
+            },
+        ],
+    },
+]
+
+result = pipe(text=messages, max_new_tokens=2048)
+print(result)
+```
+
+空でない出力はsmoke testの成功であって、品質承認ではありません。元のページと比べて確認します。
+
+1. 読み順は正しいか
+2. ヘッダー、フッター、脚注、複数カラムは要件どおりか
+3. 表の行と列は保たれているか
+4. 数式は下流で使える程度にきれいか
+5. 画像にない文字やフィールドを作っていないか
+
+サンプルページ、期待出力、prompt、依存関係の版、GPU型を一緒に保存してください。ランタイム変更時のregression testになります。
+
+## Step 3: vLLMまたはSGLangでHunyuanOCRをサーブする
+
+baselineが許容できてからserverを起動します。model cardの短いvLLMコマンドは次のとおりです。
+
+```bash
+vllm serve "tencent/HunyuanOCR"
+```
+
+これはvLLM environmentにOpenAI互換APIを作ります。model cardにはSGLangの経路もあります。
+
+```bash
+python3 -m sglang.launch_server \
+  --model-path "tencent/HunyuanOCR" \
+  --host 0.0.0.0 \
+  --port 30000
+```
+
+最新の本番設定には、[HunyuanOCR公式inference folders](https://github.com/Tencent-Hunyuan/HunyuanOCR)を優先してください。安定版vLLM、DFlash加速付きnightly、native Transformersの自己完結したセットアップがあり、Tencentは依存関係の違いから相互排他的だと明示しています。将来、バッチ作業をGPUやマシンにまたがって広げるなら、[SGLangのマルチマシンチュートリアル](https://glows.ai/article/deepseek_r1_using_sglang)を基盤の参考にできます。ただしモデル固有のコマンドと版はHunyuanOCRの公式文書に従います。
+
+server起動後、baselineとまったく同じ画像・promptを送ります。プロジェクトには`doc_parse`、`structured_parse`、`table`、`formula`、`layout_parse`などのtask typeがあります。要件に最も狭く合うものを選んでください。公式client例は`doc_parse`で最大32,768出力トークンを使いますが、その値を無条件でコピーしてはいけません。密な表や文書は長い出力を生成し、レイテンシとメモリ使用量を直接押し上げます。
+
+## Step 4: Markdown、表、LaTeXに文書をパースする
+
+一般的な文書パースでは、Tencentのデフォルト中国語promptが本文をMarkdown、表をHTML、数式をLaTeXで、読み順に従って出力するよう求めます。上のbaseline例は同等の英語指示です。実際の言語と文書で必ず検証してください。
+
+要点は出力構造を明示することです。「この画像を読んで」のような曖昧な指示は視覚Q&Aには便利でも、文書取り込みパイプラインの信頼できる契約にはなりません。必要なフィールドと期待する表現を伝えます。
+
+実テストセットには少なくとも次の五種類を入れます。
+
+- きれいなデジタルPDFのページ
+- 撮影した領収書またはフォーム
+- 密な表があるページ
+- 数学の数式があるページ
+- 実際に受け取る文書に近い混在言語または低品質スキャン
+
+検索index、データベース、LLMへ渡す前に出力を人手でレビューしてください。OCRの誤りは後段のretrievalの誤りになり、整ったMarkdownは文字が正しい証明にはなりません。
+
+## ハードウェア、コンテキスト、本番前の確認項目
+
+HunyuanOCRは現代のVLMとしては小さいですが、1Bパラメータは完全なサイジング指標ではありません。メモリとレイテンシはモデル精度、画像解像度、最大生成トークン、入力数、batch size、同時リクエスト数にも依存します。表と数式を含む密なページは、画像だけでなく「出力長」のワークロードです。
+
+スケール前に、管理されたテストから次を記録します。
+
+| チェック項目 | 重要な理由 |
+| --- | --- |
+| GPUピークメモリ | 余裕を持った安全な同時実行数の上限になる |
+| 最初のトークンまでの時間と総レイテンシ | キュー待ちと長い生成時間を分けられる |
+| 出力トークン数 | 密なページのコストと遅さを説明できる |
+| 文字・表の精度 | 見栄えのよい形式に隠れた失敗を見つける |
+| フレームワーク比較 | Transformers baselineとの差を検出する |
+
+公式repositoryは、以前のvLLM出力がTransformers出力と異なる可能性を示しています。これはvLLMを避ける理由ではありません。同じ文書とpromptを比較し、差を記録し、品質目標に合う経路を採用してください。
+
+長期のサービスでは、リクエスト制限、ファイル形式検証、rate limit、機密文書の内容を伏せたログ、保持ポリシーも追加します。OCR endpointは請求書、身分証、契約書を扱うことが多く、運用セキュリティも出力品質の一部です。
+
+## よくある質問
+
+### HunyuanOCRは無料で商用利用できますか？
+
+重みはHugging Faceで公開されていますが、Tencent Hunyuan Community Licenseの対象です。製品や商用利用の前に[公式ライセンスとmodel card](https://huggingface.co/tencent/HunyuanOCR)を確認してください。
+
+### HunyuanOCRはPDFをパースできますか？
+
+モデルが処理するのは文書画像です。PDFは各ページを適切な解像度の画像に変換し、ページをパースして下流でページ順を保持します。大きなアーカイブを処理する前に、実際のワークフローにあるPDFで試してください。
+
+### HunyuanOCRにはGPUが必要ですか？
+
+高速な推論・サービングにはGPUが実用的です。プロジェクトにはcheckpointをGGUFへ変換後、llama.cppでコンシューマGPU、ラップトップ、CPUに展開する方法もあります。適切な選択はレイテンシ、文書量、出力長で決まります。
+
+### HunyuanOCRに最適なserverはどれですか？
+
+まずTransformersで品質baselineを作ります。OpenAI互換HTTPサービスが必要で、そのbaselineと比較済みならvLLMまたはSGLangを選びます。文書、目標スループット、既存の運用スタックを知らずに唯一の最適解は決められません。
+
+### 表と数式を抽出できますか？
+
+できます。文書パースでは表をHTML、数式をLaTeXで要求でき、これは公式デフォルトparse promptの形式です。ただし重要なレイアウトはすべてテストしてください。構造化出力でも内容検証は必要です。
+
+## 関連ガイド
+
+- [Glows.aiでHugging Faceモデルを永続ストレージにダウンロードする](https://glows.ai/article/download_huggingface_models)
+- [SGLangでGPU・マシンをまたいで推論を展開する](https://glows.ai/article/deepseek_r1_using_sglang)
+- [モデルサイズとVRAM要件からGPUを選ぶ](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+
+## 小さく検証し、証明できた経路を拡張する
+
+HunyuanOCRを実行する実用的な方法は三段階です。品質baselineを作り、選んだruntimeで同じテストをサーブし、差が理解できてからスケールします。[Glows.ai](https://glows.ai)でGPU instanceを作成し、公式checkpointをDatadriveに保存し、モデルが本番に進めるかどうかは自分の実文書で判断してください。

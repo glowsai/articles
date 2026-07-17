@@ -1,147 +1,131 @@
 ---
 id: taiwan_data_residency_ai_compute_en
-title: 'Data Residency in Taiwan: The AI Compute Question Every Local Company Is Asking'
-date: '2026-05-18 14:25'
-description: 'Which Taiwanese data can leave the country? PDPA Article 21, FSC and MOHW rules explained — plus in-Taiwan GPU compute from $0.49/hour. Read the guide.'
+title: 'AI Data Residency: How to Choose the Right Compute Region'
+date: '2026-04-22 10:00'
+lastUpdated: '2026-07-15'
+description: 'Choose the right region for AI compute by mapping your data, users, performance needs, and regulatory obligations — with Taiwan as one practical example.'
 tags:
   - Blog
 ---
 
-# Data Residency in Taiwan: The AI Compute Question Every Local Company Is Asking
+> **Last reviewed: July 15, 2026.** Prices, availability, and release-specific details reflect this review. Confirm time-sensitive details with the linked provider before acting.
 
-Here is the short answer on data residency in Taiwan: there is **no blanket law** that forbids sending data abroad, and for most companies, using overseas AI services with general business data is legal. But if you operate in finance, healthcare, or anything government-adjacent, data residency stops being optional — customer records and electronic medical records must be stored in Taiwan *as a matter of stated regulatory principle*, and moving them offshore requires meeting specific conditions or getting regulator approval first. After two laws landed in late 2025 (a major Personal Data Protection Act amendment and Taiwan's first AI Basic Act), "where does our AI compute run, and where does the data flow" has moved from an IT footnote to the first question Taiwanese companies must answer before deploying AI.
+# AI Data Residency: How to Choose the Right Compute Region
 
-This article collects the scattered rules into one table, turns "our data stays in Taiwan" into three verifiable conditions, and prices the in-country option by the hour.
+AI workloads do not have one universally correct region. The right place to run them depends on four things: where the data originates, where users need low latency, which jurisdictions apply, and what capacity is available when you need it. A Taiwan region can be the right choice for a Taiwan-based regulated workload; a US region can be the right choice for a US-facing service; a multi-region design can be right for a global product.
 
-![Data residency in Taiwan illustrated: server racks in a data center — AI compute and data can stay in-country](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1600&auto=format&fit=crop)
+The useful question is not “which country is safest?” It is: **which region can this particular workload use, and can we prove how data moves through it?**
 
-What this article covers:
+This guide gives teams a practical way to make that decision. It is an orientation guide, not legal advice. For regulated workloads, confirm the design with counsel and your security team before deploying.
 
-- Why "where does the data live" became the first AI question after late 2025
-- One table of Taiwan's actual residency rules — PDPA, FSC, MOHW — with official sources
-- The three verifiable conditions behind "data stays in Taiwan"
-- A four-way comparison of AI deployment options on compliance and cost
-- Real in-Taiwan GPU prices (checked July 2026)
-- A six-point pre-deployment checklist and FAQ
+![AI data residency illustrated: distributed data centers connected across regions](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1600&auto=format&fit=crop)
 
-**Note:** This is an orientation guide, not legal advice. For specific cases, consult counsel familiar with Taiwan's data protection and outsourcing rules.
+## Start With the Workload, Not the Provider
 
-## Why "Where Does the Data Live" Became the First AI Question in 2026
+“Keep data local” sounds simple until one workflow uses an application server in one region, a GPU in another, object storage somewhere else, and an external model API on top. Start by naming the workload and its data class:
 
-Three things happened within fourteen months.
-
-First, [amendments to Taiwan's Personal Data Protection Act (PDPA) were promulgated on November 11, 2025](https://www.pdpc.gov.tw/News_Content/20/1001/), with the effective date to be set by the Executive Yuan. The amendment builds enforcement powers for the incoming Personal Data Protection Commission (PDPC) and tightens breach notification — companies can no longer delay notifying affected individuals on the grounds that the incident is "not yet verified." When your AI supply chain leaks, "we don't know where the data went" will not be an acceptable answer.
-
-Second, the [Legislative Yuan passed Taiwan's AI Basic Act on December 23, 2025](https://moda.gov.tw/press/press-releases/18316) — the country's first AI framework law. It names seven governance principles, one of which is explicitly "privacy protection and data governance," and sets up a risk-tier framework that sector regulators will now translate into binding rules. The National Science and Technology Council is the competent authority.
-
-Third, enterprise risk rankings shifted. Deloitte's *State of AI in the Enterprise* survey (fielded August–September 2025, [as compiled by premai](https://blog.premai.io/ai-data-residency-requirements-by-region-the-complete-enterprise-compliance-guide/)) found that 73% of enterprises cite data privacy and security as their top AI risk — ahead of cost and talent.
-
-One thing worth stating plainly: none of these laws ban overseas clouds or overseas AI services. What they raise is the **burden of proof** — you must be able to document where data flows, where it rests, and how it is protected. The easiest architecture to document is the one where the data never leaves Taiwan.
-
-## What Taiwan's Rules Actually Say: One Table, Three Regulated Sectors
-
-Data residency in Taiwan is not one law. It is a general statute plus sector rules. This table is the core of the article, with every row linked to an official source:
-
-| Rule | Who it applies to | Residency requirement | Conditions for offshore transfer |
-| --- | --- | --- | --- |
-| [PDPA Article 21](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=21) | All non-government entities (i.e., ordinary companies) | International transfer allowed in principle | Regulators may restrict transfers in four cases: major national interests; treaty obligations; the receiving country lacks sound data protection; or the transfer circumvents the PDPA via a third country |
-| [FSC outsourcing regulation, Article 19-1](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=G0380200&flno=19-1) (amended August 2023, [FSC press release](https://www.fsc.gov.tw/ch/home.jsp?id=96&parentpath=0%2C2&mcustomize=news_view.jsp&dataserno=202308040001&toolsflag=Y&dtable=News)) | Banks, insurers, securities firms | Customer data and its storage location **in Taiwan as a principle** | Offshore storage requires: the right to designate processing/storage locations; recipient-country protection no weaker than Taiwan's; backups of important customer data kept in Taiwan. Offshoring significant consumer-finance systems needs prior FSC approval |
-| [Regulations on Electronic Medical Records](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=L0020121) (amended July 18, 2022, [MOHW notice](https://www.mohw.gov.tw/cp-16-70574-1.html)) | Hospitals and clinics | Cloud EMR permitted, but storage **limited to Taiwan as a principle** | Special cross-border arrangements require approval from the Ministry of Health and Welfare |
-| [Cyber Security Management Act](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=A0030297) | Government agencies, critical infrastructure providers | Obligations scale with assigned security responsibility level; stricter rules on where systems and data may sit | Case-by-case, determined by the competent authority |
-
-Read together, Taiwan's data residency structure has three tiers:
-
-- **Ordinary companies:** offshore transfer is legal by default, but regulators hold a statutory lever to restrict it — and the "receiving country lacks sound protection" clause gives them wide discretion.
-- **Finance and healthcare:** "in Taiwan as the principle, offshore as the exception" is written into the rules; exceptions carry conditions or approval requirements.
-- **Government and critical infrastructure:** the strictest tier in practice; in most scenarios, offshore is not on the table.
-
-And here is how this reaches companies that are not themselves regulated: if you supply software to a bank, integrate systems for a hospital, or bid on government contracts, your customer will pass these requirements down to you by contract. That is how most Taiwanese SMEs meet the data residency question for the first time.
-
-## What Actually Happens When Data Goes to an Overseas AI Service
-
-In fairness: mainstream overseas AI providers are not data black holes. Enterprise tiers from OpenAI, Anthropic, Google and others commonly offer zero-data-retention options, no-training commitments, and data processing agreements. For most unregulated Taiwanese companies, calling an overseas API is a lawful and common practice.
-
-The real problems are two, and neither involves conspiracy:
-
-1. **The burden of proof sits with you.** When the FSC, the MOHW, or the future PDPC asks "which offshore systems touched this data, for how long, and who could access it," you need contract clauses, audit reports, and technical evidence. Every additional overseas layer in the supply chain adds pages to that file.
-2. **Jurisdiction sits with someone else.** Once data lands in an offshore facility, local law and local legal process apply. PDPA Article 21's "insufficient protection" restriction exists precisely because of that structural fact.
-
-The practical conclusion is not "never use overseas services." It is: **process regulated and high-sensitivity data on architecture that never exports it, and keep evaluating overseas services on price-performance for everything else.** Which raises the next question — what does the no-export option cost?
-
-## Four Ways to Deploy AI, Compared on Compliance and Cost
-
-There are broadly four ways to get a model running. Sorted by the first question — does the data stay in Taiwan?
-
-| Deployment option | Data stays in Taiwan | Upfront cost | Time to running | Best fit |
-| --- | --- | --- | --- | --- |
-| Overseas AI SaaS / API (ChatGPT, hosted LLM APIs) | No — data is processed offshore | None | Minutes | General, unregulated data; fast idea validation |
-| Overseas GPU cloud (US / SEA regions) | No — instance and storage sit offshore | Low (hourly) | Minutes to hours | Cost-sensitive training and inference with no residency needs |
-| In-Taiwan GPU cloud (e.g., [Glows.ai](https://glows.ai)) | Yes — instance and storage in Taiwan facilities | Low (from $0.49/hour) | 30–60 seconds with prebuilt images | Regulated-industry PoCs through production; projects that must document data flows to customers or regulators |
-| On-premises build | Yes | High — a single H100 runs tens of thousands of US dollars before facilities, power, and staff | Weeks to months | Sustained full utilization; data that must never touch third-party hardware |
-
-The interesting row is the third. For years, "data residency" conversations in Taiwan jumped straight to on-prem builds, because flexible in-country GPU capacity simply wasn't rentable. In-Taiwan GPU clouds collapsed the entry cost from a capital expenditure to tens of NT dollars per hour — keeping data in Taiwan no longer means budgeting a server room first.
-
-So what does "data stays in Taiwan" mean, verifiably? We suggest three test conditions:
-
-1. **The instance is in Taiwan** — the GPU node physically sits in a Taiwanese facility, and the provider states the region.
-2. **Storage is in Taiwan** — model weights, inputs, outputs, and backups all rest in-country.
-3. **Inference makes no overseas API calls** — the model (open-weight options like DeepSeek, Llama, or GPT-OSS) computes locally on your instance instead of forwarding data to an offshore endpoint.
-
-Only when all three hold can you write "the data never left Taiwan" as an auditable statement rather than a hope.
-
-## What In-Taiwan GPU Compute Actually Costs
-
-Take [Glows.ai](https://glows.ai) as the worked example — its GPU nodes are located in Taiwan (listed as Asia-Pacific (Taiwan) with multiple availability zones), billed per second. Public rates checked July 2026 (NT$ at roughly 32.5 per USD):
-
-| GPU | VRAM | Price per hour (from) |
+| Workload | Primary decision driver | A sensible starting point |
 | --- | --- | --- |
-| NVIDIA RTX 4090 | 24GB | $0.49 (≈ NT$16) |
-| RTX 6000 Ada | 48GB | $0.72 (≈ NT$23) |
-| L40S | 48GB | $0.83 (≈ NT$27) |
-| A100 SXM4 | 80GB | $1.20 (≈ NT$39) |
-| H100 HBM3 | 80GB | $2.96 (≈ NT$96) |
+| Internal experimentation with non-sensitive data | Cost and GPU availability | The region with the best available capacity for your team |
+| Customer-facing inference | User latency and reliability | A region near the users, with a tested failover plan |
+| Fine-tuning on customer or employee data | Contract terms and data governance | A region permitted by your customer contracts and policy |
+| Finance, healthcare, or public-sector systems | Sector rules and auditability | A region approved by the relevant compliance owner before deployment |
+| Global product | Latency, resilience, and lawful transfer mechanisms | Separate regional deployments, with data flows documented for each |
 
-In project terms: a two-week internal RAG proof of concept at 8 hours a day on a single RTX 4090 is 80 hours × $0.49 ≈ **$39 (about NT$1,280)** — less than the staff cost of one cross-department meeting. Scaling to production means stepping up to A100 or H100 instances, or going [multi-node with SGLang](https://glows.ai/article/deepseek_r1_using_sglang).
+This framing avoids a common mistake: treating an overseas region as automatically risky, or a local region as automatically compliant. Geography is one control. Access, retention, encryption, subprocessors, and operational evidence matter too.
 
-Prebuilt images boot in 30–60 seconds: [DeepSeek-R1 quick start](https://glows.ai/article/deepseek_r1), [GPT-OSS-20B/120B deployment](https://glows.ai/article/run_gpt_oss), plus Ollama and ComfyUI. Weights and data stay on your instance and cloud drive, and inference completes entirely in-country — which is exactly the three-condition test from the previous section.
+## Map the Full Data Path
 
-**Reminder:** Choosing an in-Taiwan platform does not make you compliant by itself. Regulated firms still need their own outsourcing risk assessment, a data processing agreement, and encryption and access controls. The platform solves residency — the hardest condition to retrofit — but the procedural obligations remain yours.
+For each workload, make a one-page map before selecting a GPU. Include:
 
-## A Six-Point Checklist Before You Deploy
+1. **Inputs.** What enters the system: prompts, documents, images, logs, model weights, or personal data?
+2. **Compute.** Which region runs training or inference?
+3. **Storage and backups.** Where do datasets, snapshots, outputs, and disaster-recovery copies reside?
+4. **Connected services.** Does the workflow call an external API, vector database, observability service, or support tool?
+5. **People and access.** Which teams and vendors can administer the environment, and from where?
+6. **Deletion and evidence.** How are retention, deletion, and access records handled?
 
-Before any data enters any AI system, in-country or not, walk through these six items:
+An instance located in a permitted region is a good start, but it does not answer the whole residency question. A backup in another region or a prompt sent to an external API can change the answer. Conversely, a cross-border design can be appropriate if it is allowed, documented, and protected.
 
-- **Classify the data.** Mark which fields are personal data and which fall under FSC or MOHW definitions of sensitive data. Good classification shrinks most later problems.
-- **Map your sector rules.** Check the table above and confirm which row applies to you — or to your customer.
-- **Contract and DPA.** Sign a data processing agreement with any compute or AI vendor, specifying storage location, retention, and deletion obligations.
-- **Encryption and key management.** Encrypt in transit and at rest; hold your own keys.
-- **Logs and auditability.** Record who accessed what data and when — the foundation of the amended PDPA's notification duties.
-- **In-Taiwan backups.** Even where offshore processing is approved (e.g., sanctioned financial outsourcing), keeping backups of important data in Taiwan is an explicit regulatory requirement.
+## Choose a Region on Four Practical Dimensions
+
+### 1. Legal and contractual fit
+
+Begin with the strictest rule that applies: your customer contract, internal policy, sector rule, or privacy law. Some workloads may need to remain in a particular country or approved set of countries. Others may be transferred internationally if the required safeguards are in place.
+
+Do not turn a general privacy rule into a blanket infrastructure rule. Write the actual requirement in plain language — for example, “production customer records may be processed only in approved regions” — then validate it with the accountable legal or compliance owner.
+
+### 2. User latency
+
+For interactive AI, the region closest to the user is often the most responsive. This matters for chat, real-time voice, image tools, remote development, and live demonstrations. Measure latency from where your users actually are rather than assuming the nearest geography is always fastest.
+
+### 3. Capacity and price
+
+GPU inventory and prices vary by model, availability, and region. A location that is ideal for residency may not have the accelerator you need at that moment; another may be better for a short training run. Treat region selection as a workload choice, not a permanent company-wide default.
+
+### 4. Resilience and operations
+
+Critical systems need an answer for outages. That may be a second approved region, an on-premises recovery environment, or a documented pause-and-recover procedure. The right design depends on whether data may be replicated and on your recovery objectives.
+
+## Taiwan Is One Regional Example
+
+Taiwan is a useful example of why “data residency” must be read by workload and sector. Taiwan does not impose a blanket ban on international transfers of personal data. [PDPA Article 21](https://law.moj.gov.tw/LawClass/LawSingle.aspx?flno=21&pcode=I0050021) allows the competent authority to restrict transfers in specified circumstances.
+
+Some sector rules are narrower and more prescriptive. For example, the regulations governing electronic medical records require the storage location for cloud-service data to be in Taiwan unless the central competent authority approves a special case. [The official text is in Article 8](https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=L0020121). Financial, government, and critical-infrastructure workloads can also carry specific outsourcing, security, or procurement obligations.
+
+The practical conclusion is not that every Taiwan-based company must use only Taiwan infrastructure. It is that a regulated Taiwan workload should be evaluated against the rule and contract that apply to it. A Taiwan deployment may be appropriate; an overseas deployment may also be workable where it is permitted and supported by the required controls.
+
+The 2025 amendments to the PDPA have been promulgated, but their effective date remains to be set by the Executive Yuan. Check the current text and regulator announcements rather than relying on an old compliance checklist.
+
+## A Region-Selection Matrix for AI Teams
+
+| Situation | Region strategy | What to verify before launch |
+| --- | --- | --- |
+| Taiwan users and Taiwan-resident sensitive workload | Use a Taiwan region where required or preferred | Storage, backups, connected APIs, vendor access, and sector-specific approvals |
+| US users and US-resident product data | Use a US region if it fits the data policy and performance goal | Contractual commitments, retention, security controls, and recovery design |
+| Users in several countries | Deploy near user groups or route by workload | Each regional data flow, transfer mechanism, and failure behavior |
+| GPU-heavy batch job with no restricted data | Select based on availability and cost | Dataset classification, temporary storage, deletion, and billing model |
+| Regulated or high-impact AI use | Get architecture approval first | Records of processing, vendor review, audit logs, and incident response |
+
+The table is deliberately not a country ranking. A region is appropriate when it satisfies the workload’s requirements — and inappropriate when it does not.
+
+## Use Region Choice as a Product Control
+
+Glows.ai is a globally distributed GPU cloud designed for training and inference. When creating an instance, select the available compute configuration and review the associated storage and pricing details before checkout. Rates vary by GPU model, region, and availability; the public starting rate for an RTX 4090 was $0.49 per hour when checked in July 2026.
+
+For a Taiwan-specific workload, choose a Taiwan region only after verifying the instance, data drive, backup, and connected-service path meet your requirements. For a US-facing workload, make the same verification for the US deployment. For global services, keep regional environments and their data-flow records separate enough that you can explain each one clearly.
+
+You can start with the [create-an-instance guide](https://docs.glows.ai/docs/create-new), then use an official image or snapshot that matches the workload. The region is part of the design decision, not a marketing label.
+
+## Pre-Deployment Checklist
+
+- Classify the data, including prompts, outputs, logs, and model weights.
+- Record the compute, storage, backup, and integrated-service regions.
+- Check the applicable contract, policy, and sector requirements.
+- Confirm retention, deletion, encryption, access control, and audit logging.
+- Review vendor and subprocessor terms for the selected service configuration.
+- Test incident response and recovery without silently moving restricted data to an unapproved region.
 
 ## FAQ
 
-### Does Taiwanese law ban sending data overseas?
+### Does data residency mean all data must stay in one country?
 
-No. Taiwan works on "allowed in principle, restricted by exception": [PDPA Article 21](https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=I0050021&flno=21) permits international transfers but lets regulators restrict them in four situations. Hard residency requirements live in sector rules — financial customer data and electronic medical records must be stored in Taiwan as a principle.
+No. It means you must identify the applicable requirements and design the workload accordingly. Some data must remain in a particular location; other data may move internationally with the right safeguards. The answer depends on the data, industry, customer contract, and jurisdiction.
 
-### Is it illegal to use ChatGPT or an overseas LLM API?
+### Is a local GPU automatically compliant?
 
-For most companies and most data, no. But if inputs contain personal data, PDPA protection and notification duties apply to you; and if you are a financial or medical institution (or their contractor), sector outsourcing and transfer rules come first. The practical pattern is a split: overseas services for general data, in-country compute for regulated data.
+No. A local GPU does not by itself establish compliant storage, backups, access controls, contracts, or use of connected services. It can be one useful part of a compliant design.
 
-### When does the amended PDPA take effect?
+### Should I always choose the closest region?
 
-The amendments were promulgated on November 11, 2025, but the effective date will be set by the Executive Yuan in step with the PDPC's organizational law — it was not fixed at promulgation. Watch the [PDPC preparatory office](https://www.pdpc.gov.tw/) for announcements. There is no reason to wait, though: breach-response processes and data-flow mapping can start now.
+Not always. Nearby regions can improve latency, but legal requirements, capacity, cost, and resilience may matter more. Choose based on the workload, then measure the result.
 
-### If I run a model on a cloud GPU, does my data count as "resident"?
+### Can I use different regions for different projects?
 
-Not automatically. Three conditions must all hold: the instance sits in a Taiwan facility, data and model weights are stored in-country, and inference sends nothing to overseas APIs. Renting an in-Taiwan GPU but calling an offshore service mid-pipeline still exports the data.
+Yes — and for many teams, that is the sensible approach. Keep the policy and evidence for each project clear enough that you can show why its chosen region is allowed.
 
-### Does data residency blow up AI costs?
+## Next Step: Make the Region Explicit
 
-Not on rented compute. In-Taiwan GPU time starts around $0.49/hour (RTX 4090, checked July 2026), so an 80-hour PoC costs about $39. The expensive path is the on-prem build — and that is no longer the only way to keep data in Taiwan.
+Before launching a new AI workload, write down its approved data path and choose the region that matches it. Then [create an instance on Glows.ai](https://docs.glows.ai/docs/create-new), confirm the selected configuration at checkout, and keep the deployment record with the project.
 
-## Next Step: Start With One GPU That You Can Point To on a Map
-
-However long the compliance discussion runs, it ends with a machine that runs your model and a plain answer to "where is it." Sign up at [Glows.ai](https://glows.ai), follow the [create-an-instance guide](https://docs.glows.ai/docs/create-new) to boot a Taiwan-based GPU in 30–60 seconds, load a prebuilt DeepSeek or GPT-OSS image, and validate your first no-export AI workflow for a few dollars.
-
-(Regulatory and pricing information checked July 2026; for legal developments, rely on official regulator announcements.)
+(Regulatory information and public pricing checked July 2026. Confirm current legal, contractual, and product details before production use.)
