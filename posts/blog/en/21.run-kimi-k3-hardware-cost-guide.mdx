@@ -1,0 +1,141 @@
+---
+id: run_kimi_k3_hardware_cost_guide_en
+title: 'Run Kimi K3 Today: The 1.4TB VRAM Reality | Glows.ai'
+date: '2026-07-17 16:00'
+lastUpdated: '2026-07-17'
+description: 'Kimi K3 is open—but not downloadable yet. See what works today, why 4-bit weights start near 1.4 TB, and when self-hosting may make sense.'
+tags:
+  - Blog
+  - Model Deployment
+  - Inference Economics
+---
+
+> **Last reviewed: July 17, 2026.** Kimi K3 is moving quickly. This guide separates what Moonshot has confirmed from what cannot be verified until the full weights and technical report arrive.
+
+# Kimi K3 Is Open. Here’s Why You Still Can’t Run It Locally (Yet)
+
+**You can run Kimi K3 today—but only through Kimi’s hosted products and API.** Moonshot says the full weights will be released **by July 27, 2026**, so there is no verified checkpoint to download or self-host yet. The launch-day catch is scale: a 2.8-trillion-parameter model has a weight-only 4-bit planning floor near **1.4 TB**, before runtime overhead or long-context KV cache. That is a cluster decision, not a “will my 4090 fit it?” decision.
+
+> **Quick answer:** Use Kimi K3 through its API today. Plan self-hosting only after Moonshot publishes the checkpoint, license, supported runtime, and measured memory guidance.
+
+This guide covers:
+
+- the Kimi K3 facts Moonshot has published;
+- why a 2.8T model will need a multi-GPU plan even at low precision;
+- when to choose the API instead of self-hosting; and
+- the checklist to follow when the weights arrive.
+
+## Kimi K3 at a Glance: What Is Confirmed
+
+Moonshot describes Kimi K3 as a 2.8T-parameter model with native vision and a 1-million-token context window. It uses Kimi Delta Attention, Attention Residuals, and a sparse mixture-of-experts design that activates 16 of 896 experts. At launch, the company says K3 is available in its consumer products, coding product, and API; the default reasoning setting is `max`. [Moonshot's launch announcement](https://www.kimi.com/fr-fr/blog/kimi-k3) is the source of truth for those claims.
+
+| Item | Confirmed as of July 17, 2026 |
+| --- | --- |
+| Total parameters | 2.8 trillion |
+| Context window | 1 million tokens |
+| Inputs / outputs | Text and vision input; text output |
+| Hosted availability | Kimi.com, Kimi Work, Kimi Code, Kimi API |
+| Default reasoning effort | `max` at launch |
+| Full weights | Scheduled for release by July 27, 2026 |
+| Technical report | Scheduled alongside the weights |
+
+The important word in that table is **total**. A sparse model may only compute through a portion of its experts for one token, but local inference still needs access to the checkpoint's complete weight set. Active parameters help describe compute per token; they do not turn a 2.8T checkpoint into a desktop-sized download.
+
+## Kimi K3 Is Available—but Not Downloadable Yet
+
+**Not from a verified official checkpoint.** Kimi K3 is usable as a hosted model today, but Moonshot has not yet released the full weights or technical report. Until it does, nobody can give a trustworthy minimum-VRAM figure, serving command, quantization recommendation, or license interpretation for self-hosting.
+
+That is not a reason to ignore the model. It is a reason to choose the right path:
+
+- **Need K3 for coding or knowledge work now?** Use Kimi's hosted products or the API.
+- **Need to estimate a future deployment?** Use the planning math below, with generous headroom.
+- **Need an open-weight model on your own GPUs this week?** Choose a model with published weights, supported runtimes, and tested hardware guidance instead. Our guide to [local LLM GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en) is a useful starting point.
+
+The last option is not a compromise in every case. A 32B or 120B model that you can measure, secure, and serve reliably is often more useful than waiting for a giant model with unknown deployment details.
+
+## Kimi K3 Hardware Requirements: The 1.4 TB Reality
+
+There is no official Kimi K3 VRAM minimum yet. The figures below are **planning estimates**, not a published requirement.
+
+Weight storage has a simple lower bound: total parameters × bytes per parameter. Ignoring packaging and runtime overhead, 2.8 trillion parameters require roughly 5.6 TB in 16-bit precision, 2.8 TB in 8-bit precision, and 1.4 TB in 4-bit precision.
+
+| Weight precision | Weight-only lower bound | What the number means |
+| --- | ---: | --- |
+| BF16 / FP16 | ~5.6 TB | Reference-size checkpoint before runtime overhead |
+| 8-bit | ~2.8 TB | Still a large multi-node deployment |
+| 4-bit | ~1.4 TB | A lower bound, not a usable VRAM recommendation |
+
+Real serving needs more memory than this table shows. The runtime may allocate model metadata, CUDA workspace, communication buffers for tensor parallelism, and a KV cache for every active request. Context length matters: a model that accepts one million tokens does not make one million tokens inexpensive to serve. A production system also needs room for batching, failures, and maintenance.
+
+So a 4-bit Kimi K3 plan should start as **multiple high-memory GPUs or a cluster**, not "one big GPU." An RTX 4090 has 24 GB of VRAM. Even the weight-only 4-bit estimate is about 58 times larger, before overhead. CPU offloading may make an experiment possible after community formats arrive, but it will trade memory pressure for much slower generation.
+
+**Note:** Do not select hardware or quote a customer a self-hosted Kimi K3 price from this estimate. Replace this table with official checkpoint sizes and measured configurations after the release.
+
+## API vs. Self-Hosting: Choose the Right Path
+
+For most teams right now, the API is the practical way to run Kimi K3. It removes the two unknowns that matter most: when compatible weights ship and what hardware they actually need.
+
+| Path | Best for | What you manage | What is known today |
+| --- | --- | --- | --- |
+| Kimi products | Interactive research, coding, and knowledge work | Account and workflow | Available now |
+| Kimi API | Application integration and early evaluation | Token use, rate limits, application security | Available now |
+| Future self-hosting | Private data, custom serving, sustained high-volume work | Checkpoint, GPUs, runtime, security, monitoring | Wait for official weights and docs |
+
+Moonshot's published API rate card lists $3.00 per million input tokens, $15.00 per million output tokens, and $0.30 per million cached-input tokens for Kimi K3. Rates and product terms can change, so confirm them on the [Kimi API platform](https://platform.kimi.ai/) before estimating spend.
+
+For an early evaluation, the API cost is straightforward:
+
+> **Estimated API cost = input tokens × input rate + output tokens × output rate.**
+
+Run representative prompts, record their input and output lengths, and calculate the cost from the live rate card. That gives a real baseline to compare against a future cluster—not an imagined hourly rate based on unverified weights.
+
+## A Safe Self-Hosting Checklist for Release Day
+
+When Kimi K3's weights arrive, resist the urge to pull the first mirror and point a generic server at it. Use this sequence instead.
+
+1. **Verify the source and license.** Start with the official Moonshot repository or model page. Confirm the exact revision, permitted use, and any access requirements.
+2. **Read the technical report and model card.** Record the official context limit, required Transformers or serving-engine version, prompt format, and recommended precision.
+3. **Start with a conservative context limit.** Long context expands KV-cache demand. Prove a short request works before allocating for the advertised maximum.
+4. **Use a multi-GPU runtime deliberately.** vLLM and SGLang can distribute a model across GPUs, but the correct tensor-parallel and pipeline-parallel settings depend on the released architecture.
+5. **Measure before adding users.** Capture VRAM use, time to first token, tokens per second, error rate, and output quality for one request. Then add concurrency one step at a time.
+6. **Keep the checkpoint persistent.** A multi-terabyte model download is not a disposable boot-time task. Store verified weights on persistent storage and record the checksum and revision you tested.
+
+On Glows.ai, the practical shape of that workflow is a multi-GPU instance with a preconfigured vLLM or SGLang environment, followed by a model pull to persistent storage. The mechanics are the same as our [multi-machine DeepSeek-R1 SGLang tutorial](https://glows.ai/article/deepseek_r1_using_sglang), but the configuration should not be copied until K3's official serving guidance exists. For checkpoint storage and downloads, see [how to download Hugging Face models on Glows.ai](https://glows.ai/article/download_huggingface_models).
+
+## What Should You Run While You Wait?
+
+If your actual goal is a capable model you control, first match the model to the GPU you can rent or own. A 24 GB GPU handles smaller inference workloads; an 80 GB GPU opens up larger open-weight models; a multi-GPU cluster is for models whose *total* weight memory does not fit on one card. The detailed choices and trade-offs are in [our 2026 local-model GPU guide](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en).
+
+If your goal is Kimi K3 specifically, use the API now. That lets your team evaluate its coding, vision, and long-context behavior before committing to a deployment design. If the eventual weights, license, and measured throughput fit your privacy or volume requirements, you will have a workload to benchmark rather than a launch-day hunch.
+
+## FAQ
+
+### Is Kimi K3 open source?
+
+Moonshot calls Kimi K3 an open 3T-class model and says it will release the full model weights by July 27, 2026. Until the weights and license text are published, treat the precise self-hosting and commercial-use terms as unconfirmed. The hosted products and API are available now.
+
+### Can I run Kimi K3 on an RTX 4090?
+
+No practical self-hosted setup is verified today. The model has 2.8T total parameters; a 4-bit weight-only estimate is about 1.4 TB, versus 24 GB on an RTX 4090. That gap points to multi-GPU infrastructure, not a single consumer card.
+
+### How much VRAM will Kimi K3 need?
+
+Moonshot has not published an official minimum. The 1.4 TB figure for 4-bit weights is only arithmetic before runtime overhead and KV cache. Wait for the released checkpoint, quantization options, and measured serving reports before treating any configuration as a requirement.
+
+### Is Kimi K3 available through an API?
+
+Yes. Moonshot lists Kimi K3 on the Kimi API alongside Kimi.com, Kimi Work, and Kimi Code. Check the [official API platform](https://platform.kimi.ai/) for the current model ID, pricing, and limits.
+
+### When does self-hosting make sense?
+
+It can make sense when you need private inference, custom infrastructure, a controlled model revision, or enough steady volume to justify operating a large cluster. First compare measured API spend with the fully loaded cost of GPUs, storage, networking, operations, and the time your team spends maintaining the service.
+
+## Related Guides
+
+- [Which local models fit in 24 GB, 80 GB, and multi-GPU configurations?](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [How to run a model your PC cannot handle without buying a GPU](https://glows.ai/article/new_model_your_pc_cant_run_it_plan_b_en)
+- [How to deploy a large model across machines with SGLang](https://glows.ai/article/deepseek_r1_using_sglang)
+
+## Start With What Is Verified
+
+Kimi K3 is exciting precisely because its published scale is unusual. But the useful launch-day decision is simple: use the hosted K3 experience or API now, and wait for official artifacts before renting a cluster around it. If you need a private model endpoint today, [create a GPU instance](https://docs.glows.ai/docs/create-new) for a model with published weights and a verified runbook. When K3's weights land, preserve the checkpoint on Datadrive and benchmark the released model with your own workload—not someone else's estimate.

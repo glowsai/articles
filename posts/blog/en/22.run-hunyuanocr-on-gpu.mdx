@@ -1,0 +1,195 @@
+---
+id: run_hunyuanocr_on_gpu_en
+title: 'Run HunyuanOCR on a $0.49/hr GPU: vLLM Setup | Glows.ai'
+date: '2026-07-17 16:30'
+lastUpdated: '2026-07-17'
+description: 'Tencent lists 20GB for HunyuanOCR vLLM. Test it on a 24GB RTX 4090 from $0.49/hr, validate real documents, then scale safely.'
+tags:
+  - Blog
+  - Model Deployment
+  - AI Operations
+---
+
+> **Last reviewed: July 17, 2026.** This guide follows the current HunyuanOCR-1.5 model card and repository. Inference dependencies change quickly; use the linked official instructions as the final authority before deploying.
+
+# HunyuanOCR Runs on a 20GB GPU. Here’s the $0.49/Hour vLLM Test
+
+**Tencent’s official HunyuanOCR vLLM guide lists 20GB of GPU memory, so a 24GB RTX 4090 is enough to run a real validation test.** On Glows.ai, that GPU starts at **$0.49/hour** (checked July 17, 2026): a two-hour OCR trial is about **$0.98** before storage. That is a useful way to check tables, receipts, and scans with your own documents before you commit to a production OCR stack. Image resolution, output-token limits, and concurrent requests still decide whether your service stays fast and stable.
+
+> **Quick answer:** Start with one 24GB GPU, test a real document through Transformers, then send the same page to a vLLM or SGLang endpoint. Scale only after you have measured memory, latency, and table accuracy.
+
+In this guide, we will:
+
+- pick the right HunyuanOCR serving path;
+- create a GPU workspace and fetch the official model;
+- make a small, reproducible document-parsing test; and
+- check output quality and resource use before scaling batches.
+
+## What HunyuanOCR Does—and When to Use It
+
+HunyuanOCR-1.5 is Tencent Hunyuan's lightweight, end-to-end OCR VLM. Unlike a traditional OCR pipeline that chains text detection, recognition, layout analysis, and post-processing, it takes an image plus an instruction and generates an answer. Tencent's [official repository](https://github.com/Tencent-Hunyuan/HunyuanOCR) describes the supported work as document parsing, text spotting, information extraction, text-image translation, and multi-image text-centric tasks.
+
+That makes it useful when the page layout is part of the answer:
+
+| Task | A useful HunyuanOCR result |
+| --- | --- |
+| Document parsing | Markdown in reading order, with table and formula representations |
+| Text spotting | Text locations or structured results for an image |
+| Information extraction | Fields from receipts, cards, forms, or similar documents |
+| Table parsing | Structured table output you can validate downstream |
+| Text-image translation | Translated text while retaining the image's document context |
+
+The model card lists the checkpoint as `tencent/HunyuanOCR`, with a 1B-parameter BF16 model and the Tencent Hunyuan Community License. Read that [license on the model card](https://huggingface.co/tencent/HunyuanOCR) before using the model in a product. "Open weights" does not remove the need to check usage terms.
+
+## Choose Your Deployment Path: Transformers, vLLM, or SGLang
+
+Start with the goal, not the framework.
+
+| Path | Use it first when | Output to validate | Main trade-off |
+| --- | --- | --- | --- |
+| Transformers | You need a known-good functional baseline | One image and one prompt | Best for testing, not necessarily serving throughput |
+| vLLM | You need an OpenAI-compatible HTTP endpoint | Same image and prompt as the baseline | Dependency setup is version-sensitive |
+| SGLang | Your team already operates SGLang services | OpenAI-compatible response and throughput | Still requires real-document validation |
+
+The official model card documents all three routes. The repository adds an important operational warning: native Transformers and the supported vLLM/DFlash setups use incompatible Transformers versions, so they cannot share one Python environment. Create separate environments or containers instead of upgrading packages until a working test breaks. See the [official environment selection guide](https://github.com/Tencent-Hunyuan/HunyuanOCR) for the current dependency matrix.
+
+**Recommendation:** use Transformers to establish a quality baseline on one representative image. Then serve that same example through vLLM or SGLang. If the output changes materially, investigate before moving to a batch job.
+
+## Step 1: Pick a 24GB GPU and Download the Model
+
+Tencent's current vLLM quick-start lists **20GB of GPU memory** and **6GB of disk** as its system requirement. Start with a 24GB RTX 4090 on [Glows.ai](https://glows.ai), which is listed from $0.49/hour when this article was reviewed; the [instance creation guide](https://docs.glows.ai/docs/create-new) shows the basic setup. The extra 4GB is useful runtime headroom, but it is not a promise of a fixed concurrency level. Measure image resolution, maximum output length, and concurrent requests on your own documents before choosing a larger tier.
+
+Mount **Datadrive** before downloading. Model files and environments take time to prepare, and persistent storage means you do not re-download the checkpoint for every short test. Our [Hugging Face download guide](https://glows.ai/article/download_huggingface_models) covers both Datadrive and instance-local download workflows.
+
+From a terminal, download the official checkpoint with the Hugging Face CLI:
+
+```bash
+hf download tencent/HunyuanOCR --local-dir ./HunyuanOCR --exclude "v1.0/*"
+```
+
+The `--exclude "v1.0/*"` example follows Tencent's current llama.cpp guidance and avoids fetching the archived 1.0 folder when you want the root 1.5 release. If you prefer the library cache, omit `--local-dir`; either way, record the model revision you tested so a later update is traceable.
+
+**Reminder:** Do not publish an unauthenticated model port to the internet. Bind a test server privately, add authentication before production, and restrict inbound access to the people and systems that need it.
+
+## Step 2: Establish a Transformers Baseline
+
+Hugging Face's model card shows HunyuanOCR as an `image-text-to-text` model. Start with a single image and a short prompt. The point of this test is not benchmark throughput; it is to confirm that your environment, processor, model, and input formatting work together.
+
+```python
+from transformers import pipeline
+
+pipe = pipeline("image-text-to-text", model="tencent/HunyuanOCR")
+
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "path": "/workspace/sample-page.png"},
+            {
+                "type": "text",
+                "text": "Extract the document body in reading order. Return Markdown; use HTML for tables and LaTeX for formulas.",
+            },
+        ],
+    },
+]
+
+result = pipe(text=messages, max_new_tokens=2048)
+print(result)
+```
+
+Treat a nonempty response as a smoke-test result, not a quality sign-off. Compare it with the source page:
+
+1. Is the reading order correct?
+2. Are headers, footers, footnotes, and columns handled the way your use case needs?
+3. Do tables preserve their rows and columns?
+4. Are formulas represented cleanly enough for downstream use?
+5. Does the output invent characters or fields that are not on the page?
+
+Keep that sample page, expected output, prompt, dependency versions, and GPU type together. It is your regression test when you change a runtime later.
+
+## Step 3: Serve HunyuanOCR with vLLM or SGLang
+
+Use a server only after the baseline is acceptable. The model card provides a concise vLLM command:
+
+```bash
+vllm serve "tencent/HunyuanOCR"
+```
+
+That creates an OpenAI-compatible API in a vLLM environment. The same model card documents an SGLang route:
+
+```bash
+python3 -m sglang.launch_server \
+  --model-path "tencent/HunyuanOCR" \
+  --host 0.0.0.0 \
+  --port 30000
+```
+
+For an up-to-date production setup, prefer the [official HunyuanOCR inference folders](https://github.com/Tencent-Hunyuan/HunyuanOCR). They include separate, self-contained setups for the stable vLLM path, a nightly path with DFlash acceleration, and native Transformers. Tencent explicitly marks these environments as mutually exclusive because of their different dependency requirements. If you need to spread a future batch workload over multiple GPUs or machines, the deployment pattern in our [multi-machine SGLang tutorial](https://glows.ai/article/deepseek_r1_using_sglang) is a useful infrastructure reference; keep HunyuanOCR's own model-specific commands and versions.
+
+Once the server is live, send the same sample image and prompt you used for the baseline. The project ships task types such as `doc_parse`, `structured_parse`, `table`, `formula`, and `layout_parse`; choose the narrowest task that matches the job. Its client example uses `doc_parse` and up to 32,768 output tokens, but do not copy that ceiling blindly. Large tables and dense pages can generate long outputs, which directly affect latency and memory use.
+
+## Step 4: Parse Documents into Markdown, Tables, and LaTeX
+
+For general document parsing, Tencent provides a default Chinese instruction that asks for body content in Markdown, tables in HTML, formulas in LaTeX, and reading-order organization. You can use the equivalent English instruction in the baseline example above, but validate it with your own documents and languages.
+
+The key is to make output structure explicit. A vague prompt such as "read this image" can be useful for visual Q&A, but it is not a dependable contract for a document-ingestion pipeline. Tell the model which fields you need and define the representation you expect.
+
+For a real test set, include at least these five pages:
+
+- a clean, digitally generated PDF page;
+- a photographed receipt or form;
+- a page with a dense table;
+- a page with a mathematical formula; and
+- a mixed-language or low-quality scan that resembles the documents you will actually receive.
+
+Review outputs manually before passing them to a search index, a database, or an LLM. OCR errors become retrieval errors later, and well-formatted Markdown does not prove that the text is correct.
+
+## Hardware, Context, and Production Checks
+
+HunyuanOCR is small by current VLM standards, but a 1B parameter count is not a complete sizing guide. Memory and latency also depend on model precision, image resolution, maximum generated tokens, input count, batch size, and concurrent requests. A dense page with tables and formulas is an output-length workload, not just an image workload.
+
+Before you scale, capture the following from a controlled test:
+
+| Check | Why it matters |
+| --- | --- |
+| Peak GPU memory | Sets a safe concurrency limit with headroom |
+| Time to first token and total latency | Separates queueing from long-generation time |
+| Output-token count | Explains cost and slowdown on dense pages |
+| Character and table accuracy | Catches failures hidden by polished formatting |
+| Framework comparison | Detects differences from the Transformers baseline |
+
+The official repository notes that earlier vLLM results could differ from Transformers results. That is a useful warning, not a reason to avoid vLLM: compare the exact document and prompt in both paths, record the difference, and use the result that meets your quality target.
+
+For a longer-running service, also add request limits, file-type validation, rate limits, logs with sensitive document content redacted, and a retention policy. OCR endpoints often handle invoices, IDs, and contracts; operational security is part of output quality.
+
+## FAQ
+
+### Is HunyuanOCR free to use?
+
+The weights are published on Hugging Face, but use is governed by the Tencent Hunyuan Community License. Review the [official license and model card](https://huggingface.co/tencent/HunyuanOCR) for your intended commercial or product use.
+
+### Can HunyuanOCR parse PDFs?
+
+It processes document images. For a PDF, render each page to an image at an appropriate resolution, parse those pages, then preserve page order in your downstream pipeline. Test a real PDF from your workflow before processing a large archive.
+
+### Does HunyuanOCR need a GPU?
+
+A GPU is the practical choice for fast inference and serving. The project also documents PC-side llama.cpp deployment for consumer GPUs, laptops, and CPUs after conversion to GGUF, but the right choice depends on latency, document volume, and output length.
+
+### What is the best server for HunyuanOCR?
+
+Use Transformers first for a quality baseline. Choose vLLM or SGLang when you need an OpenAI-compatible HTTP service and have validated the output against that baseline. There is no universal winner without your documents, throughput target, and operational stack.
+
+### Can it extract tables and formulas?
+
+Yes, document parsing can request tables as HTML and formulas as LaTeX. Those formats are part of the official default parsing prompt. Check every layout type you care about; structured output still needs content validation.
+
+## Related Guides
+
+- [Download Hugging Face models to persistent storage on Glows.ai](https://glows.ai/article/download_huggingface_models)
+- [Deploy inference across GPUs and machines with SGLang](https://glows.ai/article/deepseek_r1_using_sglang)
+- [Choose a GPU by model size and VRAM requirement](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+
+## Start Small, Then Scale the Proven Path
+
+The useful way to run HunyuanOCR is a three-step loop: establish one quality baseline, serve the same test through your chosen runtime, then scale only after the differences are understood. Create a GPU instance on [Glows.ai](https://glows.ai), store the official checkpoint on Datadrive, and use your actual documents as the benchmark that decides whether the model is ready for production.
