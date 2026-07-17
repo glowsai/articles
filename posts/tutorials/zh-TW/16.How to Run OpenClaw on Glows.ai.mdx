@@ -1,0 +1,179 @@
+---
+id: openclaw
+title: "如何在 Glows.ai 執行 OpenClaw"
+date: "2026-03-11 17:20"
+description: "使用本機模型執行 OpenClaw，並採用較安全、方便的部署方式。"
+tags:
+  - Tutorial
+---
+
+本教學說明如何在 Glows.ai 租用 **NVIDIA GeForce RTX 4090** GPU，搭配本機模型執行 OpenClaw，並採用較安全、方便的部署方式。
+
+本文內容包括：
+
+- 在 Glows.ai 建立執行個體
+- 為 OpenClaw 設定本機模型
+- 連線並使用 OpenClaw
+
+OpenClaw 是開放原始碼 AI Agent 框架，可將大型語言模型與工具整合，讓 AI 除了回答問題，也能在電腦或伺服器上執行工作。它通常以自架方式運作，可部署在本機裝置或雲端環境，並透過 API 或聊天應用程式與使用者互動。
+
+傳統對話式 AI 主要負責回覆訊息；OpenClaw 則能執行動作。AI 模型負責理解目標與做出決策，OpenClaw 負責安排工具、執行命令和管理工作流程。
+
+## 建立執行個體
+
+依需求在 Glows.ai 建立執行個體，操作方式可參閱[教學](https://docs.glows.ai/docs/create-new)。請使用官方預先設定的 **OpenClaw**（img-6np58jp2）映像檔。
+
+在 `Create New` 頁面將 Workload Type 設為 Inference GPU -- 4090，再選擇 **OpenClaw** 映像檔。此映像檔已設定必要環境。
+
+![ ](./img/tutorials-images/16.OpenClaw/001.png)
+
+**Datadrive** 是 Glows.ai 提供的雲端儲存服務。建立執行個體前，可先將資料、模型與程式碼上傳至 Datadrive。建立執行個體時點選 `Mount`，即可掛載 Datadrive，讓執行個體直接讀寫其中的內容。
+
+本教學只執行推論服務，因此不需要掛載 Datadrive。
+
+設定完成後，點選右下角的 `Complete Checkout` 建立執行個體。
+
+![ ](./img/tutorials-images/16.OpenClaw/002.png)
+
+**OpenClaw** 映像檔執行個體約需 30–60 秒啟動。你可以在 `My Instances` 介面查看狀態與相關資訊。啟動完成後，會顯示：
+
+- **SSH Port 22**：執行個體的 SSH 連線
+- **HTTP Port 8888**：JupyterLab 連線
+- **HTTP Port 11434**：Ollama API 連線
+
+![ ](./img/tutorials-images/16.OpenClaw/003.png)
+
+## 連線至執行個體
+
+在執行個體頁面開啟 `HTTP Port 8888` 對應的連結，進入 JupyterLab，再依圖示建立新的 Terminal。
+
+![ ](./img/tutorials-images/16.OpenClaw/004.png)
+
+## 升級 OpenClaw
+
+OpenClaw 的更新頻率很高。你可以升級到最新版本，以使用完整功能。
+
+先在 Terminal 中執行以下命令，查看版本狀態與最新版本號碼。
+
+```bash
+openclaw --version
+openclaw update status
+```
+
+![ ](./img/tutorials-images/16.OpenClaw/005.png)
+
+再執行以下命令更新版本。
+
+```bash
+openclaw update
+```
+
+![ ](./img/tutorials-images/16.OpenClaw/006.png)
+
+**提醒：** 最後出現的 `systemctl` 命令錯誤可以忽略，因為 Docker 容器內不支援 `systemctl`。下文會說明如何手動啟動 OpenClaw 服務。
+
+## OpenClaw 基本設定
+
+執行以下命令開啟 OpenClaw 設定介面，同意 OpenClaw 條款並設定 Telegram API Token。
+
+```bash
+openclaw onboard
+```
+
+![ ](./img/tutorials-images/16.OpenClaw/007.png)
+
+使用預設選項。模型設定可以先留空，稍後再設定本機 Ollama 模型；也可以依需求設定第三方模型 API。
+
+![ ](./img/tutorials-images/16.OpenClaw/008.png)
+
+通訊軟體可依需求選擇，本教學使用 Telegram。先在 Telegram 對 `@BotFather` 傳送以下命令，建立 Bot 並取得 Bot API Token。
+
+```bash
+/newbot
+```
+
+![ ](./img/tutorials-images/16.OpenClaw/009.png)
+
+接著在 OpenClaw 設定介面輸入 Telegram Bot API Token。
+
+![ ](./img/tutorials-images/16.OpenClaw/010.png)
+
+畫面顯示 `Onboarding complete` 時，代表設定完成。
+
+![ ](./img/tutorials-images/16.OpenClaw/011.png)
+
+## 設定 OpenClaw 本機模型
+
+透過 Ollama，只需一個命令即可為 OpenClaw 下載並設定模型。以下使用 `qwen3.5:4b` 為例。
+
+```bash
+ollama launch openclaw --model qwen3.5:4b
+```
+
+![ ](./img/tutorials-images/16.OpenClaw/012.png)
+
+模型下載完成後，OpenClaw 服務會自動啟動，接著就能開始使用。
+
+**提醒：** 請記下 `Open the Web UI` 下方的連結，特別是 token。稍後開啟 Web 介面時會用到。
+
+## 與 OpenClaw 互動的三種方式
+
+### 在 CLI 中聊天
+
+前一個命令執行完畢後，可直接在介面中與 OpenClaw 對話。例如要求它建立 Python 檔案，並寫入 Fibonacci 演算法。
+
+![ ](./img/tutorials-images/16.OpenClaw/013.png)
+
+### 在 Telegram 中聊天
+
+先傳送訊息給剛才建立的 Telegram Bot。稍等片刻後，你會收到驗證命令。
+
+![ ](./img/tutorials-images/16.OpenClaw/014.png)
+
+複製該驗證命令，在執行個體的 Terminal 中執行。完成後即可在 Telegram 使用 OpenClaw。
+
+![ ](./img/tutorials-images/16.OpenClaw/015.png)
+
+若要測試記憶功能，可以詢問先前要求它建立的 Fibonacci 演算法檔案路徑。如下圖所示，Bot 會回覆路徑與原始碼內容。
+
+![ ](./img/tutorials-images/16.OpenClaw/016.png)
+
+### 在網頁瀏覽器中聊天
+
+基於安全考量，OpenClaw 預設將服務主機綁定至 `127.0.0.1`。開啟網頁介面前，需要使用 SSH 連接埠轉送，將執行個體的 OpenClaw 服務連接埠轉送到本機電腦。
+
+在 Glows.ai 的 My Instance 頁面查看 SSH 資訊，再將 SSH Command 改寫為 SSH 連接埠轉送命令。
+
+![ ](./img/tutorials-images/16.OpenClaw/017.png)
+
+修改後的命令如下，只需替換指定內容：
+
+- 將 `2xxx7` 換成 SSH Command 中對應的值
+- 將 `18888` 換成本機電腦上任一可用的連接埠號碼
+- 將 `root@tw-05.access.glows.ai` 換成 SSH Command 中對應的值
+
+```bash
+ssh -p 2xxx7 -NL 18888:localhost:18789 root@tw-05.access.glows.ai
+```
+
+在本機 Terminal/CMD 執行修改後的 SSH 連接埠轉送命令。按下 Enter 後貼上 SSH Password；貼上時畫面不會顯示字元，這是正常現象。再次按下 Enter，若沒有錯誤，代表轉送成功。
+
+![ ](./img/tutorials-images/16.OpenClaw/018.png)
+
+**提醒：** Windows 使用者建議在本機下載並安裝 [Windows Git](https://git-scm.com/install/windows)。
+
+轉送成功後，在本機開啟 `http://localhost:18888/#token=xxxxxxxx`。請將 token 值換成[設定 OpenClaw 本機模型](#openclaw-local-model-configuration)中啟動 OpenClaw 服務時顯示的 token。
+
+![ ](./img/tutorials-images/16.OpenClaw/019.png)
+
+---
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 email、Discord 或 Line 聯絡我們。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

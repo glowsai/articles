@@ -1,0 +1,127 @@
+---
+id: vscode
+title: '如何使用 VS Code 遠端連線 Glows.ai'
+date: '2025-01-06 18:00'
+description: '在 VS Code 中透過 SSH 連線至 Glows.ai。'
+tags:
+  - Tutorial
+---
+
+Visual Studio Code（VS Code）支援遠端伺服器連線。你可以在 VS Code 中透過 SSH 連線至 [Glows.ai](https://glows.ai)。
+
+如果要執行耗時較長的訓練腳本，建議在終端機中搭配 tmux 或 nohup，避免關閉 VS Code 時中斷工作。
+
+## **步驟一：安裝遠端開發擴充套件**
+
+1. 前往 [VS Code 官方網站](https://code.visualstudio.com/)下載並安裝最新版本。
+
+2. 點選左側的 `Extensions`，搜尋「Remote Development」，再點選 `Install`。
+   此擴充套件會一併安裝 Remote-SSH、Remote-Containers 和 Remote-WSL 等必要元件。
+
+   ![Remote Development](./img/tutorials-images/01.VSCode/01.RemoteDevelopment.png)
+
+## **步驟二：設定遠端連線**
+
+1. 點選左下角的按鈕，在清單中選擇 `Connect to Host`。
+
+   ![Connect To Host](./img/tutorials-images/01.VSCode/02.Connect2Host.PNG)
+
+- 第一次使用時，請點選 `Add New SSH Host`。
+
+  ![Add New SHH Host](./img/tutorials-images/01.VSCode/03.AddNewSHHHost.PNG)
+
+2. 在 [Glows.ai](https://glows.ai) 複製 SSH 命令。
+
+   ![GLows.ai](./img/tutorials-images/01.VSCode/04.Glowsai.PNG)
+
+SSH 命令格式如下：
+
+```bash
+ssh -p 23998 root@tw-02.access.glows.ai
+```
+
+連線前請確認輸入內容正確。
+
+![Verify Before Connecting](./img/tutorials-images/01.VSCode/05.VerifyBeforeConnecting.png)
+
+3. 在 VS Code 中輸入 SSH 連線命令，按下 `Enter`。
+
+   ![Type SSH Command](./img/tutorials-images/01.VSCode/06.TypeSSHCommand.png)
+
+上方清單中的第一個檔案是 SSH 設定檔，其中包含遠端主機的 `Host`、`HostName`、`Port` 和 `User`。
+
+`Host` 是這組遠端設定的別名，可以自行修改，但不可與其他設定重複。`HostName`、`Port` 和 `User` 則需使用 Glows.ai 提供的值。
+
+![The Host](./img/tutorials-images/01.VSCode/07.TheHost.png)
+
+重複新增相同的 SSH 連線可能會在設定檔中產生重複項目，導致多組設定失效。請刪除重複項目，只保留一組有效設定，並確認 `Host` 名稱唯一。
+
+![The Repeating SSH](./img/tutorials-images/01.VSCode/08.TheRepeatingSSH.png)
+
+## **步驟三：連線至遠端服務**
+
+1. 再次點選左下角按鈕，開啟遠端連線設定清單，然後點選 `Connect to Host`。
+
+   ![Connect to Host](./img/tutorials-images/01.VSCode/09.Connect2Host.png)
+
+2. 清單中會顯示已建立的 glows.ai 連線，請點選該連線。
+
+   ![An Existing Connection](./img/tutorials-images/01.VSCode/10.AnExistingConnection.png)
+
+3. 如果系統顯示確認提示，請點選 Continue。
+
+   ![Continue](./img/tutorials-images/01.VSCode/11.Continue.png)
+
+4. 若使用密碼登入，對話框會要求你輸入密碼。若使用金鑰驗證且設定正確，則不需輸入密碼。
+
+   ![Confirm](./img/tutorials-images/01.VSCode/12.Confirm.png)
+
+5. 左下角顯示「glows.ai」即代表連線成功。
+
+   ![Glows.ai](./img/tutorials-images/01.VSCode/13.GLowsai.png)
+
+## **步驟四：在遠端服務上執行命令**
+
+1. 你可以在 VS Code 的 Terminal 中執行遠端命令，例如查看目前的 GPU 狀態。
+
+   ![GPU Status](./img/tutorials-images/01.VSCode/14.GPUStatus.png)
+
+2. 你也可以存取及修改遠端伺服器上的檔案。
+
+   ![ModifyFiles](./img/tutorials-images/01.VSCode/15.ModifyFiles.png)
+
+3. 若要處理 Glows.ai Data Drive 中的檔案，可將預設的 `/root` 改為 `/datadrive`。
+
+   ![DataDrive](./img/tutorials-images/01.VSCode/16.DataDrive.png)
+
+4. 從下拉式清單點選 `/datadrive` 目錄後，即可逐層瀏覽檔案目錄。
+
+   ![Image](./img/tutorials-images/01.VSCode/17.FileDirectories.png)
+
+## **步驟五：中斷並重新連線至遠端服務**
+
+若要在 VS Code 中中斷遠端連線，請點選左下角，再選擇 `Close Remote Connection`。
+
+![Close Remote Connection](./img/tutorials-images/01.VSCode/18.CloseRemoteConnection.png)
+
+若要重新連線至 glows.ai，請重複步驟三。
+
+## **步驟六：修改遠端連線**
+
+1. 切換到其他機器後，遠端連線的連接埠可能不同。請點選左下角按鈕，再點選 `Connect to Host`。
+
+   ![Modify Remote Connection](./img/tutorials-images/01.VSCode/19.ModifyRemoteConnection.png)
+
+2. 選擇 `Configure SSH Hosts`。
+
+   ![Configure SSH Hosts](./img/tutorials-images/01.VSCode/20.ConfigureSSHHosts.png)
+
+3. 點選下圖中的第一個檔案。
+
+   ![Click the First File](./img/tutorials-images/01.VSCode/21.TheFirstFile.png)
+
+4. 將 `HostName` 改成目前的主機名稱，並把 `Port` 設為新的連接埠號碼。
+
+   ![Chage HostName](./img/tutorials-images/01.VSCode/22.ChageHostName.png)
+
+5. 按下 `Ctrl + S` 儲存檔案。修改完成後，重複步驟三即可重新連線。

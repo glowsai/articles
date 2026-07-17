@@ -1,0 +1,195 @@
+---
+id: deepseek_r1_using_sglang
+title: '如何在 Glows.ai 使用 SGLang，以多台機器與多張 GPU 執行 DeepSeek-R1'
+date: '2025-05-27 21:03'
+description: '在 Glows.ai 建立多節點、多 GPU 環境，使用 SGLang 執行 DeepSeek-R1。'
+tags:
+  - Tutorial
+---
+
+本教學說明如何在 Glows.ai 租用 GPU，並在多節點、多 GPU 環境中使用 SGLang 執行 DeepSeek-R1。
+
+## 步驟一：設定儲存空間
+
+註冊並登入 [Glows.ai](https://glows.ai/) 後，進入[空間管理](https://platform.glows.ai/space)，分配用於儲存的 `Datadrive` 與用於儲存快照的 `Snapshot`。如果已購買空間，可跳過此步驟。
+
+依照圖片中的操作順序設定：
+
+1. 在介面上點選 `Upgrade`，購買 5GB 空間。你也可以依實際需求購買更大的儲存空間。
+
+![Space Storage](./img/tutorials-images/07.DeepSeekSGLang/01.SpaceStorage.png)
+
+2. 購買儲存方案後，依圖片順序點選 `Modify`。本教學將 3GB 分配給 `Snapshot`，2GB 分配給「TW-01」的 `Datadrive`，再點選 `Update`。此配置僅供示範，請依專案需求調整容量。
+
+![Modify Quata](./img/tutorials-images/07.DeepSeekSGLang/02.ModifyQuota.png)
+
+## 步驟二：建立執行個體
+
+在 [Create New](https://platform.glows.ai/create) 頁面選擇 ` Inference GPU` -- `NVIDIA GeForce RTX 4090`，再選擇 `SGLang 0.4.2` 環境。你也可以依需求選用其他機器或環境。
+
+本範例使用兩張 `RTX 4090` GPU。每張 RTX 4090 有 24GB VRAM，足以執行 DeepSeek-R1-Distill-Qwen-14B。依測試結果，若要執行 DeepSeek-R1 671B，需要兩台各配備 8 張 H100 的機器，或一台配備 8 張 H200 的機器。設定過程若有問題，可以聯絡我們。
+
+| 模型名稱                     | 建議 GPU 規格         | 最少節點數 | 說明                              |
+| ---------------------------- | --------------------- | ---------- | --------------------------------- |
+| DeepSeek-R1-Distill-Qwen-14B | 1x RTX 4090           | 2          | 每張 GPU 需要 24GB VRAM           |
+| DeepSeek-R1 671B             | 8x H100               | 2          | 建議使用 2 台各配備 8 張 GPU 的機器 |
+| DeepSeek-R1 671B             | 8x H200               | 1          | 多張高階 GPU 必須位於同一節點     |
+
+![CreateNew](./img/tutorials-images/07.DeepSeekSGLang/03.CreateNew.png)
+
+在頁面底部點選 `Mount`，將自己的 `Datadrive` 掛載至執行個體。這樣可在多個執行個體之間共用檔案，也方便永久保存機器上的檔案，或稍後下載至本機。
+
+完成後，點選 `Complete Checkout` 建立執行個體。
+
+![Mount Data Drive](./img/tutorials-images/07.DeepSeekSGLang/04.MountDataDrive.png)
+
+若要透過 SGLang 在多台機器與多張 GPU 上執行大型模型推論服務，請重複以上步驟，再建立一個執行個體。兩個執行個體建立完成後，**My Instances** 頁面會顯示兩筆記錄。
+
+![My Instance](./img/tutorials-images/07.DeepSeekSGLang/05.MyInstance.png)
+
+執行個體約需 30–50 秒啟動。狀態變成 `Running` 後即可使用。
+
+## 步驟三：啟動程式
+
+### 1. 下載模型
+
+執行個體啟動後，頁面會顯示 SSH（SSH Port 22）、JupyterLab（HTTP Port 8888）與 HTTP Port 8000 連結。選擇偏好的遠端連線方式進入執行個體；建議使用 JupyterLab。
+
+**注意：** 若需要對應其他連接埠，可點選 `New Port Forwarding` 新增。新增的連接埠若使用 HTTP 通訊協定，請勾選 HTTP 選項。
+
+![Port](./img/tutorials-images/07.DeepSeekSGLang/06.Port.png)
+
+點選 HTTP Port 8888 的 `Open` 開啟 JupyterLab。建立新的 Terminal，輸入以下命令，將模型下載到執行個體的 /home/DeepSeek-R1-Distill-Qwen-14B 目錄。模型約 28GB，預估下載時間為 5–10 分鐘。
+
+**注意：** 兩個節點都要開啟 JupyterLab，並分別執行以下命令下載模型。
+
+```bash
+huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --local-dir /home/DeepSeek-R1-Distill-Qwen-14B
+```
+
+![Download](./img/tutorials-images/07.DeepSeekSGLang/07.Download.png)
+
+### 2. 建立叢集
+
+下載模型時，可以使用 Glows.ai 的 **Mesh Clustering** 功能，設定兩個執行個體之間的內部網路。
+
+前往 **Mesh Clustering** 頁面，依畫面指示建立 Network Group。
+
+**必要設定：**
+
+- Mesh Type：Network Group
+- Region：TW-01
+- Name：可自行命名，例如 SGLang。
+
+![Create Network Group](./img/tutorials-images/07.DeepSeekSGLang/08.CreateNetworkGroup.png)
+
+點選 `Add Instance`，把先前建立的兩個執行個體加入 Network Group。
+
+![Add Instance](./img/tutorials-images/07.DeepSeekSGLang/09.AddInstance.png)
+
+加入後，Status 會變成 `Connected`，代表內部網路已連線。先前顯示的 IP CIDR 代表內部 IP 位址。例如下圖中，兩台機器的內部 IP 分別是 192.168.1.1 與 192.168.1.2。
+
+![Connected](./img/tutorials-images/07.DeepSeekSGLang/10.Connected.png)
+
+### 3. 啟動服務
+
+模型下載完成後，執行 `ip -4 a`，查看內部網路介面名稱與 IP 位址，如下圖所示：
+
+- 內部 IP：192.168.1.1
+- 內部網路介面：meth340
+
+![Internal Network](./img/tutorials-images/07.DeepSeekSGLang/11.InternalNetwork.png)
+
+在兩個節點上依序執行以下命令：
+
+```bash
+# On Instance 1, run the following commands in order
+# Note: Replace the values of GLOO_SOCKET_IFNAME and NCCL_SOCKET_IFNAME with the network interface name you found using the ip -4 a command.
+# Note: Replace the values of SGLANG_HOST_IP and HOST_IP with the internal IP address of your designated master node.
+export GLOO_SOCKET_IFNAME=meth340
+export NCCL_SOCKET_IFNAME=meth340
+export SGLANG_HOST_IP=192.168.1.1
+export HOST_IP=192.168.1.1
+python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 0 --trust-remote-code --host 0.0.0.0
+```
+
+![Instance1](./img/tutorials-images/07.DeepSeekSGLang/12.Instance1.png)
+
+```bash
+# On Instance 2, run the following commands in order
+# Note: Replace the values of GLOO_SOCKET_IFNAME and NCCL_SOCKET_IFNAME with the network interface name you found using the ip -4 a command.
+# Note: Replace the values of SGLANG_HOST_IP and HOST_IP with the internal IP address of your designated master node.
+export GLOO_SOCKET_IFNAME=meth341
+export NCCL_SOCKET_IFNAME=meth341
+export SGLANG_HOST_IP=192.168.1.1
+export HOST_IP=192.168.1.1
+python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 1 --trust-remote-code --host 0.0.0.0
+```
+
+![Instance2](./img/tutorials-images/07.DeepSeekSGLang/13.Instance2.png)
+
+下圖是正常執行時的畫面。模型通常可在 1 分鐘內載入完成。
+
+![Model Loading](./img/tutorials-images/07.DeepSeekSGLang/14.ModelLoading.png)
+
+## 步驟四：測試 API
+
+在 **My Instances** 頁面複製主節點的 HTTP Port 8000 連結。連結中的 token 參數可以省略，例如：
+
+```bash
+Copied link：https://tw-03.access.glows.ai:24516?token=hSFGABSM
+Actual link：https://tw-03.access.glows.ai:24516
+```
+
+![HTTP Port 8000](./img/tutorials-images/07.DeepSeekSGLang/15.HTTPPort8000.png)
+
+以下是測試程式碼。請將程式碼中的 base_url 改成剛才複製的連結。
+
+```python
+import openai
+client = openai.Client(
+    base_url="https://tw-03.access.glows.ai:24516/v1", api_key="EMPTY")
+
+# Chat completion
+response = client.chat.completions.create(
+    model="default",
+    messages=[
+        {"role": "system", "content": "You are a helpful AI assistant"},
+        {"role": "user", "content": "What model are you and who developed it?"},
+    ],
+    temperature=0.6
+)
+print(response)
+```
+
+![Demo](./img/tutorials-images/07.DeepSeekSGLang/16.Demo.png)
+
+## 步驟五：資料儲存與快照
+
+若要使用資料儲存與快照功能，請先在[空間管理](https://platform.glows.ai/space)頁面購買儲存空間。
+
+### 1. 資料儲存
+
+如果程式在執行個體硬碟上產生大型輸出檔案，而你想在不持續啟動執行個體的情況下將檔案下載到本機，可以使用 `cp/mv` 將檔案移動或複製到 `/datadrive`，也可以在程式中直接將輸出路徑設為 `/datadrive`。
+釋放執行個體後，你仍可從 [**Data Drive**](https://platform.glows.ai/data) 頁面下載檔案，多個執行個體也能共用 `/datadrive` 中的資料。
+
+以此大型模型為例，通常需要在每個執行個體上分別下載模型。若直接將模型下載到 `/datadrive`，或從本機上傳到該目錄，每個新建的執行個體都能直接存取，不必重複下載。
+
+### 2. 快照
+
+若在使用期間修改了系統環境，例如透過 pip 安裝新的 Python 套件，可以在確認環境設定完成後建立 Snapshot。前往 **My Instances** 頁面，點選 `Take Snapshot`。之後可直接從快照建立新的執行個體，不必重新安裝或設定環境。
+
+如果沒有修改環境，則不需要建立快照。
+
+![Take Snapshot](./img/tutorials-images/07.DeepSeekSGLang/17.TakeSnapshot.png)
+
+## 步驟六：關閉執行個體
+
+使用完畢並保存所需環境或資料後，前往 My Instances 頁面，點選 Release 關閉執行個體。釋放後即停止計費。
+如果忘記釋放，系統會持續計費。點數歸零時，系統會自動建立快照，再釋放機器。
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，請透過以下信箱聯絡我們：
+
+**Email: support@glows.ai**

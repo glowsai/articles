@@ -1,0 +1,52 @@
+---
+id: set_comfyui_model_path
+title: 'ComfyUI でモデルの保存先を追加する方法'
+date: '2025-09-28 19:00'
+description: 'ComfyUI にモデルの保存先を追加し、既定と追加の両方のパスにあるモデルを認識させ、モデル追加のたびにスナップショットを作る手間を省きます。'
+tags:
+  - Tutorial
+---
+
+ComfyUI ではモデルの保存先を追加できます。設定後は、既定パスと追加パスの両方にあるモデルを認識します。モデルは Datadrive に保存すると、追加するたびにスナップショットを作成する必要がありません。
+
+---
+
+## モデルの追加パスを設定する
+
+追加パスを `/datadrive/comfyui` に設定する例です。インスタンスの **HTTP 8888 Port**（JupyterLab リンク）を開き、ターミナルで次のコマンドを実行します。追加モデル用の設定ファイルをコピーし、モデル保存ディレクトリを作成します。
+
+```bash
+cd /ComfyUI
+cp extra_model_paths.yaml.example extra_model_paths.yaml
+mkdir /datadrive/comfyui
+```
+
+![創建模型存儲路徑](./img/tutorials-images/comfyui-path/image-20250904135537054.png)
+
+`/ComfyUI` ディレクトリにコピーした `extra_model_paths.yaml` をダブルクリックし、`comfyui` セクションのコメントを解除して `base_path` を `/datadrive/comfyui` に設定します。`Ctrl + S` で保存してください。
+
+![修改配置文件](./img/tutorials-images/comfyui-path/image-20250904135508173.png)
+
+---
+
+## ComfyUI を再起動する
+
+設定を反映するには ComfyUI の再起動が必要です。**HTTP Port 8188** から ComfyUI を開きます。
+
+![訪問 ComfyUI](./img/tutorials-images/comfyui-path/image-20250905105554414.png)
+
+画面右上の `Manager -> Restart` をクリックして ComfyUI を再起動します。再起動後、`/datadrive/comfyui` に保存したモデルを認識して利用できます。
+
+![重啟後模型生效](./img/tutorials-images/comfyui-path/image-20250905105632515.png)
+
+---
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、Email、Discord、Line からお問い合わせください。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG

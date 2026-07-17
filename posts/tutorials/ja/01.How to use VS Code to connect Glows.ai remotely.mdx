@@ -1,0 +1,127 @@
+---
+id: vscode
+title: 'VS Code から Glows.ai にリモート接続する方法'
+date: '2025-01-06 18:00'
+description: 'VS Code で SSH を使って Glows.ai に接続します。'
+tags:
+  - Tutorial
+---
+
+Visual Studio Code（VS Code）はリモートサーバーへの接続に対応しています。VS Code から SSH を使って [Glows.ai](https://glows.ai) に接続できます。
+
+長時間のトレーニングスクリプトを実行する場合は、ターミナルで tmux または nohup を使ってください。VS Code を閉じても処理が中断されません。
+
+## **ステップ 1：リモート開発拡張機能をインストールする**
+
+1. [VS Code 公式サイト](https://code.visualstudio.com/)から最新版をダウンロードし、インストールします。
+
+2. 左側の `Extensions` をクリックし、「Remote Development」を検索して `Install` をクリックします。
+   Remote-SSH、Remote-Containers、Remote-WSL などの必要な依存機能もインストールされます。
+
+   ![Remote Development](./img/tutorials-images/01.VSCode/01.RemoteDevelopment.png)
+
+## **ステップ 2：リモート接続を設定する**
+
+1. 左下のボタンをクリックし、一覧から `Connect to Host` を選択します。
+
+   ![Connect To Host](./img/tutorials-images/01.VSCode/02.Connect2Host.PNG)
+
+- 初回は `Add New SSH Host` をクリックします。
+
+  ![Add New SHH Host](./img/tutorials-images/01.VSCode/03.AddNewSHHHost.PNG)
+
+2. [Glows.ai](https://glows.ai) で SSH コマンドをコピーします。
+
+   ![GLows.ai](./img/tutorials-images/01.VSCode/04.Glowsai.PNG)
+
+SSH コマンドの形式は次のとおりです。
+
+```bash
+ssh -p 23998 root@tw-02.access.glows.ai
+```
+
+接続する前に、入力内容が正しいことを確認してください。
+
+![Verify Before Connecting](./img/tutorials-images/01.VSCode/05.VerifyBeforeConnecting.png)
+
+3. VS Code に SSH 接続コマンドを入力し、`Enter` キーを押します。
+
+   ![Type SSH Command](./img/tutorials-images/01.VSCode/06.TypeSSHCommand.png)
+
+上の一覧にある最初のファイルが SSH 設定ファイルです。リモート接続の `Host`、`HostName`、`Port`、`User` が記録されています。
+
+`Host` はこのリモート設定のエイリアスです。任意の名前に変更できますが、ほかの設定と重複しないようにしてください。`HostName`、`Port`、`User` には Glows.ai が指定した値を使います。
+
+![The Host](./img/tutorials-images/01.VSCode/07.TheHost.png)
+
+同じ SSH 接続を何度も追加すると、設定ファイルに重複した項目が作成され、複数の設定が無効になることがあります。重複項目を削除して有効な設定を 1 件だけ残し、`Host` が一意であることを確認してください。
+
+![The Repeating SSH](./img/tutorials-images/01.VSCode/08.TheRepeatingSSH.png)
+
+## **ステップ 3：リモートサービスに接続する**
+
+1. 左下のボタンをもう一度クリックしてリモート接続の一覧を開き、`Connect to Host` をクリックします。
+
+   ![Connect to Host](./img/tutorials-images/01.VSCode/09.Connect2Host.png)
+
+2. 一覧に表示された glows.ai の接続をクリックします。
+
+   ![An Existing Connection](./img/tutorials-images/01.VSCode/10.AnExistingConnection.png)
+
+3. 確認画面が表示された場合は、Continue をクリックします。
+
+   ![Continue](./img/tutorials-images/01.VSCode/11.Continue.png)
+
+4. パスワード認証を選んだ場合は、ダイアログにパスワードを入力します。鍵認証が正しく設定されていれば、パスワードの入力は不要です。
+
+   ![Confirm](./img/tutorials-images/01.VSCode/12.Confirm.png)
+
+5. 左下に「glows.ai」と表示されたら接続完了です。
+
+   ![Glows.ai](./img/tutorials-images/01.VSCode/13.GLowsai.png)
+
+## **ステップ 4：リモートサービスでコマンドを実行する**
+
+1. VS Code の Terminal で、現在の GPU 状態の確認など、リモートコマンドを実行できます。
+
+   ![GPU Status](./img/tutorials-images/01.VSCode/14.GPUStatus.png)
+
+2. リモートサーバー上のファイルを開いて編集できます。
+
+   ![ModifyFiles](./img/tutorials-images/01.VSCode/15.ModifyFiles.png)
+
+3. Glows.ai Data Drive 上のファイルを扱う場合は、既定の `/root` を `/datadrive` に変更します。
+
+   ![DataDrive](./img/tutorials-images/01.VSCode/16.DataDrive.png)
+
+4. ドロップダウンリストで `/datadrive` ディレクトリをクリックすると、ディレクトリを階層ごとに移動できます。
+
+   ![Image](./img/tutorials-images/01.VSCode/17.FileDirectories.png)
+
+## **ステップ 5：リモート接続を切断して再接続する**
+
+VS Code のリモート接続を切断するには、左下をクリックして `Close Remote Connection` を選択します。
+
+![Close Remote Connection](./img/tutorials-images/01.VSCode/18.CloseRemoteConnection.png)
+
+glows.ai に再接続する場合は、ステップ 3 を繰り返します。
+
+## **ステップ 6：リモート接続を変更する**
+
+1. 別のマシンに切り替えると、リモート接続のポートが変わる場合があります。左下のボタンをクリックし、`Connect to Host` をクリックします。
+
+   ![Modify Remote Connection](./img/tutorials-images/01.VSCode/19.ModifyRemoteConnection.png)
+
+2. `Configure SSH Hosts` を選択します。
+
+   ![Configure SSH Hosts](./img/tutorials-images/01.VSCode/20.ConfigureSSHHosts.png)
+
+3. 下図の最初のファイルをクリックします。
+
+   ![Click the First File](./img/tutorials-images/01.VSCode/21.TheFirstFile.png)
+
+4. `HostName` を現在のホスト名に変更し、`Port` に新しいポート番号を設定します。
+
+   ![Chage HostName](./img/tutorials-images/01.VSCode/22.ChageHostName.png)
+
+5. `Ctrl + S` を押してファイルを保存します。変更後、ステップ 3 を繰り返して接続します。

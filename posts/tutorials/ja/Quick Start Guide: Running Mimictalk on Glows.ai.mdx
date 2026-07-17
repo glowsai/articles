@@ -1,0 +1,142 @@
+---
+id: mimictalk
+title: 'クイックスタート：Glows.ai で MimicTalk を実行する'
+date: '2025-04-06 18:00'
+description: 'MimicTalk は、自然で人間に近い音声を生成する Text-to-Speech（TTS）ツールです。'
+tags:
+  - Tutorial
+---
+
+**MimicTalk** は、自然で人間に近い音声を生成する Text-to-Speech（TTS）ツールです。複数の言語、トーン、カスタマイズ項目に対応し、バーチャルアシスタント、コンテンツ制作、教育用途で利用できます。
+
+**Glows.ai** を使えば、複雑なインストールや設定を行わずにクラウド環境で MimicTalk を実行できます。このガイドでは MimicTalk の設定と、HTTP または SSH での接続方法を説明します。
+
+## **ステップ 1：Glows.ai にログインして MimicTalk 環境を起動する**
+
+1. **登録してログインする**：[Glows.ai](https://glows.ai/) にアクセスし、アカウントを登録してログインします。
+2. **MimicTalk 環境を起動する**：ダッシュボードで **MimicTalk** タスクテンプレートを探し、「Complete Checkout」をクリックします。Glows.ai がリソースを割り当て、依存関係を設定します。
+
+## **ステップ 2：MimicTalk 環境へアクセスする**
+
+環境の起動後、次の方法でアクセスできます。
+
+### **1. HTTP WebUI（Port 7860）**
+
+音声生成に使う MimicTalk のメイン Web インターフェースです。
+
+- URL を開きます。
+- plaintext
+- [`https://tw-03.access.glows.ai:24527?token=iOuz4vDMME`](https://tw-03.access.glows.ai:24527/?token=iOuz4vDMME)
+- 画面からテキストを入力し、音声パラメーターを調整できます。
+
+### **2. SSH アクセス（Port 22）**
+
+SSH ではコマンドラインからバックエンド環境へアクセスして高度な操作を行えます。
+
+- SSH Command：
+- `ssh user@<your-instance> -p 22`
+- **パスワード**：Glows.ai ダッシュボードのインスタンス詳細を参照してください。
+
+![Glows.ai’s interface](./img/1_IiSRiOYGHOL-gRSWvlU3bA.webp)
+
+## **ステップ 3：MimicTalk で音声を生成する**
+
+### **1. WebUI で音声を生成する**
+
+(1) WebUI を開きます。
+
+(2) 入力欄に文章を入力します。例：
+
+(3) Plaintext `Hello, welcome to MimicTalk on Glows.ai!`
+
+(4) トーン、速度、音声スタイルなどのパラメーターを調整します。
+
+(5) **Generate** をクリックして音声を生成し、プレビューまたはダウンロードします。
+
+![MimicTalk’s interface](./img/1_Z5h0zXiOX3TnjKsHOjbA2w.webp)
+
+### **2. Python スクリプトで音声を生成する**
+
+(a) SSH でコンテナへ接続する
+
+(b) 環境変数を設定する
+
+(c) 実行中のプロセスを確認して終了する
+
+(d) プロセスのパラメーター設定：train_once_args パラメーターを変更します。
+
+`*vim /root/MimicTalk/inference/app_mimictalk.py*`
+
+(e) 主要なパラメーターを変更する
+
+`*torso_ckpt: from 'checkpoints/mimictalk_orig/os_secc2plane_torso/' to 'checkpoints_mimictalk/<VIDEO_NAME>/'*`
+
+_max_updates: from 10000 to 2000_
+
+(f) ファイル設定：パラメーターファイルをコピーする
+
+`*cp -r /root/MimicTalk/checkpoints_mimictalk/German_20s /root/MimicTalk/checkpoints_mimictalk/<VIDEO_NAME>*`
+
+(g) サービスを起動する：次のいずれかを選びます。
+
+(h) 直接起動：
+
+`*cd /root/MimicTalk*`
+
+`*python inference/app_mimictalk.py --share --server 0.0.0.0*`
+
+(i) バックグラウンドで実行
+
+`*nohup python inference/app_mimictalk.py --share --server 0.0.0.0 &*`
+
+## **ステップ 4：出力を保存、エクスポートする**
+
+1. **WebUI からファイルをダウンロードする**：MimicTalk WebUI の **Download** ボタンで、生成した音声ファイルをローカルデバイスへ保存します。
+2. **SSH でファイルを管理する**：SCP（Secure Copy）を使ってサーバーからローカルへ転送します：`*scp -P 22 user@<your-instance>:~/output.wav ./output.wav*`
+3. **出力パス：** `infer_out/tmp/demo.mp4`
+
+## **トラブルシューティング**
+
+### **サービスを起動できない場合**
+
+1. ポートが使用中でないか確認する
+2. システムログを確認する
+3. 環境変数の設定を確認する
+
+### **トレーニングに失敗する場合**
+
+1. トレーニングデータの形式を確認する
+2. checkpoint の設定を確認する
+3. エラーログを確認する
+
+## **サポートと資料**
+
+### **技術サポート**
+
+1. [Glows.ai サポートチーム](https://discord.gg/DFhTBX7t)へ問い合わせる
+2. [公式ドキュメント](https://github.com/yerfor/MimicTalk)を確認する
+3. コミュニティフォーラムを確認する
+
+### **その他の資料**
+
+1. MimicTalk ドキュメント
+2. Glows.ai プラットフォームガイド
+3. トレーニングチュートリアル
+
+## **Glows.ai で MimicTalk を使う理由**
+
+1. **設定が簡単**：設定済み環境を利用できます。
+2. **高性能な計算環境**：音声合成に必要な計算リソースを利用できます。
+3. **複数のアクセス方法**：HTTP WebUI と SSH に対応します。
+4. **ワークフローをカスタマイズ可能**：言語、トーン、スタイルを変えて音声を生成できます。
+
+## **MimicTalk を使い始める**
+
+コンテンツ制作者、開発者、教育関係者は **MimicTalk** で音声を生成できます。Glows.ai へアクセスして利用を開始してください。
+
+サポートが必要な場合は Glows.ai チームへ問い合わせるか、公式ドキュメントを参照してください。
+
+関連リンク：
+
+- **Website**：[https://glows.ai](https://glows.ai/)
+- **Discord**：[https://discord.gg/glowsai](https://discord.gg/glowsai)

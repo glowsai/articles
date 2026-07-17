@@ -1,0 +1,52 @@
+---
+id: set_comfyui_model_path
+title: '如何在 ComfyUI 設定自訂模型儲存路徑'
+date: '2025-09-28 19:00'
+description: '設定 ComfyUI 的額外模型儲存路徑，讓系統同時辨識預設與自訂路徑中的模型，不需在每次加入模型後建立快照。'
+tags:
+  - Tutorial
+---
+
+ComfyUI 支援額外的模型儲存路徑。設定後，ComfyUI 可以同時辨識預設路徑與額外路徑中的模型。建議將模型儲存在 Datadrive，不必每次新增模型都建立快照。
+
+---
+
+## 設定額外模型路徑
+
+以下以 `/datadrive/comfyui` 為例。開啟執行個體的 **HTTP 8888 Port**（JupyterLab 連結），建立終端機，再執行以下命令，複製額外模型設定檔並建立模型儲存目錄：
+
+```bash
+cd /ComfyUI
+cp extra_model_paths.yaml.example extra_model_paths.yaml
+mkdir /datadrive/comfyui
+```
+
+![創建模型存儲路徑](./img/tutorials-images/comfyui-path/image-20250904135537054.png)
+
+接著在 `/ComfyUI` 目錄按兩下剛複製的 `extra_model_paths.yaml`，取消 `comfyui` 區段的註解，並將 `base_path` 設為 `/datadrive/comfyui`。按下 `Ctrl + S` 儲存。
+
+![修改配置文件](./img/tutorials-images/comfyui-path/image-20250904135508173.png)
+
+---
+
+## 重新啟動 ComfyUI
+
+重新啟動 ComfyUI 後，設定才會生效。透過 **HTTP Port 8188** 開啟 ComfyUI 介面。
+
+![訪問 ComfyUI](./img/tutorials-images/comfyui-path/image-20250905105554414.png)
+
+點選介面右上角的 `Manager -> Restart` 重新啟動 ComfyUI。重新啟動後，ComfyUI 就能辨識並使用 `/datadrive/comfyui` 中的模型。
+
+![重啟後模型生效](./img/tutorials-images/comfyui-path/image-20250905105632515.png)
+
+---
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 Email、Discord 或 Line 聯絡我們。
+
+**Glows.ai Email:** support@glows.ai
+
+**Discord:** https://discord.com/invite/glowsai
+
+**Line:** https://lin.ee/fHcoDgG
