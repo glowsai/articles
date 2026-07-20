@@ -1,0 +1,138 @@
+---
+id: h100_vs_a100_vs_rtx_pro_6000_qwen_inference_zh_tw
+title: 'H100 vs A100 vs RTX PRO 6000：Qwen 該租哪張 GPU？'
+date: '2026-07-25 10:00'
+lastUpdated: '2026-07-25'
+description: '以 VRAM、延遲、吞吐與每百萬 token 成本，比較 H100、A100 與 RTX PRO 6000，選出適合 Qwen 推論的 GPU。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 發布前必須完成同條件 Qwen benchmark 並替換所有待測結果。價格查核日為 2026 年 7 月 20 日。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# H100 vs A100 vs RTX PRO 6000：Qwen 該租哪張 GPU？
+
+> **決策原則：** A100 是較低時薪的資料中心基準，H100 是高吞吐候選，RTX PRO 6000 則是 96 GB 單卡候選。最佳選擇是能放下指定 Qwen 模型、通過延遲目標且總成本最低的配置。
+
+H100、A100 與 RTX PRO 6000 都可能適合 Qwen 推論，但解決的限制不同。H100 著重資料中心吞吐與新型低精度加速；A100 是成熟基準；RTX PRO 6000 以 96 GB VRAM 與較低標示價格提供單卡高記憶體選項。
+
+真正的贏家，是能讓特定 Qwen 模型達到延遲目標、且完成成本最低的配置。
+
+## 硬體與價格快照
+
+| GPU | 需確認的記憶體 | Glows.ai 當日價格 | 測試角色 |
+| --- | --- | ---: | --- |
+| A100 | 依版本為 40／80 GB | $1.20/hr | 成熟資料中心基準 |
+| H100 | 依配置確認 80 GB 等版本 | $2.96/hr | 高吞吐候選 |
+| RTX PRO 6000 | 96 GB | $1.78/hr | 高記憶體成本候選 |
+
+結帳時確認 PCIe／SXM、GPU 數量、互連、區域與 host。官方架構與功能以 [NVIDIA H100](https://www.nvidia.com/en-us/data-center/h100/)等文件為準。
+
+## 先固定 Qwen 配置
+
+記錄 model family、size、revision、BF16／FP8／INT8／4-bit、典型與最大 context、輸入輸出 token 分布、併發、arrival rate、TTFT／TPOT／p95，以及 serving engine 版本。
+
+能在 concurrency 1 啟動，不代表 production load 不會耗盡 KV cache；量化後也要重新驗證品質。
+
+## 記憶體容量為何改變決策
+
+`需要 VRAM = 權重 + KV cache + runtime workspace + 安全餘裕`
+
+RTX PRO 6000 的 96 GB 可能讓團隊使用較少量化或較大 KV cache。H100 可能更快，但若單卡記憶體不足而需要 tensor parallel，成本與故障面也會改變。
+
+## 同條件 Benchmark 方法
+
+三張卡使用相同 model/tokenizer revision、vLLM 或 SGLang commit、container、精度、context、prompt trace、warmup 與 run duration。測試 1、10、50 與目標 in-flight request，並回報變異。
+
+**證據門檻：** 只能用受控 Glows.ai 測試填入下表。
+
+| 指標 | A100 | H100 | RTX PRO 6000 |
+| --- | ---: | ---: | ---: |
+| 硬體版本 | 待測 | 待測 | 待測 |
+| Peak VRAM | 待測 | 待測 | 待測 |
+| TTFT p95 | 待測 | 待測 | 待測 |
+| TPOT p95 | 待測 | 待測 | 待測 |
+| 合格 SLO 下 tok/s | 待測 | 待測 | 待測 |
+| Error rate | 待測 | 待測 | 待測 |
+| 每百萬輸出 token 成本 | 待測 | 待測 | 待測 |
+
+## 只計算符合延遲 SLO 的成本
+
+`每百萬輸出 token 成本 = GPU 時薪 ÷ 合格輸出 token/小時 × 1,000,000`
+
+合格代表 TTFT、TPOT、錯誤率與品質門檻都通過。結果旁必須公開 offered load 與 prompt 分布。
+
+## 何時先測哪張 GPU
+
+### 先測 A100
+
+模型能放入確認過的版本、軟體成熟，且每個成功請求成本有競爭力時，用 A100 當基準。
+
+### 先測 H100
+
+嚴格延遲、高併發或所選精度可能受益於其架構時先測 H100；效能增益必須超過價格溢價。
+
+### 先測 RTX PRO 6000
+
+96 GB 能簡化模型、context 或併發，而不必使用兩張 GPU 時先測；也要量測其 memory bandwidth 與產品定位是否影響目標。
+
+## 測試前先定義 Qwen 工作負載
+
+「Qwen inference」不是單一 benchmark。先完成 workload contract：
+
+| 輸入 | 應發布的欄位 | 為何影響結果 |
+| --- | --- | --- |
+| Model | Repository 與 immutable revision | 架構或 weight 變動會改變 fit 與速度 |
+| Precision | BF16、FP8、AWQ 或其他支援格式 | 改變 memory、kernel 與品質 |
+| Prompt mix | p50/p95 input/output token | 分開 prefill-heavy 與 decode-heavy workload |
+| Load | Request rate 與 concurrency level | 決定 batching 與 queueing |
+| SLO | TTFT、TPOT、p95 end-to-end、error rate | 定義哪些 throughput 可用 |
+| Quality gate | Task set 與 acceptance threshold | 避免快速但退化的配置獲勝 |
+
+至少測一個 interactive trace 與一個 throughput trace。某 GPU 可能在長 prompt prefill 領先，卻輸在 autoregressive decode；也可能 saturated throughput 最高，但真實 arrival rate 下 tail latency 不合格。
+
+## 如何判定贏家
+
+不要硬塞一個總冠軍，應報三個：
+
+- **Fit winner：**有安全 memory headroom 的最簡單有效配置。
+- **Latency winner：**符合 error 與 quality limit 時 p95 最低者。
+- **Cost winner：**指定 load 下每百萬有效 token 成本最低者。
+
+最後再依 workload 建議。高 offered load 可能讓 H100 值得 premium；A100 若已達 SLO 仍可能最經濟；96 GB RTX PRO 6000 可能簡化 single-GPU fit。這些在 controlled result table 填滿前都只是 hypothesis。
+
+## 測試輸入與資料來源
+
+Variant 規格以 NVIDIA 官方 [A100](https://www.nvidia.com/en-us/data-center/a100/) 與 [H100](https://www.nvidia.com/en-us/data-center/h100/) 文件為準；架構、license、tokenizer 與 revision 則查看指定 Qwen model card。價格來自 [Glows.ai](https://glows.ai/)，必須在測試日重查。任何 vendor peak number 都不能取代本文定義的相同 serving test。
+
+## 常見問題
+
+### H100 一定比 A100 快嗎？
+
+H100 較新，但實際增益仍取決於模型、精度、引擎、batch 與延遲限制。
+
+### 96 GB 代表 RTX PRO 6000 最好嗎？
+
+它讓模型更容易放入，但不保證最低延遲或最高吞吐。
+
+### 一張 GPU 能跑大型 Qwen 嗎？
+
+要看模型大小、量化、context 與併發。先算權重和 KV cache，再留安全餘裕。
+
+### 成本應用 input 還是 output token？
+
+最好分別回報。Prefill 與 decode 對硬體壓力不同。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [AWS GPU 定價 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_zh_tw)
+- [Nebius vs Glows.ai](https://glows.ai/article/nebius_vs_glows_ai_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+在三個 [Glows.ai GPU tier](https://glows.ai/)執行同一份 Qwen prompt trace，保留配置與 raw aggregate，選擇通過同一 SLO 的最低成本結果。

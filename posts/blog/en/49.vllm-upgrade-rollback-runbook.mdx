@@ -1,0 +1,179 @@
+---
+id: vllm_upgrade_rollback_runbook_en
+title: 'Upgrade vLLM Safely: Production Rollback Runbook'
+date: '2026-08-06 10:00'
+lastUpdated: '2026-08-06'
+description: 'Upgrade vLLM safely with pinned artifacts, output and load tests, canary traffic, automatic stop conditions, and a rehearsed rollback.'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **Draft status:** Validate this runbook with a real old/new vLLM pair on Glows.ai, including one failed candidate and timed rollback, before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Upgrade vLLM Safely: Production Rollback Runbook
+
+> **Safe path:** Pin every artifact, reproduce the current baseline, test outputs and load offline, send a small canary slice, stop automatically on declared thresholds, and keep the old deployment warm until rollback is proven.
+
+This production runbook covers:
+
+- inventorying and pinning every release surface;
+- comparing outputs, latency, throughput, memory, and telemetry offline;
+- defining canary scope and automatic stop conditions;
+- draining traffic and restoring the immutable previous deployment;
+- recording evidence, owners, timestamps, and the final decision.
+
+A safe vLLM upgrade is not “install the latest version and restart.” Engine releases can change model support, memory use, kernels, flags, API behavior, output formatting, latency, and throughput. Production traffic should move only after the candidate passes a versioned acceptance suite, and the previous environment must remain immediately recoverable.
+
+This runbook treats the engine, container/runtime, model, tokenizer, and configuration as separate release surfaces.
+
+## Step 1: Inventory the Change
+
+Record old and candidate values for:
+
+| Surface | Required identifier |
+| --- | --- |
+| vLLM | Exact version or commit |
+| Container | Immutable digest |
+| Driver/CUDA | Host and runtime versions |
+| Model/tokenizer | Repository and revision |
+| Quantization | Format and implementation |
+| Launch configuration | Full command or config file |
+| API contract | Routes, request fields, response schema |
+
+Change one major surface at a time when possible. An engine, model, and CUDA upgrade in one release makes regression diagnosis difficult.
+
+## Step 2: Build the Acceptance Suite
+
+The suite should include:
+
+- startup and readiness;
+- `/v1/models` and representative API requests;
+- golden prompts and expected output/schema checks;
+- long-context and maximum-output cases;
+- streaming and cancellation;
+- target concurrency load trace;
+- TTFT, TPOT, p50/p95, errors, and peak VRAM;
+- shutdown and in-flight request handling.
+
+Exact text matching is often too strict for generative output. Use task metrics, schema validity, safety checks, and bounded semantic comparisons appropriate to the application.
+
+## Step 3: Preserve an Immutable Rollback Point
+
+Keep the previous container digest, model revision, tokenizer, launch config, environment variables, and compatible host/runtime requirements. Verify that required artifacts are still accessible.
+
+Persistent application data should be backward compatible or migrated through a reversible process. Serving engines are often stateless, but gateways, caches, logs, or routing components may not be.
+
+## Step 4: Test on Identical Hardware
+
+Launch the old and candidate versions on the same GPU variant and region. Replay the same trace after equal warmup. Run enough repetitions to distinguish a regression from ordinary variance.
+
+Define stop conditions before seeing results:
+
+| Gate | Example policy field |
+| --- | --- |
+| Startup | Must become ready within tested limit |
+| Output | No critical schema or safety regression |
+| TTFT/TPOT | Candidate p95 within accepted delta |
+| Throughput | No unacceptable capacity loss |
+| VRAM | Headroom remains above declared floor |
+| Errors | Below production threshold |
+
+The actual thresholds belong to the service owner.
+
+## Step 5: Canary Traffic
+
+Move a small, observable percentage of production traffic to the candidate. Keep session behavior and model state in mind. Compare candidate and control on the same metrics and input classes.
+
+Increase traffic in documented steps only after the observation window passes. Stop automatically when a critical error, output regression, memory failure, or latency threshold is breached.
+
+## Step 6: Drain and Complete the Rollout
+
+Stop new requests to the old replica, let accepted work finish or apply the documented timeout, then remove it from routing. Do not kill in-flight work silently unless the API contract and retry behavior allow it.
+
+Retain the rollback environment for the defined observation period.
+
+## Step 7: Roll Back
+
+Trigger rollback when a stop condition is met:
+
+1. stop traffic growth to the candidate;
+2. restore routing to the verified old version;
+3. drain or terminate candidate requests according to policy;
+4. confirm readiness, output checks, latency, and error rate on the old version;
+5. preserve candidate logs and evidence;
+6. open a regression record before retrying.
+
+**Evidence gate:** Publish the exact Glows.ai configuration, old/new versions, aggregate acceptance results, canary timeline, one intentionally failed candidate, rollback steps, and measured recovery time.
+
+## Three Failure Drills
+
+### Candidate fails to start
+
+Routing must remain on the old version. Capture dependency, model, driver, and memory errors without affecting production.
+
+### Candidate is slower under load
+
+The canary should stop when p95 crosses the agreed threshold, even if average latency looks normal.
+
+### Candidate changes output behavior
+
+Schema and task evaluation should catch the regression before broad traffic. Roll back even when infrastructure metrics look healthy.
+
+## Build an Upgrade Compatibility Matrix
+
+Track every surface that can change:
+
+| Surface | Pre-production check |
+| --- | --- |
+| Model and tokenizer | Load exact revisions; compare tokenization and chat template |
+| API schema | Diff request defaults, response fields, streaming, and errors |
+| Output behavior | Run deterministic and task evaluations where possible |
+| Performance | Compare TTFT, TPOT, p95, throughput, VRAM, and startup |
+| Hardware path | Test every GPU architecture and parallel topology in use |
+| Container/runtime | Pin image digest, driver compatibility, CUDA, and libraries |
+| Observability | Confirm metric names, labels, logs, alerts, and dashboards |
+| Operations | Exercise readiness, draining, restart, and rollback |
+
+Attach an owner and pass/fail evidence to every row. “The pod is healthy” is not proof that outputs, latency, or metrics remained compatible.
+
+## Roll Back on Declared Signals
+
+Before canary traffic, define automatic or operator stop conditions: elevated error rate, schema difference, quality regression, OOM, p95 breach, queue growth, unexpected VRAM, crash loop, or missing telemetry. State the measurement window and minimum sample so one transient request does not trigger chaos—and a slow regression is not ignored.
+
+Rollback should restore the old immutable image and configuration, not rebuild “the previous version” from mutable dependencies. Verify recovery time, drain behavior, in-flight request handling, and cache warmup during a rehearsal.
+
+## Release and Operations Sources
+
+Use the official [vLLM production quality and release-process overview](https://vllm.ai/blog/2026-07-16-keeping-vllm-production-quality) and the pinned release notes as change inputs. The [OpenAI-compatible server documentation](https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html) defines the serving surface, but the application’s output contract, load distribution, and rollback threshold must be tested locally.
+
+## FAQ
+
+### Can a vLLM upgrade be zero downtime?
+
+Yes when old and new capacity run concurrently and traffic can shift gradually. The architecture must have enough temporary capacity.
+
+### Should I use the `latest` container tag?
+
+No for a controlled release. Pin an immutable digest so the candidate and rollback point are reproducible.
+
+### Can I update model weights without restarting?
+
+Support varies by vLLM version and architecture. Use official [vLLM online-serving documentation](https://docs.vllm.ai/en/stable/serving/online_serving/) and test the exact path.
+
+### How long should the rollback window stay open?
+
+Long enough to observe representative traffic and delayed failures. Set the period from service risk and artifact availability.
+
+## Related Guides
+
+- [vLLM CUDA out-of-memory fixes](https://glows.ai/article/vllm_cuda_out_of_memory_en)
+- [How cloud GPU rental works](https://glows.ai/article/how_cloud_gpu_rental_works_en)
+- [Llama 3.3 70B concurrency sizing](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_en)
+- [Run DeepSeek without a local GPU](https://glows.ai/article/run_deepseek_without_a_gpu_en)
+
+## Next Step
+
+Clone the production configuration into a non-production [Glows.ai instance](https://glows.ai/), run the acceptance suite, and time the rollback before scheduling the upgrade.

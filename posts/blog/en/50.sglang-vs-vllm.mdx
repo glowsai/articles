@@ -1,0 +1,157 @@
+---
+id: sglang_vs_vllm_en
+title: 'SGLang vs vLLM: Which Inference Engine Should You Deploy?'
+date: '2026-08-07 10:00'
+lastUpdated: '2026-08-07'
+description: 'Choose SGLang or vLLM with a matched production test of correctness, TTFT, p95 latency, throughput, cost, compatibility, and recovery.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** No engine winner is claimed until the matched Glows.ai benchmark and recovery tests are complete. Pin current releases before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# SGLang vs vLLM: Which Inference Engine Should You Deploy?
+
+> **Honest answer:** There is no permanent universal winner. Both projects change quickly, and results depend on model architecture, engine revision, prompt mix, concurrency, kernels, and hardware. Deploy the engine that passes your correctness, tail-latency, recovery, and upgrade gates on a matched test.
+
+SGLang and vLLM are production-capable LLM inference engines with fast-moving feature and performance profiles. A benchmark winner can change with the model, release, kernel, GPU, prompt distribution, structured-output use, and concurrency. Choose with a controlled test of the workload you will operate.
+
+Throughput is only one part of that decision. API compatibility, startup, observability, model coverage, failure recovery, and upgrade risk also matter.
+
+## SGLang vs vLLM at a Glance
+
+| Decision area | What to verify |
+| --- | --- |
+| Model support | Exact model and quantization on the selected release |
+| API | Required OpenAI-compatible routes and response behavior |
+| Performance | TTFT, TPOT, p95, throughput, and errors |
+| Memory | Peak VRAM and KV-cache headroom |
+| Features | Caching, structured output, parallelism, adapters |
+| Operations | Metrics, logs, startup, graceful shutdown, recovery |
+| Upgrades | Release cadence, regressions, rollback process |
+
+Use the official [SGLang repository](https://github.com/sgl-project/sglang) and [vLLM documentation](https://docs.vllm.ai/) for current capabilities. Avoid comparing feature lists from different release dates.
+
+## Controlled Benchmark Method
+
+Keep constant:
+
+- model and tokenizer revision;
+- quantization and precision;
+- immutable container and compatible runtime;
+- GPU variant, count, region, CPU, and RAM;
+- context and output caps;
+- prompt/output distribution;
+- client, network path, warmup, and run duration.
+
+Tune only documented engine-specific settings, and publish them. An out-of-box comparison is useful for setup experience; a tuned comparison is useful for achievable performance. Label them separately.
+
+## Latency and Throughput Results
+
+Test concurrency 1, 10, 50, and the expected traffic trace. Report repeat-run variance.
+
+**Evidence gate:** Fill this table with same-hardware Glows.ai results and release raw aggregate files.
+
+| Metric | SGLang | vLLM |
+| --- | ---: | ---: |
+| Version/commit | Pending | Pending |
+| Startup time | Pending | Pending |
+| Peak VRAM | Pending | Pending |
+| TTFT p50/p95 | Pending | Pending |
+| TPOT p50/p95 | Pending | Pending |
+| Valid output tokens/sec | Pending | Pending |
+| Error rate | Pending | Pending |
+| Cost per 1M output tokens | Pending | Pending |
+
+“Valid” throughput must remain inside the declared latency and error thresholds.
+
+## Test Workload-Specific Features
+
+Generic chat prompts will not expose every difference. Add tests for features the product uses:
+
+- long shared prefixes and cache reuse;
+- structured JSON or constrained decoding;
+- LoRA adapters;
+- tool-call schema;
+- multimodal input where supported;
+- tensor parallelism;
+- cancellation and streaming.
+
+Check output quality and schema validity, not only speed.
+
+## Operational Fit
+
+Measure cold and warm startup, readiness behavior, metric coverage, log clarity, configuration complexity, image size, model-download handling, graceful termination, and process-crash recovery.
+
+Run one upgrade and rollback rehearsal for each engine. The fastest engine in a clean benchmark may still cost more to operate if failures are hard to diagnose or releases are difficult to qualify.
+
+## Cost Comparison
+
+`cost per 1M output tokens = hourly GPU rate ÷ valid output tokens per hour × 1,000,000`
+
+Use identical Glows.ai hardware and the same offered load. Also calculate cost at realistic utilization; a fully saturated benchmark is not a monthly forecast.
+
+## How to Choose
+
+Choose SGLang when it supports the exact model/features and wins the measured service target with acceptable operational risk. Choose vLLM when its compatibility, ecosystem, or measured result is stronger for the workload. Keep the benchmark harness engine-neutral so a future release can be retested.
+
+Avoid a company-wide winner based on one model. Standardize only where the operational savings exceed the value of workload-specific engines.
+
+## Use One Benchmark Harness for Both Engines
+
+Build one client that sends the same request bodies, arrival times, prompt/output distributions, and cancellation behavior. Put engine-specific settings in versioned configuration files and publish them. Keep model, tokenizer, quantization, GPU, driver, container base, warmup, network path, and run duration constant.
+
+The harness should collect:
+
+- output validity and task-evaluation result;
+- TTFT, TPOT/inter-token latency, p50/p95 end-to-end latency;
+- accepted input and output tokens per second;
+- request errors, timeouts, cancellations, and OOMs;
+- peak VRAM, cache utilization, startup and recovery time;
+- cost per accepted million tokens at realistic and saturated load.
+
+Run each condition multiple times and report variance. Randomized prompt order reduces a cache-friendly sequence from deciding the winner.
+
+## Score Production Fit, Not Only Speed
+
+Use a weighted scorecard that the owning team approves before seeing results. A latency-sensitive product might weight p95 and recovery above peak throughput; a batch pipeline may reverse those weights. Include model coverage, API compatibility, observability, upgrade effort, documentation, and operational familiarity.
+
+Any hard gate overrides the score. An engine that corrupts outputs, lacks a required model path, or cannot recover safely is not the winner even if it is faster on accepted requests.
+
+Write the pass thresholds before running the benchmark—for example, zero schema regressions on the contract suite, p95 TTFT below the product target, error rate below the agreed ceiling, and recovery within the deployment budget. Then calculate cost only among configurations that pass every hard gate. Keep the rejected runs and reasons in the result package. This prevents a team from moving thresholds after seeing a favored engine win one metric, and it makes the next release comparison use the same definition of production-ready.
+
+## Engine Sources
+
+Confirm features, flags, supported hardware, and release behavior in the official [SGLang documentation](https://docs.sglang.ai/) and [vLLM documentation](https://docs.vllm.ai/). The 2026 study [The Silent Hyperparameter](https://arxiv.org/abs/2605.19537) reinforces that inference backends can affect reproducibility even when model weights are unchanged. That is why correctness belongs beside throughput in this comparison.
+
+## FAQ
+
+### Is SGLang faster than vLLM?
+
+It can be for some releases and workloads; vLLM can lead in others. Test the exact model, hardware, and traffic shape.
+
+### Are both OpenAI API compatible?
+
+Both provide compatibility features, but required routes, fields, streaming, and tool behavior must be tested against the application.
+
+### Can I migrate without changing application code?
+
+Sometimes, but subtle response or feature differences may remain. Use contract tests before traffic migration.
+
+### Which is easier to operate?
+
+That depends on team experience, deployment platform, metrics, failure modes, and upgrade process. Include these in the evaluation.
+
+## Related Guides
+
+- [vLLM upgrade and rollback runbook](https://glows.ai/article/vllm_upgrade_rollback_runbook_en)
+- [vLLM CUDA out-of-memory fixes](https://glows.ai/article/vllm_cuda_out_of_memory_en)
+- [Batch vs real-time LLM inference](https://glows.ai/article/batch_vs_real_time_llm_inference_en)
+- [Cost to run an LLM](https://glows.ai/article/cost_to_run_an_llm_en)
+
+## Next Step
+
+Package one model and trace into two pinned containers, run both on the same [Glows.ai GPU](https://glows.ai/), and keep compatibility and recovery results beside the performance table.

@@ -1,0 +1,143 @@
+---
+id: per_second_gpu_billing_zh_tw
+title: 'GPU 每秒計費：什麼時候真的省錢？'
+date: '2026-07-30 10:00'
+lastUpdated: '2026-07-30'
+description: '比較 GPU 每秒、每分鐘與最低一小時計費，並看啟動、閒置、儲存與關機規則如何吃掉原本的省款。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 發布前需用去識別化 usage record 對帳 Glows.ai 實例，並確認目前計費文件。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# GPU 每秒計費：什麼時候真的省錢？
+
+> **結論：** 每秒計費只在短時間或間歇任務能順利啟動並立即停止運算時特別有利。Image pull、環境設定、閒置 notebook、持久儲存、失敗重跑與最低收費，可能比計費單位更影響總成本。
+
+GPU 每秒計費依實際 metered runtime 收費，而不是每個 session 都進位成一小時。它對短實驗、突發工作與會立即關機的開發 session 最有利，但不代表 GPU 停止後所有相關資源都停止收費。
+
+真正要確認的是：哪個狀態啟動 compute meter、哪個狀態停止，以及之後還保留哪些 storage。
+
+## 基本公式
+
+`運算費 = 時薪 × 計費秒數 ÷ 3,600`
+
+| $0.49/hr 的執行時間 | 純運算算術 |
+| ---: | ---: |
+| 7 分鐘 | 約 $0.06 |
+| 20 分鐘 | 約 $0.16 |
+| 73 分鐘 | 約 $0.60 |
+
+這是算術示例；最低餘額、稅、儲存與其他條款可能改變實際費用。
+
+## 每秒、每分鐘與最低一小時
+
+| 7 分鐘工作 | 計費時間 |
+| --- | ---: |
+| 每秒 | 420 秒 |
+| 每分鐘 | 7 分鐘 |
+| 最低一小時 | 60 分鐘 |
+
+長任務中每秒與每分鐘差異小；短 session 中最低一小時影響最大。精細計費也鼓勵團隊不再把 idle GPU 留到「等一下」。
+
+## 看懂計費狀態機
+
+`requested → provisioning → running → stopping → stopped/deleted`
+
+供應商要定義哪些狀態收費。「沒有連線」不等於「沒有計費」。Glows.ai 公開每秒計費；所選服務仍要依目前 console 與文件確認起止狀態。
+
+**證據門檻：** 發布版需有 7 分鐘測試的 launch、可用連線、shutdown、完成狀態、預估算術與實際 usage record。
+
+## 運算停止，儲存可能繼續
+
+Runtime 與 persistent storage 是不同資源。GPU 停止／刪除後，Datadrive、snapshot 或 persistent volume 可能仍存在。這方便跨 session 保存工作，也代表費用與 retention 要分開管理。
+
+停止前記錄 runtime file、persistent file、snapshot 範圍、各資源刪除動作與計費方式。
+
+## 每秒計費最有價值的情境
+
+### 開發與 Debug
+
+啟動、重現錯誤、收 log、立刻停止，避免多個短 session 各算一小時。
+
+### 突發推論
+
+若 startup 與架構允許安全 scale down，就能減少 burst 間 idle cost；仍要計算 recovery capacity 與 latency。
+
+### 短 Batch
+
+OCR、embedding、evaluation、資料前處理可在 queue 清空後停止。
+
+### GPU 比較
+
+同一 trace 短時間測多張 GPU，但 setup 與 model download 若發生在 active compute 期間仍會計費。
+
+## 它不能解決什麼
+
+每秒計費不能修正 24/7 service 內部的低利用率，也不會消除持久儲存、network、失敗 job、工程時間或高可用 reserve。長期服務應看合格 request 的 throughput、reliability 與 unit cost。
+
+## 營運控制
+
+每個 instance 要有 owner 與 expiration；對低利用率 GPU alert；自動關機前保存 checkpoint；compute 與 persistent storage 分開檢查；第一週核對預估與實際費用。
+
+## 短任務的損益平衡
+
+以每小時 $0.49 計算，差異在一小時內最明顯：
+
+| 實際 runtime | 精確每秒費用 | 整點區塊費用 |
+| ---: | ---: | ---: |
+| 3 分鐘 | 約 $0.02 | $0.49 |
+| 17 分鐘 | 約 $0.14 | $0.49 |
+| 73 分鐘 | 約 $0.60 | $0.98 |
+
+此表假設 runtime 與計費同步開始/停止，且整點 provider 每次向上取整。真實服務可能有 free allowance、最低餘額、startup charge、每分鐘取整或不同 storage policy。
+
+重複短任務要把 setup time 加到每次 run。三分鐘 inference 若花 12 個付費分鐘 pull image 與 model，就是 15 分鐘成本事件；persistent cache 能省後續 compute，卻新增 idle storage。應用整月兩種路徑比較。
+
+## 用受控測試驗證計費器
+
+1. Launch 前記錄 balance 與 wall-clock time。
+2. 啟動最小合適 instance，記錄何時開始 billable。
+3. 跑固定五分鐘 workload。
+4. 用文件指定操作停止 compute。
+5. 核對 billed seconds 與 compute charge。
+6. 十分鐘後再查 storage 或仍運作 resource。
+7. Attach persistent storage 後重複。
+
+不要用敏感資料。保存 timestamp 與 usage export，讓 product/billing support 能對帳差異。
+
+## 計費資料來源與假設
+
+Glows.ai 公開網站標示每秒計費；依本文範例預算前，請在 live product 確認目前 meter、啟動邊界、停止行為、最低餘額與儲存生命週期。作為獨立的相同計費模式例子，RunPod 官方 [cloud GPU 頁面](https://www.runpod.io/product/cloud-gpus)也描述每秒 GPU 計費，但其餘條款不能用來推定 Glows.ai 行為。所有試算都把 active compute 與 persistent storage 分開，其他費用視情況另計。
+
+## 常見問題
+
+### 每秒計費代表沒有最低費用嗎？
+
+不一定。計費粒度與最低費用是兩個不同政策。
+
+### 關閉 SSH 會停止計費嗎？
+
+通常不會。要用供應商的 stop／delete control。
+
+### Snapshot 會繼續收費嗎？
+
+持久資源可能另有價格，應確認條款並在資料不再需要時刪除。
+
+### 訓練適合每秒計費嗎？
+
+短或時間不固定的 run 有幫助；長訓練更重要的是 checkpoint recovery 與完整完成成本。
+
+## 延伸閱讀
+
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+- [便宜 GPU 雲端為何可能更貴](https://glows.ai/article/cheap_gpu_cloud_real_cost_zh_tw)
+- [$0.49/hr GPU 能做什麼](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_zh_tw)
+- [2026 租 GPU 還是買 GPU](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_zh_tw)
+
+## 下一步
+
+在 [Glows.ai](https://glows.ai/)跑一個短且非敏感的工作，記錄狀態、停止 compute，再檢查運算項目與所有 persistent resource。

@@ -1,0 +1,135 @@
+---
+id: per_second_gpu_billing_ja
+title: 'GPU秒単位課金：本当に安くなるのはいつ？'
+date: '2026-07-30 10:00'
+lastUpdated: '2026-07-30'
+description: 'GPUの秒・分・最低1時間課金を比較し、startup、idle、storage、shutdownルールが節約額を消す条件まで解説します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** 公開前に匿名化usage recordでGlows.ai例を照合し、現行billing documentを確認してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# GPU秒単位課金：本当に安くなるのはいつ？
+
+> **結論：** 秒単位課金は、短時間または断続的なjobが正常に起動し、computeをすぐ停止できる場合に有利です。image pull、setup、idle notebook、persistent storage、failed run、minimum chargeは課金単位以上に総コストへ影響します。
+
+秒単位GPU課金は、sessionを1時間へ丸めず、実際のmetered runtimeでcomputeを請求します。短い実験、burst job、すぐ停止するdevelopmentで効果が大きい一方、GPU停止で全resourceの料金が止まるとは限りません。
+
+確認すべきは、compute meterの開始／停止stateと、その後に残るstorageです。
+
+## 基本計算
+
+`compute charge = 時間単価 × billable seconds ÷ 3,600`
+
+| $0.49/hrのruntime | 計算部分 |
+| ---: | ---: |
+| 7分 | 約$0.06 |
+| 20分 | 約$0.16 |
+| 73分 | 約$0.60 |
+
+最低残高、税、storage、termsは別です。
+
+## 秒・分・最低1時間の比較
+
+| 7分job | Billable time |
+| --- | ---: |
+| 秒単位 | 420秒 |
+| 分単位 | 7分 |
+| 1時間最低 | 60分 |
+
+長いjobでは秒／分差は小さく、短いsessionで最低1時間が大きく効きます。
+
+## Billing State Machineを理解する
+
+`requested → provisioning → running → stopping → stopped/deleted`
+
+どのstateがbillableかproviderが定義します。「接続していない」は「課金されない」ではありません。Glows.aiは秒課金を案内していますが、選択serviceのconsole/documentで確認します。
+
+**証拠ゲート：** 7分testのlaunch、usable、shutdown、complete、expected math、usage recordを公開します。
+
+## Compute停止後もStorageは残る
+
+Runtimeとpersistent storageは別resourceです。GPU停止／削除後もDatadrive、snapshot、volumeが残る場合があります。便利な一方、costとretentionを別管理します。
+
+停止前にruntime file、persistent file、snapshot範囲、削除action、storage meterを記録します。
+
+## 秒課金が有効な場面
+
+### Development／Debug
+
+起動、error再現、log収集、停止を短く繰り返します。
+
+### Burst Inference
+
+安全にscale downできるならidleを減らせますが、cold startとrecoveryを含めます。
+
+### Short Batch
+
+OCR、embedding、evaluation、preprocessingをqueue終了後に止めます。
+
+### GPU比較
+
+同じtraceを複数GPUで短く試せます。ただしsetup/downloadもactive時間なら課金です。
+
+## 解決しないコスト問題
+
+24/7 service内の低utilization、persistent storage、network、failed job、engineering、availability reserveは残ります。長期serviceではaccepted requestのthroughput、reliability、unit costが重要です。
+
+## 運用コントロール
+
+instanceにowner/expirationを設定し、low-utilization alert、safe shutdown前checkpoint、compute/storage別review、最初の週のreconciliationを行います。
+
+## 短時間ジョブの損益分岐点
+
+1時間$0.49では、1時間未満の差が大きくなります。
+
+| Actual runtime | 秒単位料金 | Hour block料金 |
+| ---: | ---: | ---: |
+| 3分 | 約$0.02 | $0.49 |
+| 17分 | 約$0.14 | $0.49 |
+| 73分 | 約$0.60 | $0.98 |
+
+Runtimeとbillingが同時に始まり、hour-block providerが切り上げる仮定です。Free allowance、minimum balance、startup charge、minute rounding、storage policyで変わります。
+
+繰り返すshort jobはsetupを毎回足します。3分のinferenceでもimage/model pullに12有料分かかれば15分のcost eventです。Persistent cacheはcomputeを減らしてidle storageを増やすため、月間で両pathを比べます。
+
+## 管理されたテストで課金メーターを確認する
+
+Launch前のbalance/timeを記録し、最小instanceを起動してbillable開始を記録、固定5分workloadを実行し、documented actionで停止します。Billed seconds/chargeを確認し、10分後にstorageやrunning resourceを再確認して、persistent storage接続後も繰り返します。Sensitive dataは使わずtimestampとusage exportを保存します。
+
+## 課金情報源と前提
+
+Glows.aiの公開siteは秒単位課金を示しています。同じ課金modelの独立した例として、RunPod公式の[cloud GPU page](https://www.runpod.io/product/cloud-gpus)もGPUの秒単位課金を説明していますが、その他の条件はGlows.aiの動作を証明しません。例を予算に使う前にlive productのmeter、startup boundary、stop behavior、minimum balance、storage lifecycleを確認し、active computeとpersistent storageを分けて計算します。
+
+## よくある質問
+
+### 秒課金なら最低料金はありませんか？
+
+必ずしもそうではありません。granularityとminimum chargeは別です。
+
+### SSHを閉じれば課金停止しますか？
+
+通常は停止しません。providerのstop/delete controlを使います。
+
+### Snapshotは課金されますか？
+
+persistent resourceには別料金の可能性があります。現行termsを確認します。
+
+### Trainingに秒課金は有効ですか？
+
+短い／可変runには有効ですが、長時間ではcheckpoint recoveryと完了コストが重要です。
+
+## 関連ガイド
+
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+- [安いGPUクラウドが高くなる理由](https://glows.ai/article/cheap_gpu_cloud_real_cost_ja)
+- [$0.49/hr GPUでできること](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_ja)
+- [2026年GPUは買うか借りるか](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_ja)
+
+## 次のステップ
+
+[Glows.ai](https://glows.ai/)で短い非機密jobを実行し、state、stop、compute line、persistent resourceを確認します。

@@ -1,0 +1,171 @@
+---
+id: what_is_vram_ai_models_en
+title: 'What Is VRAM? How Much Memory Your AI Model Needs'
+date: '2026-07-28 10:00'
+lastUpdated: '2026-07-28'
+description: 'Learn what VRAM does and estimate how much GPU memory your LLM, fine-tune, image model, context window, batch, and concurrency need.'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **Draft status:** Validate the formulas against measured Glows.ai VRAM captures for at least three configurations before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# What Is VRAM? How Much Memory Your AI Model Needs
+
+> **In one sentence:** VRAM is the GPU’s working memory; an AI workload must fit model weights plus runtime overhead, activations or KV cache, batch and concurrency demand, and safety headroom—or it will slow down, offload, or fail.
+
+VRAM is the high-bandwidth memory attached to a GPU. AI workloads use it to hold model weights, activations, temporary workspace, and—in LLM inference—the KV cache that grows with context and concurrent sequences. If the full working set does not fit, the job may fail, offload to slower memory, or require a different configuration.
+
+VRAM capacity answers “can it fit?” Memory bandwidth and compute answer “how fast can it run?” Both matter, but capacity is the first gate.
+
+## VRAM Is Not System RAM
+
+System RAM belongs to the CPU. VRAM sits next to the GPU and feeds its compute units at much higher bandwidth. Some frameworks can offload model parts to system RAM, but transfers across the interconnect are slower than keeping the active data on the GPU.
+
+A machine with 128 GB of system RAM and a 24 GB GPU does not behave like a 152 GB GPU.
+
+## Estimate LLM Weight Memory
+
+A useful first approximation is:
+
+`weight memory in bytes = parameter count × bytes per parameter`
+
+| Precision | Approximate bytes per parameter | Raw weight memory for 8B model |
+| --- | ---: | ---: |
+| FP32 | 4 | 32 GB |
+| BF16/FP16 | 2 | 16 GB |
+| INT8 | 1 | 8 GB |
+| 4-bit | 0.5 | 4 GB |
+
+Real usage is higher because quantization metadata, runtime buffers, kernels, and framework overhead also consume memory. “4-bit” is not a guarantee that an 8B model uses exactly 4 GB.
+
+## Add KV Cache for LLM Inference
+
+The KV cache stores attention keys and values for active sequences. It grows with model architecture, token count, precision, batch size, and concurrency.
+
+That is why a model can load successfully and then fail when several users send long prompts. Capacity planning must use the expected context distribution, not only the model’s advertised maximum.
+
+Use this planning structure:
+
+`inference VRAM = weights + KV cache + runtime workspace + safety headroom`
+
+Leave headroom for variation and avoid configuring the server to consume every visible megabyte.
+
+## Fine-Tuning Needs More Than Weights
+
+Full fine-tuning may store weights, gradients, optimizer states, activations, and temporary buffers. Mixed precision, optimizer choice, gradient checkpointing, accumulation, sequence length, and batch size all change the requirement.
+
+QLoRA reduces memory by keeping a quantized base model and training small adapters, but it does not make training free. Activations and optimizer state still need space. Start with a small batch and monitor peak allocated and reserved memory.
+
+## Image and Video Model VRAM
+
+Diffusion memory depends on model components, resolution, batch size, attention implementation, VAE behavior, and whether components are loaded simultaneously. Video adds frames and temporal processing, so peak memory can rise quickly with resolution and duration.
+
+For ComfyUI, the workflow graph matters. Two workflows using the same checkpoint can have different peaks because they load different ControlNet models, upscalers, adapters, or video nodes.
+
+## Minimum vs Recommended VRAM
+
+| Label | Meaning |
+| --- | --- |
+| Minimum | Starts or completes one narrow test with little margin |
+| Recommended | Supports the expected context/batch with safety headroom |
+| Production | Meets concurrency, latency, and recovery requirements under load |
+
+Do not publish a single VRAM number without labeling which of these it represents.
+
+## How to Measure Actual VRAM
+
+Start with the NVIDIA tools available in the environment:
+
+```shell
+nvidia-smi
+nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
+```
+
+For a PyTorch workload, capture allocated and reserved peaks around the representative run:
+
+```python
+import torch
+
+torch.cuda.reset_peak_memory_stats()
+# Run the representative workload here.
+print(torch.cuda.max_memory_allocated() / 1024**3)
+print(torch.cuda.max_memory_reserved() / 1024**3)
+```
+
+Measure startup, a typical request, the longest expected request, and target concurrency. A single idle reading is not enough.
+
+**Evidence gate:** Publish predicted versus observed VRAM for at least one LLM inference configuration, one QLoRA run, and one image or video workflow. Include exact versions and explain any gap.
+
+## What to Do When the Model Does Not Fit
+
+Options include a smaller model, lower precision, quantization, shorter context, lower concurrency, smaller batch, activation checkpointing, CPU offload, tensor parallelism, or a larger-memory GPU. Each changes quality, speed, complexity, or cost. Document the trade-off rather than presenting it as a free fix.
+
+## A Fast VRAM Estimation Method
+
+Start with model weights:
+
+`weight memory ≈ parameter count × bytes per stored parameter`
+
+As a rough screening calculation, BF16 or FP16 weights use about 2 bytes per parameter, 8-bit weights about 1 byte, and 4-bit weights about 0.5 byte before quantization metadata and runtime overhead. A nominal 7B model is therefore roughly 14 GB at 16-bit just for weights; it is **not** a promise that the full workload fits in 14 GB.
+
+Then add the workload-specific terms:
+
+| Workload | Major memory beyond weights |
+| --- | --- |
+| LLM inference | KV cache, CUDA graphs/workspace, concurrent sequences |
+| QLoRA | Quantized base, adapters, activations, gradients, optimizer state |
+| Full fine-tuning | Weights, gradients, optimizer state, activations |
+| Image generation | Model components, activations, resolution, batch, workflow nodes |
+| Video generation | Frames, temporal modules, resolution, duration, batch |
+
+Keep safety headroom for fragmentation and version-dependent kernels. Framework-reported allocation and `nvidia-smi` answer different questions, so capture both.
+
+## Prove Fit With a Boundary Test
+
+Loading the model is only test zero. Validate:
+
+1. cold start with no other GPU process;
+2. longest supported input and output;
+3. target concurrent sequences or training batch;
+4. peak image/video resolution and workflow;
+5. sustained execution to expose leaks or fragmentation;
+6. restart and repeat on the pinned environment.
+
+If the test only succeeds by reducing context, batch, or quality, document that limit in the recommendation. “Runs on 24 GB” is incomplete without the precision, context, concurrency, engine, and model revision.
+
+## Memory Sources
+
+NVIDIA’s [GPU Memory Essentials for AI Performance](https://developer.nvidia.com/blog/gpu-memory-essentials-for-ai-performance/) explains the difference between model memory and the working memory required by AI workloads. Exact allocations should be measured with the selected framework and model revision. The estimates here are capacity-planning formulas, not guarantees that a named model will fit every runtime.
+
+## FAQ
+
+### How much VRAM do I need for an LLM?
+
+Calculate weight memory, then add KV cache, runtime overhead, and headroom for the intended context and concurrency. The model name alone is not enough.
+
+### Is 24 GB enough for AI?
+
+It is enough for many quantized small and medium LLMs, image workflows, and development tasks. Larger models, contexts, or concurrency may require more.
+
+### Does quantization reduce quality?
+
+It can. The impact depends on method, bit width, model, and task. Run an evaluation set rather than assuming the change is harmless.
+
+### Can two GPUs combine their VRAM?
+
+Some frameworks shard a model across GPUs, but memory does not become one transparent pool. Interconnect, partitioning, communication, and software support matter.
+
+## Related Guides
+
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [How to run DeepSeek V4](https://glows.ai/article/run_deepseek_new_model_one_click_en)
+- [ComfyUI on a cloud RTX 4090](https://glows.ai/article/comfyui_cloud_4090_3_clicks_en)
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+
+## Next Step
+
+Estimate the workload on paper, then launch the smallest plausible [Glows.ai GPU](https://glows.ai/) and measure peak memory under the real context, batch, and concurrency. Move up only when the evidence requires it.

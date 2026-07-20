@@ -1,0 +1,148 @@
+---
+id: gpu_cost_allocation_ai_teams_zh_tw
+title: 'GPU 成本分攤：別再替不明 AI 用量買單'
+date: '2026-08-09 10:00'
+lastUpdated: '2026-08-09'
+description: '用必要 tag、單位經濟、shared-service 規則、showback、budget 與 chargeback，把不明 GPU 支出變成可負責的團隊成本。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **草稿狀態：** 發布前確認可用 Glows.ai billing field，並用能對上真實 export 的匿名報表替換 sample schema。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# GPU 成本分攤：別再替不明 AI 用量買單
+
+> **解法：** 在 GPU 使用前就加上 owner、team、project、environment 與 workload metadata；以最小可信單位匯出 compute 與 storage 成本；用明確公式分攤 shared service；先做 showback，等覆蓋率與對帳可信後再 chargeback。
+
+GPU cost allocation 要回答：哪個 team、product、experiment 或 customer outcome 使用了這筆支出？Provider bill 通常只列 infrastructure resource；engineering 與 finance 需要把 resource 穩定映射到 owner 與 workload。
+
+只有 allocated total 能對上帳單、且每個 unresolved dollar 都可見時，系統才可信。
+
+## Showback vs Chargeback
+
+Showback 只回報各 team 用量；chargeback 真的把成本放到內部 budget/cost center。Tag 與 ownership 尚不成熟時先用 showback，以免不完整資料造成爭議或鼓勵隱藏 shared capacity。
+
+## 必填 Allocation Schema
+
+| 欄位 | 用途 |
+| --- | --- |
+| Owner | 對 resource 負責的人 |
+| Team | 組織 rollup |
+| Project／product | 商業目的 |
+| Environment | Dev、staging、production |
+| Workload | Training、endpoint、notebook、batch |
+| Model | Model family/revision |
+| Cost center | Finance mapping |
+| Expiration | Review／shutdown date |
+
+使用 stable ID，不要只靠 free text；resource 建立時就填 owner。
+
+## 蒐集 Compute、Storage 與 Usage
+
+至少收 GPU model/count/region/start/stop/rate、resource ID、persistent storage size/lifetime、project/owner tag、endpoint token/request 或 training job ID、successful output 與 shared overhead。
+
+Glows.ai 公開 per-second billing、runtime storage、Snapshot、Datadrive 與 Team control；設計 automation 前需確認目前 console/API/export 實際欄位。
+
+## 分攤 Dedicated Workload
+
+`allocated cost = compute runtime + persistent storage + direct services`
+
+用 billed usage 對 start/stop。Notebook 即使 idle，若 policy 沒有 central idle pool，成本仍歸 owner project。
+
+## 分攤 Shared Inference
+
+可用 request、input/output token、GPU processing time、reserved capacity，或依 workload class 的 weighted combination。
+
+`team share = team weighted usage ÷ total weighted usage × shared service cost`
+
+Token 容易量，但 long-prefill 與 long-decode 的 compute 不同。公開公式並在 reporting period 內保持穩定；idle reserve 也要有明確分配。
+
+## Budget 與異常控制
+
+依 team 設月／週 forecast；spend 與 workload volume 偏離時 alert；找出無 owner/expiration 的 GPU、無 active project 的 storage、長期 workload 中的 price/GPU change。Hard limit 不能造成不安全 shutdown。
+
+## 每月對帳
+
+`provider bill = allocated team cost + shared platform cost + unresolved variance`
+
+| 報表區塊 | 必填值 |
+| --- | --- |
+| Provider total | 帳單 source of truth |
+| Direct allocation | Dedicated compute/storage |
+| Shared allocation | 公式與 team share |
+| Platform overhead | 明確 central cost |
+| Unallocated | 缺 owner/tag 或資料 mismatch |
+| Variance | 與 source total 差異 |
+
+**證據門檻：** 發布可對上 source total 的匿名 Glows.ai sample，附 schema、formula、period、limitation 與 change log。
+
+## 常見失敗模式
+
+1. 花費後才補 tag。
+2. Team 名稱變動但沒有 stable ID。
+3. Shared endpoint 只按 request count，未驗證 workload 差異。
+4. 忽略 idle reserve 與 persistent storage。
+5. 把未對帳 dashboard 當 finance truth。
+
+## 先建立必要的 GPU 標記欄位
+
+| 欄位 | 例子 | Owner |
+| --- | --- | --- |
+| `team` | `search-platform` | Engineering management |
+| `project` | `support-rag` | Product/engineering |
+| `environment` | `dev`、`staging`、`prod` | Platform |
+| `workload` | `training`、`inference`、`evaluation` | Workload owner |
+| `owner` | Team alias，不只個人信箱 | Team lead |
+| `cost_center` | Finance 核准代碼 | Finance |
+| `model` | Repository 與 revision family | ML owner |
+| `expiry` | Review 或 automatic-stop date | Requester |
+
+Tag 常無法可靠回補，因此 usage 前就套用；平台允許時拒絕或隔離 untagged resource。Tag coverage 要按金額，不只 resource count：一張 untagged H100 比多個小 disk 重要。
+
+## 透明分攤共用 GPU 服務
+
+Direct resource 依 tag；shared inference/model service 用明確 driver，例如有效 token、GPU second、依 token volume 加權的 request、reserved capacity 或固定比例。
+
+`team share = shared monthly cost × team measured usage ÷ total measured usage`
+
+Rule 要 versioned，不可每月偷偷改，並公開 unallocated cost，以及 credit、failed job、idle capacity、support、storage 的處理方式。
+
+## 月結檢查清單
+
+把 provider invoice 與 usage export 對帳；確認 currency、tax、credit；報告 untagged/shared spend；與 owner 審查 anomaly；發布 showback；記錄 dispute/adjustment；最後鎖定 period。只有連續多次 close 都穩定可解釋後才轉 chargeback。
+
+## FinOps 資料來源
+
+[FinOps Framework allocation capability](https://www.finops.org/framework/capabilities/allocation/) 以 account、tag、label、hierarchy 與 shared-cost rule 定義成本分攤；Foundation 的 [FinOps for AI overview](https://www.finops.org/wg/finops-for-ai-overview/) 則延伸到 GPU 與 model usage。本文將框架套用到 GPU compute 與 storage；最終 allocation policy 必須由 finance 核准。
+
+## 常見問題
+
+### 小團隊需要 Chargeback 嗎？
+
+通常先做 showback 與 ownership；組織與 budget 真的需要時再 chargeback。
+
+### Idle GPU 怎麼分攤？
+
+可歸預留容量的 workload、shared reliability pool，或文件化比例公式，但不能消失。
+
+### Token 是公平單位嗎？
+
+實用但不完美，prefill 與 decode 成本不同，需和量測 GPU usage 對照。
+
+### Untagged spend 歸誰？
+
+暫由 platform/finance owner 追蹤，但報表必須揭露並推動修正。
+
+## 延伸閱讀
+
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+- [GPU 每秒計費](https://glows.ai/article/per_second_gpu_billing_zh_tw)
+- [便宜 GPU 雲端為何可能更貴](https://glows.ai/article/cheap_gpu_cloud_real_cost_zh_tw)
+- [執行 LLM 成本](https://glows.ai/article/cost_to_run_an_llm_zh_tw)
+
+## 下一步
+
+先替一個非 production [Glows.ai workload](https://glows.ai/)加入 owner、team、project、environment、expiration，對帳一週 compute/storage 後再擴大政策。

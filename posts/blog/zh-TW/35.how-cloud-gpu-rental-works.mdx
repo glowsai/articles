@@ -1,0 +1,152 @@
+---
+id: how_cloud_gpu_rental_works_zh_tw
+title: '如何租用雲端 GPU：從零到成功啟動 LLM'
+date: '2026-07-23 10:00'
+lastUpdated: '2026-07-23'
+description: '逐步租用雲端 GPU 並啟動 LLM：選硬體、保護連線、保存檔案、停止運算，最後核對實際帳單。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 發布前需加入一次有時間戳記的 Glows.ai 實跑、畫面與去識別化 usage record。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 如何租用雲端 GPU：從零到成功啟動 LLM
+
+> **完整流程：** 選定明確的 GPU、區域、映像檔與儲存方案；啟動並保護 instance；固定軟體環境；執行 smoke test；把輸出存到非暫存空間；停止運算；最後比對預估與實際成本。
+
+本教學涵蓋：
+
+- 選擇 GPU、區域、映像檔與儲存生命週期；
+- 安全連線並記錄完整環境；
+- 啟動固定版本的 LLM 並測試 endpoint；
+- 保存輸出並驗證 checkpoint recovery；
+- 停止所有計費資源並核對 usage。
+
+雲端 GPU 租用可拆成明確流程：選能放下模型的 GPU、啟動遠端環境、連線、執行、保存重要資料，最後停止運算。指令通常不難；真正決定可靠性的，是儲存、權限與計費狀態。
+
+## 步驟 1：選 GPU 前先定義工作負載
+
+寫下模型與 revision、精度／量化、最大 context，以及預期併發或 batch。模型能載入不代表長 prompt 或多請求不會 OOM；還要保留 KV cache 與 runtime 空間。
+
+## 步驟 2：選擇區域、GPU、Image 與儲存
+
+在 Glows.ai console 依可用配置選擇，結帳時確認 GPU 數量與版本。能使用預先配置的 image 可減少設定時間，但仍要記錄 CUDA、框架與 container 版本。
+
+| 資料 | 建議位置 |
+| --- | --- |
+| 可丟棄 package cache | Runtime storage |
+| 重複使用的模型權重 | 持久儲存或可重現下載 |
+| 訓練資料 | 受控持久儲存 |
+| Checkpoint | 持久儲存加外部備份 |
+| 最終輸出 | 持久儲存或下載副本 |
+
+## 步驟 3：啟動並記錄環境
+
+依目前的[建立 instance 文件](https://docs.glows.ai/docs/create-new)操作。記錄啟動時間、區域、GPU、image/digest、CPU、RAM、儲存、可連線時間與 console 顯示的計費起點。
+
+**證據門檻：** 發布版必須加入實際 Glows.ai 畫面與紀錄，不得在沒有量測前宣稱固定啟動秒數。
+
+## 步驟 4：安全連線
+
+依 instance 顯示的方法連線。SSH private key 留在本機，不要把未驗證身分的推論 port 直接暴露到網路。
+
+```shell
+nvidia-smi
+python --version
+```
+
+若使用 Docker，記錄 immutable digest，不只寫 `latest`。
+
+## 步驟 5：啟動 LLM
+
+```shell
+vllm serve <model-id> \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --max-model-len <tested-context-length>
+```
+
+把 placeholder 換成可在該 GPU 容量內運作的模型與 context，並在正式環境固定 model revision 與 vLLM 版本。
+
+```shell
+curl http://127.0.0.1:8000/v1/models
+```
+
+先在本機端點確認服務，再送代表性請求，記錄 TTFT、總延遲、VRAM 與警告。
+
+## 步驟 6：保存需要的狀態
+
+停止前確認模型、資料、設定與輸出是否可重建；哪些檔案在 runtime storage；重要內容是否已複製到持久儲存。訓練要先做早期 checkpoint 並測試 restore；推論要保存 container、模型 revision 與 launch config。
+
+## 步驟 7：停止運算並核對計費
+
+正常關閉 application、保存資料，再使用 console 的 stop 或 delete 控制。GPU 停止後，持久儲存可能仍存在並另行計費。
+
+**證據門檻：** 發布版需將預估執行時間與實際 Glows.ai usage record 對帳，並遮蔽帳戶與付款資訊。
+
+## 步驟 8：測試恢復
+
+重新啟動或重建環境，確認已保存的模型、設定與輸出可恢復。run record 應包含 model ID/revision、引擎版本、container digest、GPU/區域、storage path、測試請求與實際成本。
+
+## 建立可重現的 Instance，不要留下只能手動維護的主機
+
+只靠未記錄 terminal history 才能運作的 server 很難恢復，也會增加重跑成本。把環境寫成 code：
+
+- 固定 container digest 或 base image，不只用 mutable tag；
+- 固定 Python package，記錄 CUDA、driver 與 framework 版本；
+- 明確記錄 model 與 tokenizer revision；
+- Secret 放進平台支援的 secret 機制，不要寫入 image；
+- 用 startup script mount storage、檢查 GPU 並啟動 service；
+- 把 launch command、health check 與預期 output 存在一起。
+
+最低限度的 reproducibility test 應具破壞性：完全不參考第一台 instance，單靠文件啟動第二台。若無法回覆相同 smoke-test request，環境就還不可重現。
+
+## 昂貴任務前先演練恢復
+
+用非敏感、低成本 run 驗證 failure path：
+
+1. 產生小型 checkpoint 或 output artifact。
+2. 複製到預定 persistent location。
+3. 依計畫停止或刪除 disposable compute。
+4. 用固定環境啟動全新 instance。
+5. Attach 或 restore 保存資料。
+6. Resume 任務並比較輸出。
+7. 確認全程哪些 compute 與 storage meter 仍啟用。
+
+這能在帳單還小時找出缺失 credential、ephemeral path、不相容 checkpoint 與未記錄步驟。長訓練的 checkpoint 頻率應由團隊願意損失多少已付費工作決定，而不是任意 step 數。
+
+## 操作流程資料來源
+
+Instance 步驟應對照最新 [Glows.ai 建立指南](https://docs.glows.ai/docs/create-new)。vLLM command 與 flag 必須依固定版本查閱[官方 vLLM 文件](https://docs.vllm.ai/)。本文的 smoke test、持久性測試與帳單對帳是操作驗證，不代表每種 image 或 instance 都有相同行為。
+
+## 常見問題
+
+### 租用雲端 GPU 要多久？
+
+實際時間取決於庫存、image 大小、區域與配置，應量測而不是相信通用承諾。
+
+### 可以用 Ollama 取代 vLLM 嗎？
+
+可以，只要支援模型與工作負載。vLLM 常用於較高吞吐服務；Ollama 適合熟悉的本地模型流程。
+
+### Stop instance 後會發生什麼？
+
+計費與資料保留取決於供應商狀態模型。要確認哪些 storage 會留下，以及是否另有費用。
+
+### Port 8000 可以直接公開嗎？
+
+不應在沒有 authentication 與網路控制時公開。先做本機測試，再加上應用所需的存取層。
+
+## 延伸閱讀
+
+- [不買本機 GPU 執行 DeepSeek](https://glows.ai/article/run_deepseek_without_a_gpu_zh_tw)
+- [Ollama timeout 修正與雲端路徑](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_zh_tw)
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [AI 資料落地與區域選擇](https://glows.ai/article/taiwan_data_residency_ai_compute_zh_tw)
+
+## 下一步
+
+依 [Glows.ai instance 流程](https://docs.glows.ai/docs/create-new)啟動非敏感測試，記錄每個狀態、保存一個 artifact、停止運算，並確認恢復與帳務符合預期。

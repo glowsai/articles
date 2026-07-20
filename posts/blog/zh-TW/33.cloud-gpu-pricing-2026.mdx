@@ -1,0 +1,146 @@
+---
+id: cloud_gpu_pricing_2026_zh_tw
+title: '2026 雲端 GPU 價格：8 款 GPU 每小時 $0.49 起'
+date: '2026-07-21 10:00'
+lastUpdated: '2026-07-21'
+description: '比較 8 款每小時 $0.49 起的雲端 GPU，並算出 runtime、儲存、最低計費、失敗任務與閒置時間造成的 2026 真實成本。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 價格查核日為 2026 年 7 月 20 日。發布前必須再次確認即時定價、區域供應與所有比較來源。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 2026 雲端 GPU 價格：8 款 GPU 每小時 $0.49 起
+
+> **快速結論：** 2026 年 7 月 20 日查詢時，Glows.ai 列出的 8 款 GPU 每小時從 $0.49 到 $5.00。時薪最低不代表完成任務最便宜；VRAM 是否足夠、計費粒度、儲存、啟動時間、失敗重跑與利用率都可能改變排名。
+
+2026 年雲端 GPU 的標示價格，從消費級／工作站卡的每小時不到 1 美元，到資料中心加速器的數美元不等。但時薪不是最終帳單。完整估算還要加入計費粒度、持久儲存、傳輸、啟動時間、失敗重跑，以及復原工作。
+
+Glows.ai 在 2026 年 7 月 20 日顯示以下隨用隨付價格。這是有日期的快照，不是永久承諾。
+
+| GPU | VRAM | Glows.ai 當日價格 |
+| --- | ---: | ---: |
+| RTX 4090 | 24 GB | $0.49/hr |
+| RTX 5090 | 32 GB | $0.69/hr |
+| L40S | 48 GB | $0.83/hr |
+| A100 | 結帳時確認版本 | $1.20/hr |
+| RTX PRO 6000 | 96 GB | $1.78/hr |
+| H100 | 結帳時確認版本 | $2.96/hr |
+| H200 | 結帳時確認版本 | $3.15/hr |
+| B200 | 結帳時確認配置 | $5.00/hr |
+
+來源：[Glows.ai 定價表](https://glows.ai/)。實際租用前仍要確認硬體版本、區域、庫存、內含 runtime storage 與持久儲存條款。
+
+## 算完整任務成本，不只看標示時薪
+
+先用這個公式：
+
+`完整任務成本 = GPU 執行時間 + 持久儲存 + 傳輸 + 重跑成本 + 維運時間`
+
+若工作一次成功：
+
+`GPU 成本 = 每小時價格 × 執行秒數 ÷ 3,600`
+
+以 $0.49/hr 的 RTX 4090 為例，20 分鐘純運算約為 $0.16。這不包含 GPU 關機後仍保留的儲存，也假設工作沒有失敗。長時間訓練若缺少可恢復 checkpoint，便宜時薪也可能換來更高的完成成本。
+
+## 計費粒度如何影響短任務
+
+| 7 分鐘工作 | 計費時間 | 約略運算費 |
+| --- | ---: | ---: |
+| 每秒計費 | 7 分鐘 | $0.06 |
+| 每分鐘計費 | 7 分鐘 | $0.06 |
+| 最低一小時 | 60 分鐘 | $0.49 |
+
+這只是算術示例。供應商可能另有啟動規則、最低餘額、四捨五入或儲存費。先做小型測試並核對帳務，再建立正式預算。
+
+## 依工作負載選 GPU
+
+最便宜的 GPU，是能在記憶體與服務目標內完成工作的最低成本配置。放不下模型的卡，再便宜也沒有用；較快的 GPU 若能大幅縮短時間，也可能降低完整任務成本。
+
+| 工作負載 | 建議先測 | 主要限制 |
+| --- | --- | --- |
+| 7B–14B 量化 LLM 推論 | RTX 4090／5090 | 權重與 KV cache |
+| 較長 context 或中型模型 | L40S／RTX PRO 6000 | VRAM 與併發 |
+| 70B 高吞吐推論 | A100／H100／H200／多 GPU | 延遲 SLO 與互連 |
+| QLoRA 微調 | 依模型測試 24–96 GB | activation、optimizer、batch |
+| 影像生成 | RTX 4090／5090／L40S | 解析度、模型、batch |
+
+這些只是測試起點。模型 revision、精度、context、batch 與併發都要固定後才能比較。
+
+## 價格表常漏掉的成本
+
+- 持久儲存：權重、資料集、checkpoint 與輸出可能在 GPU 關機後繼續存在。
+- 資料傳輸：大型模型與資料集會增加時間與費用。
+- 啟動／下載：每次重建半小時會吃掉便宜時薪的優勢。
+- 中斷與重跑：spot 或 marketplace 容量便宜，但失敗成本要算入。
+- 閒置容量：推論服務等待請求時仍可能計費。
+- 工程時間：driver、host 差異與復原工作都是真成本。
+
+## 可重現的價格比較方法
+
+針對同一個代表性任務，向每個供應商記錄：GPU 型號與版本、區域與日期、計費單位、儲存價格、啟動時間、實測執行時間、失敗／復原行為，以及一次成功結果的總成本。
+
+不要把裸 GPU 時薪直接拿來比較含 CPU、RAM、儲存、支援或不同可靠性模型的 instance；先把服務內容正規化。
+
+## 三個雲端 GPU 成本實例
+
+先只算 compute，讓隱藏成本保持可見：
+
+| 情境 | 運算式 | 純 compute 成本 |
+| --- | --- | ---: |
+| RTX 4090 跑 20 分鐘實驗 | $0.49 × 20 ÷ 60 | $0.16 |
+| L40S 跑 8 小時推論 | $0.83 × 8 | $6.64 |
+| H100 跑 24 小時訓練 | $2.96 × 24 | $71.04 |
+
+接著調整每個情境。如果 20 分鐘實驗另花 12 分鐘下載權重，沒有 cache 時就可能付 32 分鐘。若 8 小時任務留下 200 GB volume 到月底，storage 會在 compute 停止後繼續存在。若 24 小時任務有 10% 機率在沒有可用 checkpoint 時失敗，完成一次的期望成本就高於 $71.04。
+
+重複任務要同時計算 cold start 與 warm start。Reusable image 或 Datadrive 可能增加閒置 storage，卻能降低每次付費 setup。所有選項必須採用相同 data location、cache state、checkpoint policy 與「完成」定義。
+
+## 五分鐘價格驗證清單
+
+核准 budget 前，保存帶日期的 screenshot 或 export，並回答：
+
+1. 價格是每張 GPU，還是整台 multi-GPU instance？
+2. 實際啟動的是哪個 memory capacity 與 hardware variant？
+3. 計費按秒、按分鐘，還是有最低區塊？
+4. Runtime disk、persistent storage 與 transfer 哪些另計？
+5. 報價區域是否現在有貨？是否需要 commitment？
+6. 哪個操作會停止 compute？之後哪些 resource 還會收費？
+
+把答案與 workload estimate 存在一起。沒有 timestamp 與 configuration 的價格比較無法重現。
+
+## 資料來源與價格方法
+
+本文價格來自 [Glows.ai 公開 GPU 表格](https://glows.ai/)，查詢日期為 2026 年 7 月 20 日。VRAM 與硬體定位應在結帳時對照所選 instance 與 NVIDIA 官方產品頁，例如 [H100 規格](https://www.nvidia.com/en-us/data-center/h100/)。所有試算都公開假設，先用未取整秒數計算再顯示金額；發布或購買前須重查價格、庫存、GPU variant、區域、儲存、稅金與傳輸條款。
+
+## 常見問題
+
+### 最便宜的雲端 GPU 是哪張？
+
+價格和庫存會變。Glows.ai 在 2026 年 7 月 20 日最低標示為 RTX 4090 的 $0.49/hr；仍要確認 24 GB VRAM 是否足夠。
+
+### H100 每小時多少錢？
+
+Glows.ai 當日標示 $2.96/hr。其他供應商會因版本、區域、承諾期限與主機配置而不同。
+
+### GPU 租用包含儲存嗎？
+
+Glows.ai 公開資訊顯示 runtime storage 在指定容量內包含，並提供 Snapshot 與 Datadrive。請確認所選配置與資料生命週期。
+
+### 應該直接選最低時薪嗎？
+
+不應該。選擇能滿足記憶體、延遲、可靠性與復原需求的最低完成成本。
+
+## 延伸閱讀
+
+- [AWS GPU 定價 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_zh_tw)
+- [為什麼便宜 GPU 雲端可能更貴](https://glows.ai/article/cheap_gpu_cloud_real_cost_zh_tw)
+- [2026 租 GPU 還是買 GPU](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_zh_tw)
+- [RunPod vs Vast.ai vs Glows.ai](https://glows.ai/article/runpod_vast_ai_glows_ai_zh_tw)
+
+## 下一步
+
+先選一個真實工作負載，寫下上述假設，再查看[最新 Glows.ai 配置](https://glows.ai/)。測試結束後立即關閉 instance，並核對預估與實際帳務。

@@ -1,0 +1,152 @@
+---
+id: rtx_4090_vs_5090_vs_l40s_ai_en
+title: 'RTX 4090 vs 5090 vs L40S for AI: Which Should You Rent?'
+date: '2026-07-24 10:00'
+lastUpdated: '2026-07-24'
+description: 'Compare RTX 4090, RTX 5090, and L40S for AI by VRAM, hourly price, model fit, reliability, and cost per completed workload.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** The hardware and price comparison is sourced; the matched Glows.ai benchmark table must be completed before publication. No benchmark winner is claimed in this draft.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# RTX 4090 vs 5090 vs L40S for AI: Which Should You Rent?
+
+> **Fast verdict:** Start with RTX 4090 when 24 GB fits and price dominates, RTX 5090 when 32 GB prevents offload or unlocks a larger model, and L40S when 48 GB or datacenter-oriented operation matters. Benchmark the exact workload before declaring a performance winner.
+
+The RTX 4090, RTX 5090, and L40S occupy three different positions. The RTX 4090 is a 24 GB consumer card with a low cloud entry price. The RTX 5090 increases memory to 32 GB and uses a newer architecture. The L40S provides 48 GB of datacenter-oriented memory and operational features. The winner depends on whether the workload is constrained by VRAM, throughput, reliability features, or total job cost.
+
+Glows.ai listed these rates on July 20, 2026: RTX 4090 at $0.49/hour, RTX 5090 at $0.69/hour, and L40S at $0.83/hour. Confirm region, inventory, host configuration, and current rates before using them in a decision.
+
+## RTX 4090 vs RTX 5090 vs L40S at a Glance
+
+| Factor | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| VRAM | 24 GB | 32 GB | 48 GB |
+| Market class | Consumer | Consumer | Datacenter |
+| Glows.ai rate checked July 20, 2026 | $0.49/hr | $0.69/hr | $0.83/hr |
+| Best first test | Cost-sensitive work that fits 24 GB | Work needing more than 24 GB or newer acceleration | Larger models, contexts, or datacenter operations |
+
+Specifications should be checked against [NVIDIA’s product documentation](https://www.nvidia.com/) and the exact cloud configuration. Consumer and datacenter cards can differ in memory type, virtualization support, error handling, and deployment terms even when headline compute looks similar.
+
+## Choose by VRAM First
+
+VRAM is the first hard gate. A workload that needs 29 GB cannot run unchanged on a 24 GB RTX 4090, regardless of how attractive its hourly rate is. It may fit after quantization, smaller context, reduced batch size, CPU offload, or another trade-off—but that becomes a different configuration.
+
+For LLM inference, budget memory for:
+
+`weights + KV cache + runtime workspace + safety headroom`
+
+For fine-tuning, add activations, gradients, optimizer state, and temporary buffers. For diffusion and video, resolution, model components, attention implementation, and batch size can change the peak.
+
+## Workload Fit
+
+### RTX 4090
+
+Start with the RTX 4090 when the workload fits comfortably within 24 GB and cost per experiment matters. It is a practical baseline for quantized small and medium LLMs, many image workflows, development, and single-user inference.
+
+### RTX 5090
+
+The RTX 5090’s 32 GB creates room for configurations that are awkward on 24 GB. The benefit must be measured: a 41% higher listed hourly rate than the RTX 4090 is economical only when added memory or speed reduces finished-job cost or enables a required workload.
+
+### L40S
+
+The L40S is the first choice among these three when 48 GB of memory or datacenter-oriented deployment features are required. Its listed rate was about 69% higher than the RTX 4090 snapshot, but it may avoid multi-GPU complexity or aggressive quantization.
+
+## The Benchmark That Should Decide
+
+Run the same test on all three GPUs:
+
+- exact model revision and quantization;
+- immutable container and inference-engine commit;
+- identical prompt and output-length distribution;
+- concurrency levels of 1, 10, and the target production load;
+- three warm runs after a documented warmup;
+- TTFT, TPOT, p50/p95 latency, tokens per second, peak VRAM, and errors.
+
+**Evidence gate:** Complete this table with raw Glows.ai measurements before publication.
+
+| Metric | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| Model/configuration | Pending test | Pending test | Pending test |
+| Peak VRAM | Pending test | Pending test | Pending test |
+| Throughput | Pending test | Pending test | Pending test |
+| TTFT p95 | Pending test | Pending test | Pending test |
+| Cost per 1M output tokens | Pending test | Pending test | Pending test |
+| Error rate | Pending test | Pending test | Pending test |
+
+Do not fill missing cells from unrelated internet benchmarks. Host CPU, memory, power limits, drivers, engine versions, and workload shape can change the result.
+
+## Cost per Job Beats Cost per Hour
+
+Use this calculation after measuring throughput:
+
+`cost per completed job = hourly rate × wall-clock seconds ÷ 3,600`
+
+For online inference, also calculate cost at the offered request rate. A benchmark at full saturation can make a GPU look efficient while violating the product’s latency target. Report cost only for configurations that meet the SLO.
+
+## Decision Guide
+
+Choose the RTX 4090 when the full workload fits with headroom and it meets the latency target. Choose the RTX 5090 when 32 GB or its measured performance reduces total cost. Choose the L40S when 48 GB, datacenter characteristics, or operational consistency matters more than the lowest hourly rate.
+
+If two options pass, select the lower cost per completed workload and document the result. If none pass, move to a larger GPU or a multi-GPU design rather than hiding failures with selective benchmark settings.
+
+## Model Fit Comes Before Tokens per Second
+
+Use a memory budget before any speed benchmark:
+
+| Candidate | Listed VRAM | A fit test should include |
+| --- | ---: | --- |
+| RTX 4090 | 24 GB | Weights, runtime overhead, KV cache or activations, safety margin |
+| RTX 5090 | 32 GB | The same workload at the same precision and context |
+| L40S | 48 GB | Larger weights or cache plus the same concurrency target |
+
+A model that barely loads is not necessarily deployable. Send the longest expected prompt, maximum requested output, and target number of simultaneous sequences. For training, measure peak allocation through backward pass and checkpoint save. For image or video work, test the largest resolution, batch, and workflow graph.
+
+If the 24 GB configuration offloads to CPU or repeatedly OOMs, comparing its tokens per second with an in-memory 32 or 48 GB run is misleading. Record offload, host RAM, quantization, context, and batch beside every result.
+
+## Calculate the Price/Performance Break-Even
+
+At the July 20 rates, RTX 5090 costs about 41% more per hour than RTX 4090, while L40S costs about 69% more. That does **not** mean they must be exactly 41% or 69% faster to win. A larger card can also avoid CPU offload, support more users, eliminate a second GPU, or finish a job that the smaller card cannot run.
+
+For a completed workload:
+
+`relative value = accepted work per hour ÷ hourly GPU price`
+
+Use accepted images, tokens, training steps, or completed jobs—not a peak hardware metric. Reject runs that miss the quality or latency target. The rental winner is the highest valid work per dollar with an acceptable recovery and reliability profile.
+
+## Hardware Sources
+
+Confirm specifications with NVIDIA’s official pages for [GeForce RTX 4090](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/), [GeForce RTX 5090](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/), and [NVIDIA L40S](https://www.nvidia.com/en-us/data-center/l40s/). Cloud results still depend on the host, power configuration, drivers, framework, precision, model, and prompt mix; product specifications are not workload benchmarks.
+
+## FAQ
+
+### Is the RTX 5090 always faster than the RTX 4090 for AI?
+
+No universal multiplier applies. Model architecture, precision, kernels, batch size, memory pressure, and software support determine the gain.
+
+### Is L40S better than RTX 5090?
+
+It has more VRAM and a datacenter product profile. “Better” depends on whether those properties improve the actual workload enough to justify the cost.
+
+### Can a 70B model run on one of these GPUs?
+
+Not at full precision. A heavily quantized 70B model may fit within 48 GB under some configurations, but context, KV cache, quality, and runtime overhead still need measurement.
+
+### Which GPU is best for ComfyUI?
+
+The RTX 4090 is a strong cost baseline when the workflow fits 24 GB. Compare the RTX 5090 and L40S for larger models, higher resolutions, or workflows that exceed that memory.
+
+## Related Guides
+
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [AWS GPU pricing vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_en)
+- [What a $0.49/hour GPU can do](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_en)
+- [Cloud GPU rental in Taiwan](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_en)
+
+## Next Step
+
+Run the same model and prompt trace on all three [Glows.ai GPU configurations](https://glows.ai/). Keep the raw outputs and choose only after comparing p95 latency, failure rate, and cost per accepted result.

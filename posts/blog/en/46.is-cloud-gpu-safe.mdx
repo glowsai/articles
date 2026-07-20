@@ -1,0 +1,146 @@
+---
+id: is_cloud_gpu_safe_en
+title: 'Is Cloud GPU Safe? 8 Checks Before You Upload Data'
+date: '2026-08-03 10:00'
+lastUpdated: '2026-08-03'
+description: 'Use 8 security checks before uploading data to a cloud GPU: isolation, identity, encryption, storage, logs, regions, deletion, and responsibility.'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **Draft status:** Security claims require review by Glows.ai’s security owner and links to current policies, certificate scope, architecture, and product documentation. This is not legal advice.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Is Cloud GPU Safe? 8 Checks Before You Upload Data
+
+> **Security answer:** A cloud GPU can support a secure workload only when provider and customer responsibilities are explicit and the complete data path is controlled. A local region or dedicated GPU does not, by itself, prove isolation, encryption, retention, deletion, or compliance.
+
+A cloud GPU can support a secure AI workload, but “the GPU is dedicated” or “the region is local” is not a complete security answer. Safety depends on isolation, identity, network exposure, encryption, storage, logs, deletion, provider access, connected services, and the controls the customer configures.
+
+The right question is: can the team draw the complete data path, assign every control, and produce evidence that the deployed configuration behaves as expected?
+
+## Map the Full Data Path
+
+Include:
+
+1. prompts, datasets, images, and model weights entering the system;
+2. compute region and GPU environment;
+3. runtime and persistent storage;
+4. snapshots and backups;
+5. model APIs, vector databases, observability, and support tools;
+6. administrator and user access;
+7. logs, outputs, retention, and deletion.
+
+A workload can run on a GPU in one region while sending prompts or logs to another service elsewhere. Security and residency must cover the whole route.
+
+## Cloud GPU Responsibility Matrix
+
+| Control | Provider responsibility | Customer responsibility |
+| --- | --- | --- |
+| Physical datacenter | Operate and protect facility | Review available assurance |
+| Host/platform isolation | Implement platform controls | Select appropriate service model |
+| Account identity | Provide identity features | Enforce strong authentication and offboarding |
+| Instance access | Provide connectivity controls | Secure keys, users, ports, and services |
+| Guest/container software | Supply base options | Patch and pin the chosen environment |
+| Data encryption | Document platform behavior | Encrypt and manage application secrets as required |
+| Retention and deletion | Define product lifecycle | Remove resources and verify the expected outcome |
+
+The exact boundary varies by product. Replace this generic matrix with verified Glows.ai documentation before publication.
+
+## Isolation and Dedicated Hardware
+
+Ask whether the GPU, host, or cluster is shared; how workloads are isolated; and which control plane administrators can access. A dedicated GPU is not necessarily a dedicated host. Confidential-computing offerings can add attestation or memory protections, but those features must be verified for the selected configuration.
+
+Do not describe a service as confidential computing unless the platform documents the hardware, attestation flow, threat model, and supported region.
+
+## Identity, Network, and Secrets
+
+- Require strong account authentication.
+- Use individual identities rather than shared credentials.
+- Apply least privilege and remove departed users promptly.
+- Keep private keys and API secrets out of notebooks and images.
+- Expose only required ports.
+- Place inference endpoints behind authentication, authorization, and rate limits.
+- Rotate secrets after accidental disclosure.
+
+A process listening on `0.0.0.0` is not automatically safe to expose to the internet.
+
+## Storage, Snapshots, and Deletion
+
+Classify runtime disks, Datadrive, snapshots, external object storage, and downloaded copies separately. Record encryption behavior, access roles, region, retention, backup, and deletion action for each.
+
+Deleting an instance may not delete persistent storage. Conversely, deleting runtime storage before saving outputs can destroy work. Security needs both controlled retention and reliable recovery.
+
+**Evidence gate:** Run a non-sensitive deletion and recovery test. Document what survives stop, deletion, snapshot creation, and Datadrive detach. Have the product owner verify the result.
+
+## Verify Provider Claims
+
+Glows.ai’s public site displays ISO/IEC 27001:2022 certification and links its privacy policy and terms. Before publication, verify certificate scope, current validity, legal entity, subprocessors where applicable, support access, incident process, and the selected product’s architecture.
+
+Certification is useful evidence of a management system; it is not proof that every customer configuration is secure or compliant.
+
+## Security Checklist Before Sensitive Data
+
+- Approve the workload and data classification.
+- Verify compute, storage, backup, log, and API regions.
+- Review the contract, privacy policy, and required DPA.
+- Confirm isolation and administrative-access model.
+- Restrict identities, ports, secrets, and service accounts.
+- Patch the runtime and pin images.
+- Test backup, restore, deletion, and incident escalation.
+- Keep a dated architecture and evidence record.
+
+## Build a Small Threat Model
+
+List what must be protected before choosing controls:
+
+| Asset | Example threat | Evidence to request or produce |
+| --- | --- | --- |
+| Training data and prompts | Unauthorized account or support access | Identity policy, access logs, support procedure |
+| Model weights and adapters | Theft through exposed service or shared secret | Network rules, authentication, secret rotation |
+| Runtime and snapshots | Residual data or unintended persistence | Encryption, lifecycle, deletion test |
+| API output and logs | Sensitive content copied to observability tools | Log schema, redaction, retention, region |
+| Availability and budget | Abuse, cryptomining, or runaway endpoint | Rate limits, quotas, alerts, incident response |
+
+Define the relevant actors: account users, administrators, provider operators, subprocessors, internet attackers, and connected services. A control is useful only if it addresses a threat in the actual architecture.
+
+## Evidence Pack Before Production
+
+Keep a dated review folder containing the data-flow diagram, responsibility matrix, approved regions, identity roles, exposed ports, encryption and key ownership, storage lifecycle, backup/restore test, deletion test, log destinations, incident contacts, relevant contract documents, and risk acceptance.
+
+Retest after changing instance type, image, storage product, region, identity system, or observability path. Security statements in marketing copy should link to the evidence and scope that supports them; avoid broad phrases such as “fully secure” or “compliant by default.”
+
+## Security Sources and Review Boundary
+
+The UK National Cyber Security Centre’s [cloud shared-responsibility guidance](https://www.ncsc.gov.uk/collection/cloud/understanding-cloud-services/cloud-security-shared-responsibility-model) supports the responsibility model used here. Product controls, certificate scope, policies, subprocessors, regions, retention, and deletion behavior must come from current Glows.ai evidence and contract documents. This checklist supports review; it is not a compliance certification or legal opinion.
+
+## FAQ
+
+### Is a cloud GPU less safe than a local GPU?
+
+Not inherently. A local system and a cloud system expose different risks and responsibilities. Compare the complete architecture and operational controls.
+
+### Does a Taiwan GPU keep all data in Taiwan?
+
+Not automatically. Storage, backups, logs, connected APIs, and administrators must also be mapped and verified.
+
+### Should I upload confidential training data?
+
+Only after security, legal, and data owners approve the documented configuration and required controls. Use de-identified test data first.
+
+### Does deleting an instance erase everything?
+
+It depends on runtime, snapshot, and persistent-storage behavior. Verify the current product lifecycle with a safe test.
+
+## Related Guides
+
+- [AI data residency and region selection](https://glows.ai/article/taiwan_data_residency_ai_compute_en)
+- [Cloud GPU rental in Taiwan](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_en)
+- [How cloud GPU rental works](https://glows.ai/article/how_cloud_gpu_rental_works_en)
+- [GMI Cloud vs Glows.ai](https://glows.ai/article/gmi_cloud_vs_glows_ai_en)
+
+## Next Step
+
+Use non-sensitive data to build the data-path diagram and control matrix. Then review the selected [Glows.ai configuration](https://glows.ai/) with the organization’s security and legal owners before production use.

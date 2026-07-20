@@ -1,0 +1,112 @@
+---
+id: taiwan_vs_us_gpu_region_latency_ja
+title: '台湾 vs 米国GPUリージョン：APAC LLMはどちらが速い？'
+date: '2026-08-08 10:00'
+lastUpdated: '2026-08-08'
+description: '同一GPU、model、workloadで台湾 vs 米国GPU regionを測定し、APAC LLM userのnetwork latency、TTFT、p95を比較します。'
+tags:
+  - Blog
+  - Region & Data
+---
+
+> **ドラフト状態：** region resultは未測定です。公開前にdocumented APAC clientからsame-hardware testをrepeatします。法的助言ではありません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# 台湾 vs 米国GPUリージョン：APAC LLMはどちらが速い？
+
+> **予想はできても断定しない：** APAC userには近い台湾regionがnetwork timeを短縮しやすい一方、inventory、routing、GPU startup、model prefill、queue、generationが地理差を上回ることがあります。同一end-to-end testだけが速い体験を証明できます。
+
+台湾GPU regionは台湾／近隣APAC userのnetwork timeを短縮できる場合があります。ただしend-to-endはrouting、queue、prefill、output length、engine、loadにも依存します。長いgenerationはdecode、短いinteractionはRTT/TTFTの影響が大きくなります。
+
+実際のclient locationからsame hardwareを測る必要があります。
+
+## LLM RequestでRegionが変える部分
+
+`DNS/TLS/network → queue → prefill → first token → decode → complete`
+
+regionはnetworkに直接影響し、GPU inventory、host、storage、connected service routeも変える場合があります。
+
+## Test Design
+
+verified Taiwan/US regionに同じserver imageを配置し、GPU variant、model/tokenizer、engine/container、quantization/context/batching、CPU/RAM/storageを揃えます。台湾、日本、利用可能な東南アジアclientから複数時刻に送り、route、sample、p50/p95、errorを公開します。
+
+## NetworkとModel Latencyを分ける
+
+DNS/TCP/TLS、RTT、queue、TTFT、TPOT、end-to-endを測ります。browser pingだけではapplication latencyになりません。
+
+## 結果
+
+**証拠ゲート：** repeat Glows.ai measurementだけで表を埋め、一般的な都市間pingを使いません。
+
+| Client | GPU region | Network p50/p95 | TTFT p50/p95 | End-to-end p50/p95 | Error |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 台湾 | 台湾 | 未測定 | 未測定 | 未測定 | 未測定 |
+| 台湾 | 米国 | 未測定 | 未測定 | 未測定 | 未測定 |
+| 日本 | 台湾 | 未測定 | 未測定 | 未測定 | 未測定 |
+| 日本 | 米国 | 未測定 | 未測定 | 未測定 | 未測定 |
+| 東南アジアtest point | 台湾 | 未測定 | 未測定 | 未測定 | 未測定 |
+| 東南アジアtest point | 米国 | 未測定 | 未測定 | 未測定 | 未測定 |
+
+short/long outputは別表にし、50-tokenと1,000-tokenを平均しません。
+
+## Short／Long Responseを解釈する
+
+short outputはnetwork/queue割合が大きく、long outputはdecodeが支配しやすいですがTTFTは残ります。high concurrencyでqueueが増えたらcapacity問題としてsaturation/arrivalを報告します。
+
+## AvailabilityとCost
+
+近いregionに必要GPUがなければ使えません。GPU、rate、configuration、dateを記録し、snapshotを将来保証にしません。second regionをcapacity fallback、DR、activeのどれにするか明確にし、failoverをtestします。
+
+## PerformanceとData Residencyは別問題
+
+本稿はperformanceを扱います。legal、contract、storage、backup、connected serviceは[AI data residency guide](https://glows.ai/article/taiwan_data_residency_ai_compute_ja)で確認します。台湾GPUだけで全dataが台湾に残るとは限りません。
+
+## 端から端までの遅延予算を分解する
+
+`total latency = DNS/connect/TLS + request upload + queue + prefill/TTFT + decode + response transfer`
+
+Short responseはnetwork/TTFT、long generationはdecodeが支配してregion差を隠すため、TTFTとcompletionを分け、TPOT/output rateも示します。
+
+Cold instanceはprovisioning、image pull、model download/load、graph captureを含み、warm requestはnetwork、queue、inferenceだけです。Scale-to-zero productでは両方公開します。
+
+## 再現可能なリージョンデータセットを作る
+
+Engineer laptopだけでなく実際のAPAC marketからclientを実行します。各client/region pairでDNS policy、protocol、model、GPU variant、engine、prompt set、output cap、cache state、concurrency、test windowを一致させます。
+
+複数時間帯でp50/p95/error rateを出せるsampleを集め、route/network metadataも保存します。Taiwan/USでinventoryやtimeが異なる場合はlimitationを明記し、geographyだけを原因にしません。
+
+誤ったregion結論を減らすためpaired runを使います。同じclientから同じprompt batchを両regionへ交互に送り、主要marketごとに繰り返します。小さい固定payloadを返すcontrol endpointも加え、network pathの変動とmodel servingの変動を分離します。勝つregionが時間帯、client ISP、prompt length、cache stateで変わるなら、単一の普遍的なlatency claimではなくそのinteractionを公開します。Regionは最速の一sampleではなく、実際のtraffic mixとpercentile targetで選びます。
+
+## Latency測定の情報源
+
+[vLLM metricsドキュメント](https://docs.vllm.ai/en/latest/design/metrics.html)を使い、pinしたreleaseでqueue、prefill、decode、end-to-end timingを分離します。Network baselineはCloudflareの[latency解説](https://www.cloudflare.com/learning/performance/glossary/what-is-latency/)を参照します。Client location、route、date、sample count、hardware、model、cache state、raw percentileを公開して再現可能にします。
+
+## よくある質問
+
+### APACには台湾regionが必ず速いですか？
+
+いいえ。routing、client、server load、model timeで変わります。
+
+### PingはLLM latencyですか？
+
+違います。connection、queue、prefill、generationが加わります。
+
+### Model sizeでregion影響は変わりますか？
+
+長いcomputeではtotal比率が下がる場合がありますがTTFTは重要です。
+
+### 2 regionへdeployすべきですか？
+
+latency、capacity、availability、allowed data flowがcomplexityを正当化するときだけです。
+
+## 関連ガイド
+
+- [AIデータレジデンシー](https://glows.ai/article/taiwan_data_residency_ai_compute_ja)
+- [台湾クラウドGPUガイド](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_ja)
+- [Lambda vs Glows.ai](https://glows.ai/article/lambda_vs_glows_ai_ja)
+- [Llama 3.3 70B capacity](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_ja)
+
+## 次のステップ
+
+同じ非機密serviceを利用可能な[Glows.ai region](https://glows.ai/)へ配置し、実際のclient marketから測ってproduction placementを選びます。

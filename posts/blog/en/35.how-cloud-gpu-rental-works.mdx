@@ -1,0 +1,200 @@
+---
+id: how_cloud_gpu_rental_works_en
+title: 'How to Rent a Cloud GPU: From Zero to a Running LLM'
+date: '2026-07-23 10:00'
+lastUpdated: '2026-07-23'
+description: 'Rent a cloud GPU and launch an LLM step by step: choose hardware, secure access, preserve files, stop compute, and verify the final bill.'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **Draft status:** Replace the evidence-gate callout with a timestamped Glows.ai run, screenshots, and a redacted usage record before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# How to Rent a Cloud GPU: From Zero to a Running LLM
+
+> **The workflow:** Choose an exact GPU, region, image, and storage plan; launch and secure the instance; pin the software environment; run a smoke test; save the output outside ephemeral storage; stop compute; then reconcile expected and actual cost.
+
+This tutorial covers:
+
+- selecting the GPU, region, image, and storage lifecycle;
+- connecting securely and recording the environment;
+- launching a pinned LLM and testing the endpoint;
+- preserving outputs and proving checkpoint recovery;
+- stopping every billable resource and reconciling usage.
+
+Cloud GPU rental turns a hardware decision into a short operational workflow: choose a GPU that fits the model, launch a remote environment, connect, run the workload, save anything important, and stop compute. The commands are often the easy part. Storage, access, and billing state are what make the workflow reliable.
+
+This guide uses an open-weight LLM as the example, but the same lifecycle applies to fine-tuning, image generation, OCR, and other GPU jobs.
+
+## Step 1: Define the Workload Before Choosing a GPU
+
+Write down four inputs:
+
+- exact model and revision;
+- precision or quantization;
+- maximum context length;
+- expected concurrency or batch size.
+
+Model weights are only part of GPU memory. An inference server also needs runtime workspace and KV cache. If the model barely fits at startup, it may still fail on a long prompt or several simultaneous requests.
+
+Use the [local LLM GPU requirements guide](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en) as a starting point, then verify the actual runtime.
+
+## Step 2: Select Region, GPU, Image, and Storage
+
+In the Glows.ai console, select the available configuration that matches the workload. Confirm the GPU count and variant at checkout rather than relying on a generic product name.
+
+Choose an image with the required CUDA and framework versions where possible. A preconfigured image reduces setup time, but it does not remove the need to record versions.
+
+Decide where each data type belongs:
+
+| Data | Sensible location |
+| --- | --- |
+| Disposable package cache | Runtime storage |
+| Model weights used repeatedly | Persistent storage or reproducible download |
+| Training dataset | Controlled persistent storage |
+| Checkpoints | Persistent storage plus external backup |
+| Final outputs | Persistent storage or downloaded copy |
+
+## Step 3: Launch and Record the Environment
+
+Follow the current [create-an-instance documentation](https://docs.glows.ai/docs/create-new). Record:
+
+- launch timestamp;
+- region and GPU configuration;
+- image name or digest;
+- CPU, RAM, and storage;
+- time until the connection is ready;
+- billing start shown in the console.
+
+**Evidence gate:** The publication version must include a screenshot-backed Glows.ai run with these fields. Do not claim a startup time until it has been measured on the selected configuration.
+
+## Step 4: Connect Securely
+
+Use the connection method shown for the instance. For SSH, keep the private key local, verify the host, and avoid exposing an unauthenticated inference port to the public internet.
+
+Once connected, confirm the GPU and runtime:
+
+```shell
+nvidia-smi
+python --version
+```
+
+If Docker is part of the workflow, record the image digest instead of relying only on a mutable tag such as `latest`.
+
+## Step 5: Start the LLM
+
+A minimal vLLM command has this shape:
+
+```shell
+vllm serve <model-id> \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --max-model-len <tested-context-length>
+```
+
+Replace the placeholders with a model and context that fit the GPU. Pin the model revision and vLLM version in a production workflow.
+
+Check the endpoint locally before opening any network path:
+
+```shell
+curl http://127.0.0.1:8000/v1/models
+```
+
+Then send one representative request and record time to first token, total latency, GPU memory, and any warnings. A server that starts is not necessarily stable at the intended concurrency.
+
+## Step 6: Save the State You Need
+
+Before stopping compute, answer three questions:
+
+1. Are the model, data, configuration, and outputs reproducible?
+2. Which files are on runtime storage?
+3. Has the required state been copied to documented persistent storage?
+
+For training, create a checkpoint early and practice restoring it. For inference, preserve the container reference, launch command, model revision, and configuration. For notebooks, export the notebook and dependency lock.
+
+## Step 7: Stop Compute and Verify Billing
+
+Shut down the application cleanly, preserve required data, and use the console control that stops or deletes the instance according to the intended lifecycle.
+
+Record the stop timestamp and inspect the usage record. Persistent storage may continue to exist—and may remain billable—after GPU compute stops. Deleting storage is a separate decision from stopping compute.
+
+**Evidence gate:** Reconcile expected runtime with the actual Glows.ai usage entry in the publication draft. Redact account and payment details.
+
+## Step 8: Test Recovery
+
+Restart or recreate the environment and verify that the saved model, configuration, and output can be recovered. A workflow is not complete until recovery succeeds.
+
+For a repeatable deployment, keep a short run record:
+
+| Field | Value to record |
+| --- | --- |
+| Model | ID and revision |
+| Runtime | vLLM/SGLang/Ollama version |
+| Container | Immutable digest |
+| GPU | Model, variant, count, region |
+| Storage | Runtime and persistent paths |
+| Test | Prompt, expected response shape, latency |
+| Cost | Start, stop, billed duration, storage |
+
+## Build a Reproducible Instance, Not a Snowflake
+
+A one-off server that only works after undocumented terminal history is difficult to recover and expensive to repeat. Store the environment as code:
+
+- pin the container digest or base image, not only a mutable tag;
+- pin Python packages and record the CUDA, driver, and framework versions;
+- keep model and tokenizer revisions explicit;
+- put secrets in the provider’s supported secret mechanism, not the image;
+- write a startup script that mounts storage, checks the GPU, and starts the service;
+- save the launch command, health check, and expected output together.
+
+The minimum reproducibility test is destructive by design: start a second instance from the written instructions without consulting the first instance. If the second environment cannot serve the same smoke-test request, the setup is not yet reproducible.
+
+## Run a Recovery Drill Before the Expensive Job
+
+Use a non-sensitive, low-cost run to verify the failure path:
+
+1. Produce a small checkpoint or output artifact.
+2. Copy it to the intended persistent location.
+3. Stop or delete the disposable compute according to the planned lifecycle.
+4. Launch a fresh instance from the pinned environment.
+5. Attach or restore the saved data.
+6. Resume the job and compare the resulting output.
+7. Confirm which compute and storage meters remained active throughout.
+
+This drill exposes missing credentials, ephemeral paths, incompatible checkpoints, and undocumented startup steps while the bill is still small. For a long training job, set checkpoint frequency from the amount of paid work the team is willing to lose—not an arbitrary number of steps.
+
+## Procedure Sources
+
+Instance steps should be verified against the current [Glows.ai creation guide](https://docs.glows.ai/docs/create-new). vLLM commands and flags should be checked against the [official vLLM documentation](https://docs.vllm.ai/) for the pinned release. The smoke test, persistence test, and billing reconciliation are operational checks in this guide—not guarantees about every image or instance type.
+
+## FAQ
+
+### How long does it take to rent a cloud GPU?
+
+Account setup can be quick, but actual launch time depends on inventory, image size, region, and configuration. Measure the selected setup instead of relying on a generic promise.
+
+### Can I use Ollama instead of vLLM?
+
+Yes, if it supports the model and workload. vLLM is commonly used for higher-throughput serving; Ollama is convenient for familiar local-model workflows.
+
+### What happens when I stop the instance?
+
+Compute billing and file persistence depend on the provider’s state model. Confirm which storage survives and whether persistent storage has a separate charge.
+
+### Should I expose port 8000 publicly?
+
+Not without authentication and appropriate network controls. Test locally first, then place the service behind the access layer required by the application.
+
+## Related Guides
+
+- [Run DeepSeek without a local GPU](https://glows.ai/article/run_deepseek_without_a_gpu_en)
+- [Ollama timeout fixes and a cloud GPU path](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_en)
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [AI data residency and region selection](https://glows.ai/article/taiwan_data_residency_ai_compute_en)
+
+## Next Step
+
+Launch a non-sensitive test through the [Glows.ai instance workflow](https://docs.glows.ai/docs/create-new). Time every state change, save one artifact, stop compute, and confirm that recovery and billing behave as expected.

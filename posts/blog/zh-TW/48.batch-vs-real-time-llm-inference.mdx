@@ -1,0 +1,139 @@
+---
+id: batch_vs_real_time_llm_inference_zh_tw
+title: 'Batch vs Real-Time LLM 推論：哪個更省 GPU 成本？'
+date: '2026-08-05 10:00'
+lastUpdated: '2026-08-05'
+description: '用 GPU 利用率、throughput、TTFT、p95 latency、排隊時間與單位成本，選擇 batch 或 real-time LLM 推論。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 發布前完成 Glows.ai matched-mode benchmark。示例只說明方法，不宣稱已量測的節省幅度。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# Batch vs Real-Time LLM 推論：哪個更省 GPU 成本？
+
+> **決策原則：** 工作可以等待時，batch 通常能提高 GPU 利用率並降低單位成本；real-time 則為回應速度與閒置餘裕付費。許多產品兩者都需要：互動 request 走低延遲路徑，可延後任務進 batch queue。
+
+Batch LLM 推論把一批 queue 工作最佳化為 throughput 與完成成本；real-time 推論則讓單一 request 優先得到低延遲回應。兩者都可在 serving engine 內 batching，但產品契約不同。選錯模式會造成低延遲服務的 idle GPU，或讓使用者卡在 throughput queue 後方。
+
+## Batch 與 Real-Time 快速比較
+
+| 面向 | Batch inference | Real-time inference |
+| --- | --- | --- |
+| Request arrival | Queue／uploaded job | 不規則 live traffic |
+| 主要目標 | Deadline、throughput | TTFT、TPOT、p95 |
+| 容量 | 可等待形成有效 batch | Burst 需 warm headroom |
+| Retry | Job-level、checkpoint | Request-level、graceful overload |
+| 成本風險 | Missed deadline／failed batch | Idle capacity／tail latency |
+
+## 不要混淆工作模式與 Engine Batching
+
+Static batching 將固定 shape input 分組；continuous batching 讓 LLM engine 在 request 結束時加入新 request。Real-time service 可以 continuous batching，offline workload 也可走同一 engine。架構問題是 caller 要立即 streaming answer，還是接受 deadline 前完成。
+
+## Matched Benchmark 設定
+
+固定 model/tokenizer、quantization、context、vLLM、container、GPU、總 prompt 與 token 分布、品質標準。Batch 模式排入全部 dataset 並記錄完成時間；real-time 重播 arrival trace 並強制 TTFT/TPOT/p95。重複執行並回報 variance。
+
+## 結果
+
+**證據門檻：** 用 Glows.ai 同條件實跑替換待測欄位，並公開去敏 trace。
+
+| 指標 | Batch | Real-time |
+| --- | ---: | ---: |
+| 總 prompts/tokens | 待測 | 同一工作 |
+| Completion time | 待測 | 待測 |
+| Output tok/s | 待測 | 待測 |
+| TTFT p95 | 非主要但仍回報 | 待測 |
+| End-to-end p95 | 待測 | 待測 |
+| GPU utilization | 待測 | 待測 |
+| Failed requests | 待測 | 待測 |
+| 每百萬 output token 成本 | 待測 | 待測 |
+
+要同時公開 unconstrained throughput 與符合 real-time SLO 的 throughput。
+
+## 成本模型
+
+`batch cost = 完成 queue 的 runtime × GPU rate`
+
+`real-time cost = traffic window 內 active capacity × GPU rate`
+
+兩者都加入 storage、retry、replica、startup 與 operations。若 real-time scale down，也要算 cold start 對失敗／延遲的影響。
+
+## 工作負載選擇指南
+
+### 選 Batch
+
+可隔夜完成的文件抽取、embedding/indexing、evaluation suite、offline enrichment 與有 deadline 的報表。
+
+### 選 Real-Time
+
+聊天、coding assistant、voice/agent、使用者搜尋/RAG 與同步 application flow。
+
+### 使用 Hybrid Queue
+
+互動 request 走 latency lane，延後工作走 batch lane。用 priority 與 backpressure，避免 offline job 壓垮 user traffic；共享 replica 前先測 interference。
+
+## 營運差異
+
+Batch 需要 job ID、idempotency、checkpoint、partial output 與 deadline alert；real-time 需要 admission control、rate limit、graceful overload、trace 與 tail-latency alert。兩者都需 versioned model、reproducible container、quality evaluation 與 recovery test。
+
+## 混合式設計通常更好
+
+依 latency 價值拆分工作：
+
+- **Real-time lane：**user-facing chat、interactive coding 或同步決策，具明確 TTFT/p95。
+- **Batch lane：**document enrichment、evaluation、summarization、embedding、report 或可等待 retry。
+- **Admission layer：**分類工作、套用 token limit，避免 real-time queue 被壓垮。
+- **Shared capacity policy：**讓 batch 使用 spare GPU，但不得違反 real-time SLO。
+
+兩條 lane 可共用 engine，但需要獨立 queue、priority、metric 與 cost attribution。Interactive peak 時 throttle/pause batch；低峰時用 queued work 填滿容量。
+
+## 用決策表比較
+
+| 問題 | Real-time 意義 | Batch 意義 |
+| --- | --- | --- |
+| User 能等多久？ | 設 TTFT/end-to-end SLO | 設 queue deadline |
+| Arrival 可預測嗎？ | 為 burst 保留 headroom | 依 backlog 排程 capacity |
+| Request 可 group 嗎？ | 只用 continuous batching | 可用更大 offline batch |
+| Failure 怎麼處理？ | 快速 retry 且不重複 response | 從 durable queue/checkpoint resume |
+| Cost unit 是什麼？ | 符合 SLO 的有效 request | Deadline 內有效 document/token |
+
+兩種 lane 用相同 model/GPU benchmark。忽略 batch queue delay 或 real-time idle headroom 的成本比較都不完整。
+
+測試前先把 request 分成 deadline bucket，例如 2 秒內、30 秒內、15 分鐘內與隔夜完成。每個 bucket 分別回報 deadline 內完成率與成本，不能把不同工作平均成一個數字。同時統計 expired、retried 與 duplicate work：錯過商業期限的低價 batch 並不算節省；若一次互動流失的代價高於 idle headroom，always-warm real-time replica 也可能合理。用 deadline 來看，才能把「batch 或 real-time」變成可量測的服務決策，而不是抽象的架構偏好。
+
+## 推論架構資料來源
+
+DigitalOcean 的 [continuous vs static batching 指南](https://www.digitalocean.com/community/tutorials/continuous-batching-vs-static-batching-llm-inference)說明 token generation 為何改變一般 batching 假設。論文 [Efficient LLM Serving on Hybrid Real-time and Best-effort Requests](https://arxiv.org/abs/2504.09590) 則定義 mixed-workload scheduling 問題。最終選擇須用相同 model、hardware、queue policy 與 arrival trace 驗證。
+
+## 常見問題
+
+### Batch 一定比較便宜嗎？
+
+常能提高利用率，但 retry、deadline、queue storage 與 workload 仍會改變結果。
+
+### Continuous batching 是 real-time 還是 batch？
+
+它是常用於 real-time serving 的 engine scheduling technique，不等於 offline batch job。
+
+### 一張 GPU 可以同時跑兩種模式嗎？
+
+可以，但可能互相干擾；應用 priority、quota 或分開 replica 並測 p95。
+
+### Batch 應最佳化什麼？
+
+Deadline 內 completion time、throughput、recovery 與 cost，而不是只看 first token。
+
+## 延伸閱讀
+
+- [執行 LLM 成本](https://glows.ai/article/cost_to_run_an_llm_zh_tw)
+- [Llama 3.3 70B 併發容量](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_zh_tw)
+- [DeepInfra vs Glows.ai](https://glows.ai/article/deepinfra_vs_glows_ai_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+在同一 [Glows.ai GPU](https://glows.ai/)以兩種模式跑同一 prompt set；固定硬體，且 real-time SLO 生效後才比較成本。

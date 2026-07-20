@@ -1,0 +1,131 @@
+---
+id: cost_to_run_an_llm_ja
+title: 'LLMの実行コストはいくら？本当のGPU料金計算式'
+date: '2026-07-27 10:00'
+lastUpdated: '2026-07-27'
+description: 'GPU価格、throughput、latency、utilizationから、LLMの時間、request、user、100万token当たりの本当の実行コストを計算します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** Formulaは準備済みです。公開前にeditable calculator、Glows.ai load-test data、最新料金を追加してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# LLMの実行コストはいくら？本当のGPU料金計算式
+
+> **基本式：** LLMのunit costは、computeとstorageの総支出を、latencyと品質目標を満たしたrequest、user、tokenで割った値です。GPUの時間単価だけではutilization、idle、retry、input/output比、基準外の性能を見落とします。
+
+LLMコストはGPU時間単価やAPI token単価だけではありません。self-hosted inferenceはmodel fit、SLO内throughput、traffic形状、idle capacity、storage、operationsに依存します。APIはinput/output token、cache、model、platform featureに依存します。
+
+正確な答えはdocumented workloadに紐づく範囲です。
+
+## 4つのコスト単位
+
+| 単位 | 用途 |
+| --- | --- |
+| GPU-hour | Infrastructure budget |
+| Request | Product unit economics |
+| 100万token | Inference構成比較 |
+| Target trafficの月額 | Capacity／architecture |
+
+## GPU Runtimeコスト
+
+`GPUコスト = 時間単価 × active秒 ÷ 3,600`
+
+Glows.aiは2026年7月20日にRTX 4090 $0.49/hrからB200 $5.00/hrを表示していました。model fitとlatencyを満たすGPUを使い、storage、transfer、restart、operationsを加えます。
+
+## 100万Tokenあたりのコスト
+
+`100万output tokenコスト = GPU時間単価 ÷ 有効output token/時 × 1,000,000`
+
+$1.20/hrでSLO内60,000 output token/時なら計算部分は$20/100万tokenです。これはformula例で、Glows.ai benchmark結果ではありません。input/output分布とconcurrencyを必ず示します。
+
+## Requestあたりのコスト
+
+`requestコスト = 期間の総serving cost ÷ successful requests`
+
+失敗とretryもnumeratorに含めます。APIは次の形です。
+
+`API requestコスト = input token × input rate + output token × output rate + その他機能`
+
+異なるmodelは同じevaluation setを満たしてから比較します。
+
+## Utilizationが結果を変える
+
+| Traffic | Cost behavior |
+| --- | --- |
+| 継続高需要 | 利用率が高い |
+| Business hours | 夜／週末idleがeffective costを上げる |
+| Burst | Warm reserveがlatencyとidle costを増やす |
+| Offline batch | Deadlineが許せばqueueで利用率改善 |
+
+$1/hrのGPUが25%しかproductiveでなければ、productive hourは約$4相当です。
+
+## RequestからCapacity Planningする
+
+RPS/peak arrival、input/output percentile、context、TTFT/TPOT/p95、concurrency別throughput、replica/recovery、scale delayを集め、peak×730ではなくhourly demandをsimulateします。
+
+**証拠ゲート：** editable calculatorと3つ以上のoffered loadのGlows.ai結果を公開し、model、engine、quantization、GPU、prompt distribution、commands、raw aggregateを含めます。
+
+## モデルに含めるコスト
+
+model/dataset storage、cold start、observability、gateway、recovery replica、engineering/on-call、transfer、failed deployment、upgrade後evaluationを含めます。不明な項目は「既知／推定／未測定」と表示します。
+
+## APIか自分のGPUか
+
+小さく不規則なtrafficではAPI、open modelがquality gateを通り高利用率が続く場合はdedicated GPUが有利なことがあります。hybridも可能です。crossoverはtoken、batch、latency、quality、idle policyで変わります。
+
+## 3つの月間コスト例
+
+### Burstyな社内Assistant
+
+平日の短いpeak以外はidleなら、常時課金GPUのutilizationが低く、peak throughputが高くてもrequest単価は上がります。Autoscaling/scheduleで削減できますが、cold startとmodel loadはlatency tolerance内である必要があります。
+
+### SteadyなProduction Endpoint
+
+安定requestはcontinuous batchingを活用できます。実prompt distributionでaccepted output tokens/hourを測り、`monthly compute = hourly GPU rate × active GPU hours × replica count`で計算します。p95とfailure recoveryのspare capacityを足し、100% theoretical utilizationを予算にしません。
+
+### Offline Document Pipeline
+
+Queueで待てるなら大きなbatchを使い、drain後にGPUを停止します。`cost per document = (compute + storage + failed-run cost) ÷ accepted documents`です。高速で高価なGPUがruntime短縮で勝つ場合があります。
+
+## 財務が監査できるコスト表
+
+Price/currency/region/variant/timestamp、model/engine/precision/context/prompt mix、load/concurrency/SLO/error/accepted throughput、active/idle/warmup/failure/recovery time、storage/transfer/shared allocation、monthly traffic/peak multiplierを保存します。
+
+Base、low、high caseを示すと、一つのcost-per-tokenより誠実で、次に検証すべきassumptionが分かります。
+
+## コスト計算の情報源
+
+式は基本的なcapacity accountingに従い、実測serving outputを必要とします。2026年の論文[Beyond Per-Token Pricing](https://arxiv.org/abs/2606.11690)は、offered loadとutilizationがself-hosted LLMのunit economicsを左右する理由を示します。[公式vLLM benchmark suite](https://docs.vllm.ai/en/latest/benchmarking/)または同等のpin済みload generatorを使い、raw input、invalid run、price timestampを保存します。
+
+## よくある質問
+
+### LLMは1時間いくらですか？
+
+GPU料金にstorage/supporting serviceを加え、modelが入り有効throughputを出す構成で計算します。
+
+### 100万tokenコストはどう計算しますか？
+
+時間コストを有効token/時で割り100万倍し、latency/workload前提を示します。
+
+### Self-hostingは常にAPIより安いですか？
+
+いいえ。低utilization、engineering、model quality差でAPIが安い場合があります。
+
+### Idle GPUも数えますか？
+
+はい。安全にscale downできなければidle reserveはservice costです。
+
+## 関連ガイド
+
+- [DeepInfra vs Glows.ai](https://glows.ai/article/deepinfra_vs_glows_ai_ja)
+- [Local LLM PC vs Cloud GPU](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_ja)
+- [AWS GPU料金 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+1週間のrequest lengthとarrival timingを匿名化し、[Glows.ai](https://glows.ai/)でbenchmarkして、capacity契約前に仮定を測定値へ置換します。

@@ -1,0 +1,124 @@
+---
+id: sglang_vs_vllm_zh_tw
+title: 'SGLang vs vLLM：Production 該部署哪個推論引擎？'
+date: '2026-08-07 10:00'
+lastUpdated: '2026-08-07'
+description: '以相同 production 測試比較 SGLang 與 vLLM 的正確性、TTFT、p95、吞吐、成本、相容性、恢復與升級。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** Glows.ai matched benchmark 與 recovery test 完成前不宣稱 engine winner；發布前固定當前 release。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# SGLang vs vLLM：Production 該部署哪個推論引擎？
+
+> **誠實答案：** 沒有永久且通用的冠軍。兩個專案都快速變動，結果取決於模型架構、engine revision、prompt mix、併發、kernel 與硬體。應部署在相同測試中通過正確性、tail latency、恢復與升級門檻的引擎。
+
+SGLang 與 vLLM 都是快速演進的 LLM inference engine。Benchmark 勝者會隨模型、release、kernel、GPU、prompt、structured output 與 concurrency 改變。應以團隊真正要營運的 workload 做受控測試。
+
+吞吐之外，API compatibility、startup、observability、model coverage、failure recovery 與 upgrade risk 都重要。
+
+## SGLang vs vLLM 快速比較
+
+| 決策面向 | 要驗證的內容 |
+| --- | --- |
+| Model support | 指定 release 的模型與量化 |
+| API | 所需 OpenAI-compatible route/response |
+| Performance | TTFT、TPOT、p95、throughput、error |
+| Memory | Peak VRAM、KV-cache headroom |
+| Feature | Cache、structured output、parallelism、adapter |
+| Operations | Metric、log、startup、shutdown、recovery |
+| Upgrade | Release cadence、regression、rollback |
+
+以 [SGLang repository](https://github.com/sgl-project/sglang)與 [vLLM 官方文件](https://docs.vllm.ai/)確認目前功能，不要比較不同日期的 feature list。
+
+## 受控 Benchmark 方法
+
+固定 model/tokenizer、quantization、container/runtime、GPU/CPU/RAM/region、context/output cap、prompt distribution、client/network/warmup/run duration。只調整文件化 engine-specific setting，並分開標示 out-of-box 與 tuned 結果。
+
+## Latency 與 Throughput 結果
+
+測 1、10、50 與真實 traffic trace，回報 repeat variance。
+
+**證據門檻：** 以同硬體 Glows.ai 結果填表並公開 aggregate。
+
+| 指標 | SGLang | vLLM |
+| --- | ---: | ---: |
+| Version/commit | 待測 | 待測 |
+| Startup time | 待測 | 待測 |
+| Peak VRAM | 待測 | 待測 |
+| TTFT p50/p95 | 待測 | 待測 |
+| TPOT p50/p95 | 待測 | 待測 |
+| 合格 output tok/s | 待測 | 待測 |
+| Error rate | 待測 | 待測 |
+| 每百萬 output token 成本 | 待測 | 待測 |
+
+「合格」throughput 必須在 latency 與 error threshold 內。
+
+## 測試 Workload-Specific Feature
+
+加入 long shared prefix/cache、structured JSON、LoRA、tool call、multimodal、tensor parallel、cancel/stream。除了速度，也要驗證 output quality 與 schema。
+
+## 營運適配
+
+量測 cold/warm startup、readiness、metric、log、config、image size、download、graceful termination 與 process-crash recovery。兩個 engine 都做一次 upgrade/rollback rehearsal。最快 engine 若難 debug 或 upgrade，總維運成本仍可能較高。
+
+## 成本比較
+
+`每百萬 output token 成本 = GPU 時薪 ÷ 合格 output token/小時 × 1,000,000`
+
+使用相同 Glows.ai hardware 與 offered load，也要算真實 utilization，而不是用飽和 benchmark 當月預算。
+
+## 如何選擇
+
+SGLang 若支援所需模型／功能，並在量測目標與 operational risk 上勝出，就選 SGLang；vLLM 的 compatibility、ecosystem 或測試更適合，就選 vLLM。保留 engine-neutral harness 以便新 release 重測。
+
+## 兩個推論引擎使用同一套測試工具
+
+建立一個 client，送出相同 request body、arrival time、prompt/output distribution 與 cancellation behavior。Engine-specific 設定放入 versioned config；model、tokenizer、quantization、GPU、driver、container base、warmup、network path 與 run duration 維持一致。
+
+Harness 收集 output validity/task evaluation、TTFT、TPOT/inter-token latency、p50/p95、有效 input/output token/s、error/timeout/cancellation/OOM、peak VRAM、cache utilization、startup/recovery time，以及 realistic/saturated load 的每百萬有效 token 成本。每個 condition 多跑幾次並發布 variance，randomize prompt order 避免 cache-friendly sequence 決定勝負。
+
+## 評估上線適配度，不只看速度
+
+在看結果前先由 owner 核准 weighted scorecard。Latency-sensitive product 可提高 p95/recovery 權重；batch pipeline 可提高 throughput。另納入 model coverage、API compatibility、observability、upgrade effort、documentation 與團隊熟悉度。
+
+Hard gate 高於總分。會破壞 output、缺少必要 model path 或無法安全 recovery 的 engine，即使更快也不是贏家。
+
+Benchmark 前先寫下 pass threshold，例如 contract suite 不得出現 schema regression、p95 TTFT 必須低於產品目標、error rate 低於約定上限、recovery 必須在 deployment budget 內。只有通過所有 hard gate 的配置才能比較成本，未通過的 run 與原因也要保留在結果包。如此可避免團隊看到偏好的 engine 在單一指標勝出後才移動門檻，也讓下一個 release 仍以同一個「可上線」定義比較。
+
+## 推論引擎資料來源
+
+功能、flag、支援硬體與 release 行為應在官方 [SGLang 文件](https://docs.sglang.ai/)與 [vLLM 文件](https://docs.vllm.ai/)確認。2026 年研究 [The Silent Hyperparameter](https://arxiv.org/abs/2605.19537) 顯示，即使 model weight 不變，inference backend 也可能影響 reproducibility，因此本文把 correctness 與 throughput 放在同等重要的位置。
+
+## 常見問題
+
+### SGLang 比 vLLM 快嗎？
+
+特定 release／workload 可能更快，其他情況 vLLM 可能領先；必須測 exact 配置。
+
+### 兩者都相容 OpenAI API 嗎？
+
+都有相容功能，但 required route、field、streaming 與 tool behavior 要實測。
+
+### 可以不改 application code 遷移嗎？
+
+有時可以，但 subtle response/feature 差異仍需 contract test。
+
+### 哪個比較好維運？
+
+取決於團隊、部署平台、metric、failure mode 與 upgrade process。
+
+## 延伸閱讀
+
+- [vLLM 升級與 rollback](https://glows.ai/article/vllm_upgrade_rollback_runbook_zh_tw)
+- [vLLM CUDA OOM 修正](https://glows.ai/article/vllm_cuda_out_of_memory_zh_tw)
+- [Batch vs real-time LLM 推論](https://glows.ai/article/batch_vs_real_time_llm_inference_zh_tw)
+- [執行 LLM 成本](https://glows.ai/article/cost_to_run_an_llm_zh_tw)
+
+## 下一步
+
+把同一模型與 trace 包成兩個 pinned container，在同一 [Glows.ai GPU](https://glows.ai/)執行，並將 compatibility/recovery 與 performance 放在同一決策表。

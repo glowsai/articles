@@ -1,0 +1,167 @@
+---
+id: llama_3_3_70b_gpu_concurrency_sizing_en
+title: 'How Many GPUs for Llama 3.3 70B and 100 Users?'
+date: '2026-08-04 10:00'
+lastUpdated: '2026-08-04'
+description: 'Calculate GPUs for Llama 3.3 70B and 100 users from request rate, context, KV cache, latency SLO, measured throughput, and utilization.'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **Draft status:** A GPU count cannot be published until the specified Glows.ai load test is complete. This draft provides the capacity model and evidence fields.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# How Many GPUs for Llama 3.3 70B and 100 Users?
+
+> **Sizing answer:** “100 users” is not enough information. Convert user behavior into requests per second and simultaneous sequences, define prompt/output lengths and a latency SLO, then divide offered load by measured per-replica capacity with utilization and redundancy headroom.
+
+There is no honest single GPU count for “100 concurrent users.” One hundred people with a request every ten minutes is different from 100 in-flight generations. A 200-token answer is different from a 2,000-token answer. The required capacity depends on model precision, context, arrival rate, output length, TTFT/TPOT targets, and acceptable queueing.
+
+Size from the traffic trace and service-level objective, not the user-account count.
+
+## Define Concurrency Precisely
+
+Track at least three numbers:
+
+- **Active users:** people who may use the product during a window.
+- **Arrival rate:** requests entering per second.
+- **In-flight requests:** requests currently waiting or generating.
+
+Little’s Law provides a useful consistency check:
+
+`average in-flight requests ≈ arrival rate × average time in system`
+
+If 2 requests arrive each second and each remains in the system for 10 seconds, average in-flight concurrency is about 20. Tail latency still requires additional headroom.
+
+## Calculate Model and KV-Cache Memory
+
+Llama 3.3 70B weight memory varies by precision and quantization. Add KV cache for active sequences, runtime workspace, and safety headroom:
+
+`VRAM = weights + KV cache + workspace + headroom`
+
+Long contexts and many in-flight sequences can consume more cache than expected. A configuration that serves one request is not a 100-user capacity test.
+
+## Define the Service-Level Target
+
+Write explicit thresholds:
+
+| Metric | Example field to fill |
+| --- | --- |
+| TTFT p95 | Product requirement |
+| TPOT p95 | Product requirement |
+| End-to-end p95 | By prompt/output class |
+| Error rate | Maximum accepted |
+| Queue wait | Maximum accepted |
+| Availability/recovery | Replica and restart policy |
+
+Do not optimize throughput by allowing latency to become unusable.
+
+## Load-Test Method
+
+Use a de-identified request trace with input/output token percentiles and arrival timing. Pin:
+
+- Llama 3.3 70B revision and tokenizer;
+- quantization and context limit;
+- vLLM or SGLang version and container;
+- GPU variant, count, region, and interconnect;
+- queue and batching settings;
+- warmup, test length, and repeat count.
+
+Test 1, 10, 50, and 100 in-flight requests, then test the actual arrival-rate trace. Synthetic fixed concurrency is useful but does not replace the production-shaped run.
+
+## Results and GPU Count
+
+**Evidence gate:** Complete this table from Glows.ai measurements. Do not infer a 100-user answer from single-stream tokens per second.
+
+| Configuration | Concurrency/arrival rate | TTFT p95 | TPOT p95 | Error rate | Valid throughput | Monthly cost assumption |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Candidate A | Pending | Pending | Pending | Pending | Pending | Pending |
+| Candidate B | Pending | Pending | Pending | Pending | Pending | Pending |
+| Candidate C | Pending | Pending | Pending | Pending | Pending | Pending |
+
+The minimum count is the smallest configuration that passes every SLO with safety headroom. Production may require an additional replica for maintenance or recovery.
+
+## Replicas vs Tensor Parallelism
+
+Tensor parallelism splits one model across GPUs and can be required for fit or performance. Replicas run independent copies and can improve availability and horizontal capacity.
+
+Prefer replicas when one model copy fits and scale-out meets the SLO. Use tensor parallelism when a single copy cannot fit or measured performance justifies the communication overhead. Some architectures combine both.
+
+## Three Traffic Profiles
+
+### Interactive chat
+
+Prioritize TTFT and TPOT. Keep enough warm capacity for bursts and cap long outputs.
+
+### Long-context RAG
+
+Prefill and KV cache become major constraints. Test the actual retrieved-context distribution.
+
+### Batch generation
+
+Prioritize completion deadline and total throughput. Queueing is acceptable, so utilization can be higher.
+
+One “100-user” answer cannot represent all three.
+
+## Cost Model
+
+`monthly GPU cost = GPU count × hourly rate × active hours + storage + recovery reserve`
+
+For scale-down designs, use actual hourly demand and startup behavior. For always-on services, include idle nights and weekends. Report cost per accepted request alongside monthly infrastructure cost.
+
+## A Worked Sizing Example Without Fake Throughput
+
+Assume 100 registered users, but only 10 are active in the busiest minute. If each active user sends one request every 30 seconds, offered load is:
+
+`10 active users ÷ 30 seconds = 0.33 requests/second`
+
+That is an illustrative traffic assumption, not a capacity result. Next, measure one replica with the real input/output distribution. Suppose the test reports an accepted capacity of `R` requests per second while meeting TTFT and p95 limits. The base replica requirement is:
+
+`base replicas = ceiling(0.33 ÷ R)`
+
+Then apply the utilization ceiling and failure policy. At a 70% operating target:
+
+`planned replicas = ceiling(base replicas ÷ 0.70)`
+
+Add redundancy if the service must survive a replica or node failure. Replace every assumption with observed product analytics before procurement.
+
+## Account for KV Cache and Burst Shape
+
+Two traces with the same requests per second can require different memory. Long prompts, long outputs, and slow clients keep sequences active longer and increase KV-cache demand. Publish p50, p95, and maximum input/output tokens, not only averages.
+
+Test steady traffic, a realistic burst, and the allowed worst-case request. Record queue depth, active sequences, KV-cache utilization, TTFT, TPOT, p95 end-to-end latency, errors, and dropped admissions. Autoscaling must include model load and warmup time; a replica that arrives after the burst is not capacity for that burst.
+
+## Sizing Sources
+
+NVIDIA’s [Llama 3.3 70B Dynamo recipe](https://docs.nvidia.com/dynamo/dev/recipes/llama-3-3-70b) shows why topology, prompt/output lengths, concurrency, and per-GPU normalization must be explicit. Use the [vLLM metrics documentation](https://docs.vllm.ai/en/latest/design/metrics.html) for observable serving signals on a pinned release. The formulas here need measured capacity from the team’s own traffic distribution.
+
+## FAQ
+
+### Can one H100 serve 100 Llama users?
+
+The question needs context, output lengths, arrival rate, precision, and latency targets. A controlled load test is required.
+
+### Does 4-bit quantization reduce GPU count?
+
+It can reduce weight memory, but quality, kernels, KV cache, and throughput still need validation.
+
+### Are 100 users the same as 100 concurrent requests?
+
+No. Active users may generate requests infrequently. Capacity should use request arrival and in-flight concurrency.
+
+### How much safety margin should I keep?
+
+Set it from observed traffic variation, failure policy, and deployment time. Publish the assumption instead of hiding it in a round number.
+
+## Related Guides
+
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [What is VRAM?](https://glows.ai/article/what_is_vram_ai_models_en)
+- [Cost to run an LLM](https://glows.ai/article/cost_to_run_an_llm_en)
+- [Nebius vs Glows.ai](https://glows.ai/article/nebius_vs_glows_ai_en)
+
+## Next Step
+
+Export token lengths and arrival timing from a safe sample, then run the load profile on [Glows.ai](https://glows.ai/). Choose a GPU count only after the p95 and recovery tests pass.

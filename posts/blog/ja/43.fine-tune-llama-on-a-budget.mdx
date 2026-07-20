@@ -1,0 +1,115 @@
+---
+id: fine_tune_llama_on_a_budget_ja
+title: '低予算でLlamaをFine-Tuning：QLoRA節約実践ガイド'
+date: '2026-07-31 10:00'
+lastUpdated: '2026-07-31'
+description: 'QLoRA、cleanでlicensedなdata、VRAM測定、早期checkpoint、evaluation gate、GPU cost追跡でLlama fine-tuning費を抑えます。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **ドラフト状態：** 公開前にverified Llama release、dataset license、evaluation、checkpoint、匿名化billでend-to-end実行してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# 低予算でLlamaをFine-Tuning：QLoRA節約実践ガイド
+
+> **節約戦略：** 小さくcleanなdatasetと短いQLoRA runでtaskを証明してからscaleします。測定したpeakが収まる最安GPUを選び、早くcheckpointし、失敗runを止め、training lossではなく1ドル当たりのevaluation改善で判断します。
+
+この実践ガイドでは次を扱います。
+
+- Data quality、license、training未使用のevaluation split。
+- QLoRA memory planningとGPU選択。
+- Smoke test、pilot、budget、stop condition。
+- Checkpoint、restart recovery、artifact retention。
+- Quality evaluationとaccepted improvement当たりのcost。
+
+最も安い有用なfine-tuneは、GPU billが最小のrunではありません。対象taskを改善し、recoverable adapterを残し、evaluationを通る最小再現実験です。QLoRAはmemoryを下げますが、data qualityとevaluationが価値を決めます。
+
+## ステップ1：狭いTaskとBaselineを定義する
+
+「invoiceから6 fieldを指定JSON schemaで抽出」など、一文でtaskを定義します。training前にheld-out setを作り、base modelのaccuracy、schema、refusal、latency、failureを記録します。
+
+## ステップ2：Model／Dataの権利を確認する
+
+選択releaseのLlama license/model cardとexact revisionを記録します。datasetのtraining利用権、personal/confidential/regulatory dataのpolicyを確認し、source、license、count、split、cleaning、limitsをmanifestへ記録します。
+
+## ステップ3：Training方法を選ぶ
+
+full fine-tuningは全parameter、LoRAはlow-rank adapter、QLoRAはquantized base＋adapterを学習します。最初のbudget testではQLoRAが候補です。現在の[Unsloth](https://unsloth.ai/docs/get-started/fine-tuning-llms-guide)と[Hugging Face TRL](https://huggingface.co/blog/unsloth-trl)を参照し、versionをpinします。
+
+## ステップ4：VRAMを見積もりGPUを選ぶ
+
+quantized weight、adapter、activation、optimizer、workspaceを含めます。短いsequence、micro-batch 1、gradient accumulation、supported checkpointing、安全余裕から始めます。
+
+Glows.aiは2026年7月20日にRTX 4090からB200を掲載していました。prestigeではなくpeak memoryとcompletion costで選びます。
+
+## ステップ5：Smoke Testを行う
+
+small subsetでloss、persistent checkpoint、clean process reload、evaluation、schema、peak VRAM、tokens/secを確認します。
+
+## ステップ6：Artifact Trailを残す
+
+dataset manifest/hash、config、environment lock/container、log、GPU/region/runtime、checkpoint/adapter、evaluation、匿名化usage recordを保存します。restore未実施のcheckpointはrecovery planではありません。
+
+## ステップ7：LossだけでなくQualityを評価する
+
+held-out setでbase/tunedを比較し、task metricとfailureを報告します。general instructionやsafety regressionも必要に応じ確認します。
+
+## ステップ8：総コストを計算する
+
+`総fine-tune cost = GPU runtime + storage + failed runs + evaluation inference + operations`
+
+**証拠ゲート：** run record、peak VRAM、duration、baseline/adapter evaluation、checkpoint restore、deployment smoke test、匿名化Glows.ai billを公開します。完了前に固定価格を主張しません。
+
+## 学習前に予算を作る
+
+| Phase | Purpose | Budget control |
+| --- | --- | --- |
+| Data audit | Duplicate、leak、bad format、unlicensed dataを除く | 可能ならCPU/local tool |
+| Smoke test | Format、loss、checkpoint、evaluation pathを証明 | Tiny sample、few steps |
+| Pilot | Hyperparameter/data variantを比較 | Candidateごとの固定小budget |
+| Final run | 選択configurationをtrain | Scheduleどおりcheckpoint/evaluate |
+| Reproduction | Saved artifactから再現 | 成功宣言前に時間を予約 |
+
+GPU computeは`hourly rate × expected hours`で、failed pilot、evaluation inference、checkpoint storage、download、reproductionを追加します。Contingencyは任意率でなくpilot varianceから決めます。Smallでtask-relevantなreviewed datasetは追加epochより高いreturnになる場合があります。
+
+## 費用を止める停止条件
+
+Lossがnon-finite、evaluationが許容windowで改善しない、format/safetyがthreshold以上悪化、throughputが理由なくpilotを下回る、peak VRAM/step timeがbudgetを脅かす、checkpoint save/restore失敗、data/license blocker発見のいずれかで停止します。
+
+Early stopは有用なevidenceです。Configurationと理由を保存し、同じ失敗に再度支払わないようにします。
+
+## Fine-Tuning情報源
+
+元の[QLoRA論文](https://arxiv.org/abs/2305.14314)がquantized low-rank fine-tuningの一次情報です。実装動作は最新の[Hugging Face PEFTドキュメント](https://huggingface.co/docs/peft/)などpinしたtraining frameworkと、対象Llama model card・licenseで確認します。VRAM、runtime、qualityは正確なdatasetとconfigurationで実測する必要があります。
+
+## よくある質問
+
+### RTX 4090 1枚でLlamaをfine-tuneできますか？
+
+小さい構成はQLoRAで24 GBに入る場合がありますが、model、sequence、batch、libraryで変わります。
+
+### Training dataは何件必要ですか？
+
+固定件数よりqualityとtask coverageが重要です。review済みdataとheld-out setから始めます。
+
+### QLoRAはFull Fine-Tuningと同じですか？
+
+違います。quantized base上のadapterを学習し、低コストですがtrade-offがあります。
+
+### Training後にBase Modelを削除できますか？
+
+adapterは通常compatible baseが必要です。exact revisionとlicenseを保存します。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [VRAMとは](https://glows.ai/article/what_is_vram_ai_models_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+- [AIデータレジデンシー](https://glows.ai/article/taiwan_data_residency_ai_compute_ja)
+
+## 次のステップ
+
+baselineと50–100例のsmoke-test datasetを作り、余裕のある[Glows.ai GPU](https://glows.ai/)でcheckpoint recoveryを証明してからrunを延長します。

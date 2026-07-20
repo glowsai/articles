@@ -1,0 +1,116 @@
+---
+id: gpt_oss_120b_gpu_benchmark_ja
+title: 'gpt-oss-120Bは1 GPUで動く？3機種のコスト検証'
+date: '2026-08-02 10:00'
+lastUpdated: '2026-08-02'
+description: 'A100、H100、RTX PRO 6000で同一vLLM設定のgpt-oss-120Bを測定し、fit、latency、throughput、100万tokenコストを比較します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** controlled Glows.ai run完了まではbenchmark protocolです。未測定cellや第三者結果からの推定を公開しません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# gpt-oss-120Bは1 GPUで動く？3機種のコスト検証
+
+> **既知の事実：** OpenAIはgpt-oss-120Bが想定formatでsingle 80 GB GPUに収まると説明しています。ただし、安全なmemory headroom、実用concurrency、魅力的なtoken costは未証明です。このprotocolでA100、H100、RTX PRO 6000を検証します。
+
+有用なgpt-oss-120B benchmarkは最高tokens/secのscreenではなく、exact model revisionを動かし、task evaluationとlatency limitを通る最安構成です。
+
+OpenAIはgpt-oss-120bがnative quantizationでsingle 80 GB GPUに収まると説明しています。ただし、production concurrency、p95、各構成のcostは実測が必要です。
+
+## テスト対象GPU
+
+| GPU | Glows.ai料金 | 役割 |
+| --- | ---: | --- |
+| A100 | $1.20/hr | Datacenter cost baseline |
+| H100 | $2.96/hr | High-throughput候補 |
+| RTX PRO 6000 | $1.78/hr | 96 GB single-GPU候補 |
+
+[Glows.ai](https://glows.ai/)の現行料金と[公式gpt-oss発表](https://openai.com/index/introducing-gpt-oss/)／model資料を確認します。
+
+## Benchmarkで答える質問
+
+modelがheadroom付きでloadするか、single requestのTTFT/TPOT、10/50/target concurrencyのp95、SLO内throughput、100万token cost、output qualityを確認します。
+
+## Controlled Test Setup
+
+model/tokenizer、vLLM commit、container、quantization/dtype、context、prompt/output distribution、warmup、durationを固定します。GPU variant/count/region、driver、CUDA、CPU、RAM、storageを記録し、3回以上repeatします。
+
+## 結果
+
+**証拠ゲート：** raw Glows.ai resultで未測定値を置換し、failed/invalid runも公開します。
+
+| 指標 | A100 | H100 | RTX PRO 6000 |
+| --- | ---: | ---: | ---: |
+| Hardware variant/count | 未測定 | 未測定 | 未測定 |
+| Model loads | 未測定 | 未測定 | 未測定 |
+| Peak VRAM | 未測定 | 未測定 | 未測定 |
+| TTFT p50/p95 | 未測定 | 未測定 | 未測定 |
+| TPOT p50/p95 | 未測定 | 未測定 | 未測定 |
+| Target load output tok/s | 未測定 | 未測定 | 未測定 |
+| Error rate | 未測定 | 未測定 | 未測定 |
+| 100万output tokenコスト | 未測定 | 未測定 | 未測定 |
+
+## 100万Tokenコスト
+
+`100万output token cost = GPU時間単価 ÷ accepted output token/時 × 1,000,000`
+
+prefill/decodeを分けるためinput tokenも報告し、saturated throughputとreal offered loadを別計算します。
+
+## 結果を過大解釈しない
+
+H100が最大throughputでも、valid throughputがprice premiumを上回る場合だけ経済的です。RTX PRO 6000の96 GBはfitを簡単にしますがlatency勝利を保証しません。A100が低価格でSLOを通れば最安の場合があります。結論はversion、prompt、dateに限定します。
+
+## Benchmarkを再現する
+
+container digest、launch command、model/tokenizer、匿名化prompt-length distribution、load config、raw JSON/CSV、cost worksheet、invalid note、evaluation summaryを公開します。
+
+## 1枚のGPUに収まっても本番結果ではない
+
+Model load成功はweightとstartup allocationが収まることだけを証明します。Production claimにはgraph capture/warmup後のheadroom、advertised input/output boundary、target simultaneous sequences、TTFT/TPOT/p95/error rate、quantization/runtimeのquality、sustained memory、restart/cache rebuild/recoveryが必要です。
+
+Single-request latencyから始め、offered loadを段階的に増やし、error/latency thresholdで停止します。User-facing SLOを満たさないsaturated throughputをinteractive capacityとして引用しません。
+
+## 読者が再計算できる結果を公開する
+
+GPUごとにprice timestamp、variant、count、region、container digest、driver、CUDA、vLLM/model revision、flags、prompt distribution、concurrency、run duration、raw aggregatesをmachine-readableで公開します。
+
+`cost per 1M output tokens = GPU dollars during run ÷ accepted output tokens × 1,000,000`
+
+Input token、warmup inclusion、invalid runも示し、tested traceのfit/latency/cost winnerだけを結論にします。
+
+## Benchmark情報源
+
+Model fit、license、architectureはOpenAIの[gpt-oss発表](https://openai.com/index/introducing-gpt-oss/)とpinしたmodel repositoryを使用します。Serving supportとoptimized pathは[公式vLLM gpt-ossガイド](https://vllm-project.github.io/2025/08/05/gpt-oss.html)で確認します。Raw Glows.ai runがすべてのPending cellを置き換えるまで、結果表は公開しません。
+
+## よくある質問
+
+### gpt-oss-120Bは1 GPUで動きますか？
+
+OpenAIは想定形式で80 GB GPUに入ると説明していますが、serving headroom/context/concurrencyは測定します。
+
+### H100は最安token costですか？
+
+自動ではありません。target latency内throughputで料金を割ります。
+
+### RTX PRO 6000を含める理由は？
+
+96 GBのsingle-GPU候補だからです。性能とcostはtestで決めます。
+
+### 他siteの結果と比較できますか？
+
+model、quantization、engine、GPU variant、prompt、latency ruleが近い場合のみです。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [H100は必要か](https://glows.ai/article/do_you_need_an_h100_ja)
+- [LLM実行コスト](https://glows.ai/article/cost_to_run_an_llm_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+同じtraceを各[Glows.ai GPU](https://glows.ai/)で実行し、raw aggregateを保存してquality/latencyを通る最安構成を選びます。

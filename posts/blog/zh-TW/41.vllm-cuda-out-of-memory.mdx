@@ -1,0 +1,150 @@
+---
+id: vllm_cuda_out_of_memory_zh_tw
+title: 'vLLM CUDA Out of Memory：7 個對症 GPU OOM 修法'
+date: '2026-07-29 10:00'
+lastUpdated: '2026-07-29'
+description: '用 7 個對症檢查修正 vLLM CUDA OOM，涵蓋模型權重、KV cache、context、併發、CUDA graph 與 batch 限制。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **草稿狀態：** 發布前必須在指定 vLLM release 與 GPU 配置重新測試指令和錯誤特徵。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# vLLM CUDA Out of Memory：7 個對症 GPU OOM 修法
+
+> **更快修好：** 先判斷 OOM 發生在模型載入、KV cache 配置、warmup、長 request 或併發流量，再縮小真正過大的資源。隨意改 memory flag 可能只是用更小的 context 或容量掩蓋問題。
+
+本疑難排解指南協助你：
+
+- 找出 memory 失敗的確切階段；
+- 記錄 GPU、model、CUDA、PyTorch 與 vLLM 版本；
+- 依受控順序套用七個對症修法；
+- 重測最長 prompt、output 與目標 concurrency；
+- 保存失敗與修正後的 command 和 log。
+
+vLLM 出現 CUDA out-of-memory，代表目前 GPU 記憶體需求超過可用容量。最快的修正取決於錯誤發生在載入權重、分配 KV cache、warmup，還是處理 request。隨機改 flag 可能讓 server 啟動，卻悄悄犧牲 context、concurrency 或效能。
+
+先保存完整 error、command、model revision、vLLM version、GPU 名稱與記憶體讀數。
+
+## 步驟 1：辨識失敗階段
+
+| 階段 | 常見原因 | 先檢查 |
+| --- | --- | --- |
+| Model load | 權重／量化放不下 | 模型大小、dtype、GPU 數量 |
+| KV-cache 初始化 | context／concurrency 太大 | `max_model_len`、cache 設定 |
+| Warmup／graph capture | workspace 超過餘裕 | memory utilization、eager mode |
+| 第一個長 request | 真實 context 超出測試值 | input 與 output token |
+| 併發負載 | active sequence 太多 | queue、batch token、concurrency |
+
+版本特定行為應查 [NVIDIA NIM 記憶體排錯](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html)與 [vLLM 官方文件](https://docs.vllm.ai/)。
+
+## 步驟 2：記錄環境
+
+```shell
+nvidia-smi
+python -c "import torch; print(torch.__version__, torch.version.cuda)"
+python -c "import vllm; print(vllm.__version__)"
+```
+
+保存完整 launch command 與 model revision，也先排除其他 process 占用 GPU。
+
+## 修正 1：使用能放入的模型或量化
+
+若載入權重就失敗，改用有支援的量化或較小模型。不同 4-bit 格式的品質與 runtime support 不同；改精度後要重跑 evaluation。若仍無法滿足需求，就使用更大 VRAM 或受支援的 tensor parallel。
+
+## 修正 2：降低最大 Context
+
+```shell
+vllm serve <model-id> --max-model-len <tested-length>
+```
+
+KV cache 隨 sequence length 增加。設定 application 真正需要的最長 context，並確保 prompt 加 output 不超過限制。
+
+## 修正 3：降低 Active Sequence 或 Batched Token
+
+單一 request 成功不代表高併發可行。使用 upstream queue，並依目前 vLLM 文件限制 active workload。這會以容量換記憶體，因此要重測 throughput 與 p95。
+
+## 修正 4：保留更多 Runtime 餘裕
+
+```shell
+vllm serve <model-id> --gpu-memory-utilization 0.85
+```
+
+這只是起點，不是萬用值。降低它可能增加餘裕，也會減少 KV-cache capacity。
+
+## 修正 5：用 Eager Execution 診斷 Graph Capture
+
+若在 CUDA graph capture 或 warmup 失敗，可依目前官方文件測試 eager option。它可能改變效能，必須量測而非永久盲用。
+
+## 修正 6：降低 Batch、Input 或 Output 限制
+
+Offline job 降低 batch；online serving 限制 input/output，並在 GPU 崩潰前排隊或拒絕 request。
+
+## 修正 7：改用更大或多 GPU 配置
+
+必要模型、context 與 concurrency 無法在可接受取捨下放入時，就需要更多記憶體。Tensor parallel 會增加通訊與維運複雜度，不能假設兩張卡等於兩倍效能。
+
+## 驗證修正
+
+修正必須通過 cold startup、最長 prompt、最大 output、目標併發、持續運行無 memory growth，以及量化後的品質 evaluation。
+
+**證據門檻：** 發布 24、48、80 GB GPU 的可重現失敗／修正 command，附 peak VRAM、可用 context/concurrency、throughput 變化與去敏 log。
+
+## OOM 決策流程
+
+依第一個符合的分支處理：
+
+1. **其他 process 佔用 memory：**找出並停止非預期 process，不要用 vLLM 設定掩蓋別的 leak。
+2. **Weight load 失敗：**確認 model size、dtype、quantization support 與 tensor-parallel layout，改用較小格式或更多 memory。
+3. **KV cache 配置失敗：**降低真正需要的 maximum context 或 active sequence capacity，再跑 boundary test。
+4. **CUDA graph capture 失敗：**用當前 eager option 重現，保留前先比較 performance。
+5. **單一長 request 失敗：**實施符合測試 service contract 的 input/output limit。
+6. **Concurrent load 失敗：**queue admission，降低 active sequence 或 batched-token limit。
+7. **Memory 隨時間成長：**保存 snapshot、request mix 與 release version，當作可能 leak 排查。
+
+## 看似有效、實際會掩蓋問題的修法
+
+- Restart 只能清 allocation，無法讓過大 configuration fit。
+- 降低 context 可能讓 startup 成功，卻破壞承諾的 API limit。
+- CPU offload 可避 OOM，但 latency 可能不可用。
+- 激進 quantization 會省 memory，也可能改變 output quality。
+- 加第二張 GPU 可能增加 communication cost 或遇到不支援 layout。
+- 提高 `gpu-memory-utilization` 可能擴大 cache，卻拿掉 runtime headroom。
+
+每次修改後都重跑最長 prompt、最大 output、目標 concurrency 與 sustained run。只有 startup 成功不代表 service 已修好。
+
+## 疑難排解資料來源
+
+先查固定 release 的[官方 vLLM troubleshooting 文件](https://docs.vllm.ai/en/stable/usage/troubleshooting.html)與 NVIDIA [NIM memory troubleshooting 指南](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html)。GitHub issue 與 forum 可協助比對 failure signature，但不是通用修法。務必重現錯誤、一次只改一個變數，並保存失敗與修正後的 log。
+
+## 常見問題
+
+### 模型明明放得下，為什麼 vLLM 還 OOM？
+
+因為權重之外還有 KV cache、workspace、graph capture 與 active sequence。
+
+### 清 CUDA cache 有用嗎？
+
+重啟可移除殘留 process allocation，但無法修正 working set 大於 GPU 的配置。
+
+### 降低 `gpu_memory_utilization` 一定有用嗎？
+
+不一定；它增加餘裕時也可能降低 concurrency。
+
+### CPU offload 是免費修正嗎？
+
+不是；它可能增加資料搬移與延遲。
+
+## 延伸閱讀
+
+- [Ollama timeout 修正](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_zh_tw)
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [什麼是 VRAM](https://glows.ai/article/what_is_vram_ai_models_zh_tw)
+- [雲端 GPU 租用如何運作](https://glows.ai/article/how_cloud_gpu_rental_works_zh_tw)
+
+## 下一步
+
+在非 production [Glows.ai instance](https://glows.ai/)重現錯誤，每次只改一個變數，並把失敗與成功 run record 放在一起。

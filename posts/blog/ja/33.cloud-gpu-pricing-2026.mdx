@@ -1,0 +1,138 @@
+---
+id: cloud_gpu_pricing_2026_ja
+title: '2026年クラウドGPU料金：8機種が$0.49/時から'
+date: '2026-07-21 10:00'
+lastUpdated: '2026-07-21'
+description: '1時間$0.49からの8種類のクラウドGPUを比較し、実行、ストレージ、最低課金、失敗、アイドル時間を含む2026年の実コストを計算します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** 料金は2026年7月20日に確認しました。公開前に最新料金、リージョン在庫、比較元を再確認してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# 2026年クラウドGPU料金：8機種が$0.49/時から
+
+> **要点：** 2026年7月20日時点で、Glows.aiは8種類のGPUを1時間$0.49〜$5.00で掲載していました。最安の時間単価が最安の完了ジョブとは限りません。VRAM、課金単位、ストレージ、起動時間、失敗、utilizationで順位は変わります。
+
+2026年のクラウドGPUは、コンシューマー／ワークステーション向けの1時間1ドル未満から、データセンター向けの数ドルまで幅があります。ただし、表示単価は請求総額ではありません。課金粒度、永続ストレージ、転送、起動時間、失敗時の再実行、復旧作業まで含めて比較します。
+
+Glows.aiで2026年7月20日に確認したスナップショットは次のとおりです。恒久的な価格保証ではありません。
+
+| GPU | VRAM | Glows.ai料金 |
+| --- | ---: | ---: |
+| RTX 4090 | 24 GB | $0.49/hr |
+| RTX 5090 | 32 GB | $0.69/hr |
+| L40S | 48 GB | $0.83/hr |
+| A100 | 購入画面で型を確認 | $1.20/hr |
+| RTX PRO 6000 | 96 GB | $1.78/hr |
+| H100 | 購入画面で型を確認 | $2.96/hr |
+| H200 | 購入画面で型を確認 | $3.15/hr |
+| B200 | 構成を確認 | $5.00/hr |
+
+出典：[Glows.ai料金表](https://glows.ai/)。GPU型、リージョン、在庫、runtime storage、永続ストレージ条件を選択時に確認してください。
+
+## 表示単価ではなく総ジョブコストを計算する
+
+`総ジョブコスト = GPU実行時間 + 永続ストレージ + 転送 + 再実行 + 運用時間`
+
+`GPUコスト = 時間単価 × 実行秒数 ÷ 3,600`
+
+$0.49/hrのRTX 4090を20分使う純計算は約$0.16です。ただし、永続ストレージや失敗は含みません。40時間の学習が39時間目に失敗し、checkpointから戻せなければ、安い単価でも完了コストは高くなります。
+
+## 課金粒度が短時間ジョブを変える
+
+| 7分のジョブ | 課金時間 | 概算計算費 |
+| --- | ---: | ---: |
+| 秒単位 | 7分 | 約$0.06 |
+| 分単位 | 7分 | 約$0.06 |
+| 1時間最低 | 60分 | $0.49 |
+
+これは算術例です。最低残高、丸め、起動ルール、ストレージ料金は別途確認してください。
+
+## ワークロードにGPUを合わせる
+
+最安GPUとは、メモリとSLOを満たして完了できる最安構成です。モデルが入らなければ安くありません。高速GPUが短時間で終えれば、単価が高くても総額が下がる場合があります。
+
+| ワークロード | 最初に試す候補 | 主な制約 |
+| --- | --- | --- |
+| 7B–14B量子化LLM | RTX 4090／5090 | 重み、KV cache |
+| 長いcontext／中型モデル | L40S／RTX PRO 6000 | VRAM、同時実行 |
+| 70B高スループット | A100／H100／H200／複数GPU | SLO、インターコネクト |
+| QLoRA | モデルに応じ24–96 GB | activation、optimizer、batch |
+| 画像生成 | RTX 4090／5090／L40S | 解像度、モデル、batch |
+
+## 料金表に出にくいコスト
+
+- モデル、dataset、checkpoint、outputの永続ストレージ
+- 大容量データ転送とダウンロード時間
+- 起動と環境再構築
+- spot／marketplace中断と再実行
+- リクエスト待ちのアイドル容量
+- driver差異、障害対応、復旧のエンジニア時間
+
+## 再現可能な料金比較
+
+同じ代表ジョブについて、GPU型／variant、リージョン／日付、課金単位、ストレージ料金、起動時間、実測時間、失敗／復旧、成功結果1件の総コストを記録します。CPU、RAM、ストレージ、サポート、信頼性が異なるサービスを、GPU時間単価だけで比べないでください。
+
+## 3つのクラウドGPUコスト例
+
+まずcomputeだけを分け、hidden costを見えるようにします。
+
+| Scenario | Compute計算 | Computeのみの合計 |
+| --- | --- | ---: |
+| RTX 4090を20分 | $0.49 × 20 ÷ 60 | $0.16 |
+| L40Sを8時間 | $0.83 × 8 | $6.64 |
+| H100を24時間 | $2.96 × 24 | $71.04 |
+
+次に調整します。20分の実験でweight downloadに12分かかれば、cacheがない場合は32分を支払います。8時間jobが200 GB volumeを月末まで残せばstorageはcompute停止後も続きます。24時間runが利用可能なcheckpointなしで10%失敗するなら、完了jobの期待コストは$71.04を超えます。
+
+繰り返しjobではcold/warm startの両方を計算します。Reusable imageやDatadriveはidle storageを増やしても、毎回の有料setupを減らせます。同じdata location、cache state、checkpoint policy、完了定義で比較します。
+
+## 5分でできる料金確認
+
+Budget承認前に日付付きscreenshot/exportを保存し、次を確認します。
+
+1. 料金は1 GPU単位かmulti-GPU instance単位か。
+2. 起動するmemory capacityとhardware variantは何か。
+3. 秒・分・minimum blockのどれで丸めるか。
+4. Runtime disk、persistent storage、transferの別料金は何か。
+5. 対象regionに現在capacityがあり、commitmentが必要か。
+6. Computeを止める操作と、停止後も課金されるresourceは何か。
+
+Timestampとconfigurationがない料金比較は再現できません。
+
+## 情報源と料金計算方法
+
+料金は2026年7月20日に確認した[Glows.aiの公開GPU表](https://glows.ai/)を使用しています。VRAMとhardware positioningは、選択したinstanceと[H100仕様](https://www.nvidia.com/en-us/data-center/h100/)などNVIDIA公式製品pageでcheckout時に確認してください。計算は前提を明示し、秒数を丸めずに算出してから金額を表示しています。公開または購入前に価格、inventory、GPU variant、region、storage、tax、transfer条件を再確認します。
+
+## よくある質問
+
+### 最も安いクラウドGPUは何ですか？
+
+料金と在庫は変わります。Glows.aiでは2026年7月20日時点でRTX 4090が$0.49/hrでした。24 GBで足りるか確認してください。
+
+### H100は1時間いくらですか？
+
+Glows.aiでは同日時点で$2.96/hrでした。variant、リージョン、契約、host構成で変わります。
+
+### ストレージは含まれますか？
+
+Glows.aiは一定量のruntime storageとSnapshot／Datadriveを案内しています。選択構成とデータのライフサイクルを確認してください。
+
+### 最低の時間単価を選ぶべきですか？
+
+いいえ。メモリ、レイテンシ、信頼性、復旧を満たす完了コストで選びます。
+
+## 関連ガイド
+
+- [AWS GPU料金 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_ja)
+- [安いGPUクラウドが高くなる理由](https://glows.ai/article/cheap_gpu_cloud_real_cost_ja)
+- [2026年GPUは買うか借りるか](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_ja)
+- [RunPod vs Vast.ai vs Glows.ai](https://glows.ai/article/runpod_vast_ai_glows_ai_ja)
+
+## 次のステップ
+
+実際のワークロードを一つ選び、前提を書き、[最新のGlows.ai構成](https://glows.ai/)を確認します。テスト後にinstanceを停止し、予想とusage recordを照合してください。

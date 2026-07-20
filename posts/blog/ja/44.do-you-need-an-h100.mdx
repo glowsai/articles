@@ -1,0 +1,110 @@
+---
+id: do_you_need_an_h100_ja
+title: 'H100は本当に必要？AI GPUを選ぶ判断マトリクス'
+date: '2026-08-01 10:00'
+lastUpdated: '2026-08-01'
+description: 'workload判断表でH100のpremiumが有効な場面と、RTX 4090、5090、L40S、A100、RTX PRO 6000で十分な用途を確認します。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **ドラフト状態：** 公開前にcontrolled Glows.ai measurementでdecision tableを完成してください。本稿は普遍的性能を主張しません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# H100は本当に必要？AI GPUを選ぶ判断マトリクス
+
+> **短い答え：** 安価なGPUにmodelが収まり目標を満たすなら、多くの場合H100は不要です。memory bandwidth、tensor format、interconnect、throughputでtime-to-resultまたはunit costが下がり、高い時間単価を相殺できる場合にH100が有力です。
+
+H100が必要なのは、memory、low-precision、throughput、interconnect、datacenter特性が、安いGPUでは満たせない要件を総コスト内で実現するときです。有名だから選ぶものではありません。
+
+model、precision、context、concurrency、latency、deadlineを書き、最安候補から試します。
+
+## H100の価格プレミアム
+
+Glows.aiでは2026年7月20日にH100 $2.96/hr、RTX 4090 $0.49、RTX 5090 $0.69、L40S $0.83、A100 $1.20、RTX PRO 6000 $1.78でした。H100は追加の有効work、必要構成、運用簡素化で差額を回収する必要があります。
+
+## 最初に5要件を定義する
+
+1. Model fit：weight、KV cache、runtime、headroom。
+2. Precision：BF16、FP8、INT8、4-bit、quality。
+3. Latency：TTFT、TPOT、end-to-end p95。
+4. Capacity：RPS、concurrency、training deadline。
+5. Operations：reliability、interconnect、support、recovery。
+
+RTX 4090が全て通ればH100は不要です。2 GPU構成が複雑なら1 H100が合理的な場合もあります。
+
+## H100が不要になりやすいWorkload
+
+量子化7B–14Bのsingle-user development、24 GB内ComfyUI、小規模QLoRA、deadlineが緩いbatch、low/uncertain traffic prototypeです。4090/5090をbaselineにし、memory不足でL40S/RTX PRO 6000を試します。
+
+## H100を試すべきWorkload
+
+strict latencyのhigh-concurrency LLM、大model/context、low-precision training、relevant multi-GPU、短いjob/少ないreplicaで価格差を回収できるproduction serviceです。「試す」は「勝つ」ではありません。
+
+## 同じService Levelで比較する
+
+model、precision、prompt、context、concurrency、engine、evaluationを固定し、peak VRAM、TTFT/TPOT p95、accepted throughput、error、completed cost、recoveryを記録します。
+
+**証拠ゲート：** interactive LLM、batch、training/fine-tuning各1件以上のGlows.ai結果、raw aggregate、lowest-cost passing GPUを公開します。
+
+## 実用的なDecision Ladder
+
+1. 24 GBで足りればRTX 4090。
+2. 32 GB／新kernelが必要ならRTX 5090。
+3. memory制約ならL40S／RTX PRO 6000。
+4. datacenter baselineならA100。
+5. latency、throughput、precision、multi-GPU要件でH100。
+6. measured bottleneckが必要とするときだけH200／B200。
+
+## ワークロード判断表
+
+| Signal | H100未満から開始 | H100 testへ進む条件 |
+| --- | --- | --- |
+| Model fit | Model/peak memoryが低価格GPUに収まる | Offload、多GPU、許容できないlimitが必要 |
+| Interactive inference | TTFT/p95を満たす | Tail latency/throughputがSLO未達 |
+| Batch inference | Deadline内にqueueがdrain | 高速化がpremium以上に総costを下げる |
+| Fine-tuning | QLoRA/LoRA pilotが収まり期限内 | Deadline/precision pathで経済性が変わる |
+| Multi-GPU training | 小topologyが効率よくscale | Interconnect/kernelが明確に改善 |
+
+Model cardにH100と書かれているからではなく、missed deadline、extra replica、bad latency、engineering hoursなど測定constraintの価値でupgradeします。
+
+## H100の損益分岐点
+
+`cost per result = hourly GPU price × runtime hours ÷ accepted results`
+
+同じresult unitで比較し、安価GPUのextra replica、cross-GPU communication、longer runtimeとH100 idle timeを含めます。Quality、error-rate、latency gateを外す構成はcostが低くてもrejectします。
+
+## ハードウェア判断の情報源
+
+Variantと対応機能はNVIDIA公式の[H100](https://www.nvidia.com/en-us/data-center/h100/)、[A100](https://www.nvidia.com/en-us/data-center/a100/)、[L40S](https://www.nvidia.com/en-us/data-center/l40s/)で確認します。Peak specificationはscreening inputにすぎません。実際のworkloadでtime-to-result、latency、throughput、quality、costを測って判断します。
+
+## よくある質問
+
+### H100は全LLMで最良ですか？
+
+いいえ。小型／低利用modelは安いGPUでも同じtargetを満たせます。
+
+### Fine-TuningにH100は有効ですか？
+
+大型／deadline-sensitive jobでは有効な場合がありますが、QLoRAは安いGPUが合理的なこともあります。
+
+### RTX 4090はH100を置き換えられますか？
+
+24 GBに入りdatacenter機能不要なら候補ですが、運用上同じ製品ではありません。
+
+### 速いGPUは必ずtoken単価が安いですか？
+
+いいえ。speedupが時間単価差を超え、SLO/utilizationを満たす必要があります。
+
+## 関連ガイド
+
+- [H100 vs A100 vs RTX PRO 6000でQwen](https://glows.ai/article/h100_vs_a100_vs_rtx_pro_6000_qwen_inference_ja)
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [AWS GPU料金 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+5要件を書き、最安の[Glows.ai GPU](https://glows.ai/)から試します。測定制約が残る場合だけH100へ進みます。

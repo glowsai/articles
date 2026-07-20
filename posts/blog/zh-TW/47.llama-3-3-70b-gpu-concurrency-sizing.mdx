@@ -1,0 +1,148 @@
+---
+id: llama_3_3_70b_gpu_concurrency_sizing_zh_tw
+title: 'Llama 3.3 70B 服務 100 位使用者要幾張 GPU？'
+date: '2026-08-04 10:00'
+lastUpdated: '2026-08-04'
+description: '用 request rate、context、KV cache、延遲 SLO、實測吞吐與利用率，計算 Llama 3.3 70B 服務 100 位使用者所需 GPU。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 在指定 Glows.ai load test 完成前，不能發布單一 GPU 數量。本文提供 capacity model 與證據欄位。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# Llama 3.3 70B 服務 100 位使用者要幾張 GPU？
+
+> **容量答案：** 「100 位使用者」本身不足以算 GPU。先把使用行為轉成每秒 request 與同時 sequence 數，定義 prompt/output 長度與 latency SLO，再用實測 replica 容量、利用率與備援餘裕計算。
+
+「100 位併發使用者」沒有誠實的固定 GPU 答案。100 人每十分鐘發一次 request，和 100 個同時生成中的 request 完全不同；200-token output 也和 2,000-token 不同。容量取決於精度、context、arrival rate、output length、TTFT／TPOT 與 queue 上限。
+
+## 精確定義 Concurrency
+
+- Active users：時間窗內可能使用的人。
+- Arrival rate：每秒進入的 requests。
+- In-flight requests：正在等待或生成的 requests。
+
+Little’s Law 可做一致性檢查：
+
+`平均 in-flight ≈ arrival rate × 平均 system time`
+
+每秒 2 個 request、平均 10 秒完成，平均 in-flight 約 20；tail latency 還要餘裕。
+
+## 計算模型與 KV-Cache 記憶體
+
+`VRAM = 權重 + KV cache + workspace + headroom`
+
+Llama 3.3 70B 權重受精度／量化影響；長 context 與多 in-flight sequence 會增加 cache。單一 request 成功不等於 100-user capacity。
+
+## 定義 Service-Level Target
+
+| 指標 | 要填的要求 |
+| --- | --- |
+| TTFT p95 | 產品目標 |
+| TPOT p95 | 產品目標 |
+| End-to-end p95 | 依 prompt/output class |
+| Error rate | 可接受上限 |
+| Queue wait | 可接受上限 |
+| Availability/recovery | Replica 與 restart policy |
+
+不能用不可用的 latency 換 throughput。
+
+## Load-Test 方法
+
+使用去識別化 request trace，保留 input/output percentile 與 arrival timing；固定 Llama revision、tokenizer、quantization、context、vLLM/SGLang、container、GPU 版本／區域／互連、queue/batch、warmup 與 run duration。
+
+測試 1、10、50、100 個 in-flight，再重播真實 arrival trace。
+
+## 結果與 GPU 數量
+
+**證據門檻：** 只能用 Glows.ai 量測填表，不能由 single-stream tok/s 推估 100 users。
+
+| 配置 | Concurrency／arrival | TTFT p95 | TPOT p95 | Error | 合格 throughput | 月成本假設 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Candidate A | 待測 | 待測 | 待測 | 待測 | 待測 | 待測 |
+| Candidate B | 待測 | 待測 | 待測 | 待測 | 待測 | 待測 |
+| Candidate C | 待測 | 待測 | 待測 | 待測 | 待測 | 待測 |
+
+最小數量是所有 SLO 都通過且有安全餘裕的配置；production 可能另需 maintenance/recovery replica。
+
+## Replica vs Tensor Parallelism
+
+Tensor parallel 把同一模型切到多張 GPU，常用於 fit 或 performance；replica 是獨立模型副本，可增加 availability 與水平容量。單卡能放下時先測 replica；只有 fit 或實測效能需要時用 tensor parallel。
+
+## 三種流量型態
+
+### 互動聊天
+
+優先 TTFT／TPOT，保留 burst capacity 並限制過長 output。
+
+### Long-Context RAG
+
+Prefill 與 KV cache 成為主要限制，要測真實 retrieved-context 分布。
+
+### Batch Generation
+
+以 deadline 與總 throughput 為主，可接受 queue，因此 utilization 可較高。
+
+## 成本模型
+
+`每月 GPU 成本 = GPU 數 × 時薪 × active hours + storage + recovery reserve`
+
+Scale-down 架構用真實 hourly demand 與 startup；always-on 要算夜間／週末 idle。另回報每個 accepted request 成本。
+
+## 不捏造吞吐的容量規劃範例
+
+假設 100 位註冊 user，但最忙一分鐘只有 10 位 active；每位 active user 每 30 秒送一個 request：
+
+`10 active users ÷ 30 seconds = 0.33 requests/second`
+
+這只是 traffic assumption，不是 capacity 結果。接著用真實 input/output distribution 測一個 replica。若符合 TTFT/p95 時的有效容量是 `R` requests/second：
+
+`base replicas = ceiling(0.33 ÷ R)`
+
+若 operating target 是 70%：
+
+`planned replicas = ceiling(base replicas ÷ 0.70)`
+
+服務若要承受 replica/node failure，再加入 redundancy。採購前要用 product analytics 取代每個假設。
+
+## 納入 KV Cache 與尖峰流量形狀
+
+相同 requests/second 也可能需要不同 memory。長 prompt/output 與慢 client 會讓 sequence 更久保持 active，增加 KV-cache demand；因此發布 p50、p95、maximum input/output token，不能只給 average。
+
+測 steady traffic、真實 burst 與允許的 worst-case request，記錄 queue depth、active sequence、KV-cache utilization、TTFT、TPOT、p95、error 與 dropped admission。Autoscaling 必須包含 model load/warmup；burst 結束後才到達的 replica 不算該 burst 的 capacity。
+
+## 容量規劃資料來源
+
+NVIDIA 的 [Llama 3.3 70B Dynamo recipe](https://docs.nvidia.com/dynamo/dev/recipes/llama-3-3-70b) 顯示 topology、prompt/output 長度、concurrency 與每 GPU 正規化為何必須明確。固定 release 的 serving signal 可參考 [vLLM metrics 文件](https://docs.vllm.ai/en/latest/design/metrics.html)。本文公式仍須代入團隊自身 traffic distribution 的實測容量。
+
+## 常見問題
+
+### 一張 H100 能服務 100 位 Llama 使用者嗎？
+
+必須知道 context、output、arrival、precision 與 latency 才能回答。
+
+### 4-bit 會減少 GPU 數嗎？
+
+可能減少權重記憶體，但品質、kernel、KV cache 與 throughput 仍需驗證。
+
+### 100 users 等於 100 concurrent requests 嗎？
+
+不等於。容量應使用 arrival 與 in-flight，而不是帳戶人數。
+
+### 安全餘裕要多少？
+
+依流量變異、failure policy 與 deployment time 決定，並公開假設。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [什麼是 VRAM](https://glows.ai/article/what_is_vram_ai_models_zh_tw)
+- [執行 LLM 成本](https://glows.ai/article/cost_to_run_an_llm_zh_tw)
+- [Nebius vs Glows.ai](https://glows.ai/article/nebius_vs_glows_ai_zh_tw)
+
+## 下一步
+
+從安全 sample 匯出 token length 與 arrival timing，在 [Glows.ai](https://glows.ai/)重播。p95 與 recovery test 通過後才決定 GPU 數量。

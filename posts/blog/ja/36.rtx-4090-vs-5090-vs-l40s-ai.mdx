@@ -1,0 +1,135 @@
+---
+id: rtx_4090_vs_5090_vs_l40s_ai_ja
+title: 'RTX 4090 vs 5090 vs L40S：AIならどれを借りる？'
+date: '2026-07-24 10:00'
+lastUpdated: '2026-07-24'
+description: 'RTX 4090、RTX 5090、L40SをVRAM、時間単価、model fit、信頼性、完了ワークロード当たりのコストで比較します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** ハードウェアと料金には出典があります。公開前にGlows.ai同条件benchmarkを完了し、本稿では性能勝者を断定しません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# RTX 4090 vs 5090 vs L40S：AIならどれを借りる？
+
+> **早見結論：** 24 GBで収まり料金重視ならRTX 4090、32 GBでoffloadを避けられるか大きなmodelを使えるならRTX 5090、48 GBまたはdatacenter向け運用が必要ならL40Sから検討します。性能の勝者は同一workloadで測定してください。
+
+RTX 4090は24 GBで低価格、RTX 5090は32 GBと新しいarchitecture、L40Sは48 GBとdatacenter向け特性を提供します。VRAM、throughput、運用要件、総ジョブコストによって勝者は変わります。
+
+Glows.aiでは2026年7月20日にRTX 4090 $0.49/hr、RTX 5090 $0.69/hr、L40S $0.83/hrでした。region、inventory、host、現行料金を確認してください。
+
+## RTX 4090、RTX 5090、L40Sの比較
+
+| 観点 | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| VRAM | 24 GB | 32 GB | 48 GB |
+| 区分 | Consumer | Consumer | Datacenter |
+| 当日料金 | $0.49/hr | $0.69/hr | $0.83/hr |
+| 最初の候補 | 24 GBに入る低コスト用途 | 24 GB超／新しい加速 | 大きなmodel/context、運用特性 |
+
+仕様は[NVIDIA公式](https://www.nvidia.com/)と実際のinstanceで確認します。
+
+## 最初にVRAMで絞る
+
+29 GB必要なworkloadは24 GB RTX 4090にそのまま入りません。quantization、短いcontext、低batch、CPU offloadは別構成です。
+
+`LLM推論VRAM = 重み + KV cache + runtime workspace + 安全余裕`
+
+fine-tuningではactivation、gradient、optimizer、画像／動画ではresolution、component、batchも加わります。
+
+## ワークロード別の適合
+
+### RTX 4090
+
+24 GB内に余裕を持って入り、実験コストが重要なら最初のbaselineです。
+
+### RTX 5090
+
+32 GBで24 GBでは難しい構成に対応できます。高い時間単価は、追加memory／speedが完了コストを下げる場合のみ合理的です。
+
+### L40S
+
+48 GBまたはdatacenter特性が必要なら候補です。multi-GPUや強いquantizationを避けられる可能性があります。
+
+## 勝者を決めるBenchmark
+
+model revision、container、prompt trace、context、concurrency、warmupを固定し、TTFT、TPOT、p50/p95、throughput、peak VRAM、error、costを測ります。
+
+**証拠ゲート：** Glows.aiのcontrolled testだけで表を埋めます。
+
+| 指標 | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| Model／構成 | 未測定 | 未測定 | 未測定 |
+| Peak VRAM | 未測定 | 未測定 | 未測定 |
+| Throughput | 未測定 | 未測定 | 未測定 |
+| TTFT p95 | 未測定 | 未測定 | 未測定 |
+| 100万output tokenコスト | 未測定 | 未測定 | 未測定 |
+| Error rate | 未測定 | 未測定 | 未測定 |
+
+異なるhost、driver、promptの外部結果で空欄を埋めません。
+
+## 時間単価よりジョブコスト
+
+`完了ジョブコスト = 時間単価 × 実時間秒 ÷ 3,600`
+
+online inferenceではreal offered loadで計算し、latency SLOを破るsaturated throughputを製品コストに使いません。
+
+## 選択ガイド
+
+24 GBに入りSLOを満たすならRTX 4090、32 GBまたは実測速度が総額を下げるならRTX 5090、48 GBやdatacenter特性が重要ならL40Sです。複数が合格なら、成功結果あたりのコストで選びます。
+
+## 毎秒Tokenより先にモデルが収まるか確認する
+
+| Candidate | VRAM | Fit testに含めるもの |
+| --- | ---: | --- |
+| RTX 4090 | 24 GB | Weight、runtime overhead、KV cache/activation、headroom |
+| RTX 5090 | 32 GB | 同じprecision/contextの同一workload |
+| L40S | 48 GB | 大きなweight/cacheと同じconcurrency target |
+
+Model load成功だけではdeploy可能とは言えません。最長prompt、最大output、target simultaneous sequencesを送り、trainingではbackward passとcheckpoint save、画像/動画では最大resolution、batch、workflow graphのpeakを測ります。
+
+24 GB構成がCPU offloadまたはOOMするなら、完全in-memoryの32/48 GB runとtokens/sだけで比べるのは不正確です。Offload、host RAM、quantization、context、batchを記録します。
+
+## 価格性能の損益分岐点
+
+7月20日の料金ではRTX 5090はRTX 4090より約41%、L40Sは約69%高い時間単価です。ただし大型GPUはCPU offloadを避け、より多くのuserを支え、GPU数を減らし、小型GPUで不可能なjobを完了できます。
+
+`relative value = accepted work per hour ÷ hourly GPU price`
+
+Peak metricではなくquality/latencyを満たすimage、token、training step、completed jobで比較します。
+
+## ハードウェア情報源
+
+仕様はNVIDIA公式の[GeForce RTX 4090](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)、[GeForce RTX 5090](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/)、[NVIDIA L40S](https://www.nvidia.com/en-us/data-center/l40s/)で確認します。Cloud上の結果はhost、power設定、driver、framework、precision、model、prompt mixでも変わり、製品仕様はworkload benchmarkではありません。
+
+## よくある質問
+
+### RTX 5090は必ずRTX 4090より速いですか？
+
+固定倍率はありません。model、precision、kernel、batch、software supportで変わります。
+
+### L40SはRTX 5090より優れていますか？
+
+VRAMと製品特性は異なりますが、価値はworkload testで決まります。
+
+### 70B modelを1枚で動かせますか？
+
+full precisionは困難です。強いquantizationで48 GBに入る場合も、context、KV cache、qualityを測ります。
+
+### ComfyUIにはどれが適しますか？
+
+24 GBに入るならRTX 4090をbaselineにし、大規模workflowで5090/L40Sを比較します。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [AWS GPU料金 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_ja)
+- [$0.49/hr GPUでできること](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_ja)
+- [台湾クラウドGPUガイド](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_ja)
+
+## 次のステップ
+
+3つの[Glows.ai GPU構成](https://glows.ai/)で同じmodel／traceを実行し、raw output、p95、failure、完了コストで選びます。

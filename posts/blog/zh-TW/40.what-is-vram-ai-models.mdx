@@ -1,0 +1,148 @@
+---
+id: what_is_vram_ai_models_zh_tw
+title: '什麼是 VRAM？你的 AI 模型究竟需要多少記憶體'
+date: '2026-07-28 10:00'
+lastUpdated: '2026-07-28'
+description: '了解 VRAM 的作用，並估算 LLM、微調、影像模型、context window、batch 與併發真正需要多少 GPU 記憶體。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 發布前需用至少三個 Glows.ai 配置的 VRAM 實測驗證公式。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 什麼是 VRAM？你的 AI 模型究竟需要多少記憶體
+
+> **一句話說明：** VRAM 是 GPU 的工作記憶體；AI 工作負載必須容納模型權重、runtime overhead、activation 或 KV cache、batch 與併發需求，再加安全餘裕，否則就會變慢、offload 或直接失敗。
+
+VRAM 是直接連接 GPU 的高頻寬記憶體。AI 工作會把模型權重、activation、暫存 workspace，以及 LLM 推論的 KV cache 放在其中。完整 working set 放不下時，工作會失敗、offload 到較慢記憶體，或需要改用其他配置。
+
+容量先回答「放不放得下」，頻寬與算力再回答「跑多快」。
+
+## VRAM 不是系統 RAM
+
+系統 RAM 屬於 CPU；VRAM 靠近 GPU 並提供更高頻寬。部分框架可以 CPU offload，但跨 interconnect 搬資料會降低速度。128 GB 系統 RAM 加 24 GB GPU，不等於 152 GB GPU。
+
+## 估算 LLM 權重記憶體
+
+`權重 bytes = parameter 數 × 每 parameter bytes`
+
+| 精度 | 約略 bytes/parameter | 8B 模型原始權重 |
+| --- | ---: | ---: |
+| FP32 | 4 | 32 GB |
+| BF16/FP16 | 2 | 16 GB |
+| INT8 | 1 | 8 GB |
+| 4-bit | 0.5 | 4 GB |
+
+實際使用量更高，因為 quantization metadata、runtime buffer 與 framework overhead 也會占用 VRAM。
+
+## LLM 推論要加入 KV Cache
+
+KV cache 隨模型架構、token、精度、batch 與併發增加。模型能載入後，仍可能在多使用者或長 prompt 時失敗。
+
+`推論 VRAM = 權重 + KV cache + runtime workspace + 安全餘裕`
+
+應以真實 context 分布做規劃，而不是只看 model card 最大值。
+
+## 微調需要的不只權重
+
+Full fine-tuning 可能包含權重、gradient、optimizer state、activation 與暫存 buffer。QLoRA 以量化 base model 加 adapter 降低需求，但 activation 與 optimizer 仍需要空間。sequence、micro-batch、gradient checkpointing 與 accumulation 都會改變 peak。
+
+## 影像與影片模型的 VRAM
+
+Diffusion 受模型元件、解析度、batch、attention 與 VAE 影響；影片再加入 frame 與 temporal processing。ComfyUI 的 workflow graph 也會改變 peak，因為可能載入 ControlNet、upscaler、adapter 或 video node。
+
+## 最低、建議與 Production VRAM
+
+| 標籤 | 意義 |
+| --- | --- |
+| 最低 | 在狹窄測試中啟動／完成，幾乎無餘裕 |
+| 建議 | 支援預期 context／batch 並保留餘裕 |
+| Production | 在負載下符合併發、延遲與復原需求 |
+
+公布 VRAM 數字時要標示屬於哪一種。
+
+## 如何量測實際 VRAM
+
+```shell
+nvidia-smi
+nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
+```
+
+```python
+import torch
+
+torch.cuda.reset_peak_memory_stats()
+# Run the representative workload here.
+print(torch.cuda.max_memory_allocated() / 1024**3)
+print(torch.cuda.max_memory_reserved() / 1024**3)
+```
+
+分別測 startup、典型 request、最長 request 與目標 concurrency。
+
+**證據門檻：** 發布 predicted vs observed VRAM，至少包含一個 LLM 推論、一個 QLoRA 與一個影像／影片 workflow，並說明差異。
+
+## 模型放不下怎麼辦
+
+可以選較小模型、降低精度、量化、縮短 context、降低 concurrency/batch、activation checkpointing、CPU offload、tensor parallelism 或更大 VRAM GPU。每種方法都會改變品質、速度、複雜度或成本，不能當成免費修正。
+
+## 快速估算 VRAM
+
+先算 model weight：
+
+`weight memory ≈ parameter count × 每個 stored parameter 的 bytes`
+
+粗略篩選時，BF16/FP16 約每 parameter 2 bytes、8-bit 約 1 byte、4-bit 約 0.5 byte，還沒加 quantization metadata 與 runtime overhead。因此 7B model 的 16-bit weight 約 14 GB，但不代表完整 workload 保證能放進 14 GB。
+
+再加入 workload-specific memory：
+
+| Workload | Weight 之外的主要 memory |
+| --- | --- |
+| LLM inference | KV cache、CUDA graph/workspace、concurrent sequence |
+| QLoRA | Quantized base、adapter、activation、gradient、optimizer state |
+| Full fine-tuning | Weight、gradient、optimizer state、activation |
+| Image generation | Model component、activation、resolution、batch、workflow node |
+| Video generation | Frame、temporal module、resolution、duration、batch |
+
+為 fragmentation 與版本相關 kernel 留安全餘裕，並同時記錄 framework allocation 與 `nvidia-smi`。
+
+## 用邊界測試證明能否放得下
+
+Model load 只是 test zero。還要驗證 cold start、最長 input/output、目標 concurrency 或 training batch、最大 image/video workflow、持續執行是否有 leak，以及固定環境 restart 後能否重現。
+
+如果只在降低 context、batch 或品質後成功，就把限制寫進建議。「可在 24 GB 運行」若缺 precision、context、concurrency、engine 與 model revision，資訊並不完整。
+
+## 記憶體資料來源
+
+NVIDIA 的 [GPU Memory Essentials for AI Performance](https://developer.nvidia.com/blog/gpu-memory-essentials-for-ai-performance/) 說明模型記憶體與 AI workload 工作記憶體的差異。實際 allocation 應用指定 framework 與 model revision 測量。本文數字是 capacity-planning 公式，不保證某個命名模型在所有 runtime 都能放得下。
+
+## 常見問題
+
+### LLM 需要多少 VRAM？
+
+先算權重，再加入 KV cache、runtime overhead 與預期 context／併發的安全餘裕。
+
+### 24 GB 足夠做 AI 嗎？
+
+足以處理許多量化中小型 LLM、影像 workflow 與開發工作；大型模型、長 context 或高併發可能需要更多。
+
+### 量化會降低品質嗎？
+
+可能。影響取決於方法、bit width、模型與任務，要用 evaluation set 驗證。
+
+### 兩張 GPU 可以直接合併 VRAM 嗎？
+
+部分框架可 shard 模型，但記憶體不會變成透明的單一 pool，互連與軟體支援都重要。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [執行 DeepSeek V4](https://glows.ai/article/run_deepseek_new_model_one_click_zh_tw)
+- [雲端 RTX 4090 跑 ComfyUI](https://glows.ai/article/comfyui_cloud_4090_3_clicks_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+先用公式估算，再啟動最小可行的 [Glows.ai GPU](https://glows.ai/)，以真實 context、batch 與 concurrency 量 peak；只有證據顯示不足時才升級。

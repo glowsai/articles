@@ -1,0 +1,184 @@
+---
+id: gpu_cost_allocation_ai_teams_en
+title: 'GPU Cost Allocation: Stop Paying for Mystery AI Spend'
+date: '2026-08-09 10:00'
+lastUpdated: '2026-08-09'
+description: 'Turn mystery GPU spend into accountable team costs with mandatory tags, unit economics, shared-service rules, showback, budgets, and chargeback.'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **Draft status:** Verify available Glows.ai billing fields and replace the sample schema with an anonymized report that reconciles to a real export before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# GPU Cost Allocation: Stop Paying for Mystery AI Spend
+
+> **The fix:** Attach owner, team, project, environment, and workload metadata before GPU usage begins; export compute and storage cost at the smallest reliable unit; allocate shared services with a declared rule; start with showback; and charge back only after coverage and reconciliation are trustworthy.
+
+GPU cost allocation answers a basic question: which team, product, experiment, or customer outcome consumed the spend? A provider bill usually shows infrastructure resources. Engineering and finance need a stable mapping from those resources to owners and workloads.
+
+The system is trustworthy only when allocated costs reconcile to the bill and every unresolved dollar is visible.
+
+## Showback vs Chargeback
+
+- **Showback** reports what each team used without moving money between budgets.
+- **Chargeback** assigns the cost to an internal budget or cost center.
+
+Start with showback when tags and ownership are immature. Charging teams from incomplete data creates disputes and incentives to hide shared capacity. Move to chargeback after coverage and reconciliation are reliable.
+
+## Required Allocation Schema
+
+Every resource or usage event should include:
+
+| Field | Example purpose |
+| --- | --- |
+| Owner | Person accountable for the resource |
+| Team | Organizational rollup |
+| Project/product | Business purpose |
+| Environment | Development, staging, production |
+| Workload | Training job, endpoint, notebook, batch queue |
+| Model | Model family/revision where relevant |
+| Cost center | Finance mapping |
+| Expiration | Review or shutdown date |
+
+Use stable IDs rather than free-text names. Record ownership when the resource is created, not at month end.
+
+## Collect Compute, Storage, and Output Data
+
+At minimum, collect:
+
+- GPU model, count, region, start, stop, and rate;
+- instance or resource identifier;
+- persistent-storage size and lifetime;
+- project and owner tags;
+- endpoint requests/tokens or training-job identifier;
+- successful output count;
+- shared platform overhead.
+
+Glows.ai advertises per-second billing, runtime storage, Snapshot, Datadrive, and team controls. Verify which fields are available in the current console, API, or export before designing an automated pipeline.
+
+## Allocate Dedicated Workloads
+
+For an instance used by one project:
+
+`allocated cost = compute runtime + persistent storage + directly attributable services`
+
+Reconcile start/stop timestamps with billed usage. If a notebook was idle, the owning project still receives the cost unless policy defines a central idle pool.
+
+## Allocate Shared Inference
+
+A shared endpoint may serve several teams. Possible allocation drivers include:
+
+- requests;
+- input/output tokens;
+- GPU processing time;
+- reserved capacity;
+- weighted combination based on workload class.
+
+No driver is perfectly fair. Token count is easy but may not represent compute equally across long-prefill and long-decode requests. Publish the formula and keep it stable through a reporting period.
+
+Example structure:
+
+`team share = team weighted usage ÷ total weighted usage × shared service cost`
+
+Allocate idle reserve separately or proportionally according to the availability policy. Do not make it disappear.
+
+## Budgets and Anomaly Controls
+
+- Set monthly and weekly forecasts by team.
+- Alert when spend deviates from expected workload volume.
+- Flag running GPUs with no owner or expiration.
+- Report persistent storage with no active project.
+- Detect price or GPU changes inside a long-lived workload.
+- Escalate hard limits carefully so cost controls do not create unsafe shutdowns.
+
+Budget alerts need an owner and a required response, not just a dashboard.
+
+## Monthly Reconciliation
+
+The report should satisfy:
+
+`provider bill = allocated team cost + shared platform cost + unresolved variance`
+
+| Report section | Required value |
+| --- | --- |
+| Provider total | Source-of-truth billed amount |
+| Direct allocation | Dedicated compute and storage by team |
+| Shared allocation | Formula and team shares |
+| Platform overhead | Deliberately central costs |
+| Unallocated | Missing owner/tag or data mismatch |
+| Variance | Difference from source total |
+
+**Evidence gate:** Publish an anonymized Glows.ai sample where the allocation reconciles to its source total. Include schema, formulas, billing period, known limitations, and change log.
+
+## Common Failure Modes
+
+1. Adding tags after spend occurs.
+2. Changing team names without stable IDs.
+3. Allocating shared endpoints by request count alone without testing workload variance.
+4. Ignoring idle reserve and persistent storage.
+5. Treating an unreconciled dashboard as financial truth.
+
+## Start With a Required GPU Tagging Schema
+
+Apply metadata before usage because historical tags are often impossible to reconstruct reliably:
+
+| Field | Example | Owner |
+| --- | --- | --- |
+| `team` | `search-platform` | Engineering management |
+| `project` | `support-rag` | Product/engineering |
+| `environment` | `dev`, `staging`, `prod` | Platform |
+| `workload` | `training`, `inference`, `evaluation` | Workload owner |
+| `owner` | Team alias, not an individual-only address | Team lead |
+| `cost_center` | Finance-approved code | Finance |
+| `model` | Repository plus revision family | ML owner |
+| `expiry` | Review or automatic-stop date | Requester |
+
+Reject or quarantine untagged resource creation where the platform allows it. Track tag coverage by dollars, not only resource count: one untagged H100 matters more than many tiny disks.
+
+## Allocate Shared GPU Services Transparently
+
+Direct resources can follow their tags. Shared inference or model services need a declared driver such as accepted tokens, GPU seconds, requests weighted by token volume, reserved capacity, or an agreed fixed split.
+
+`team share = shared monthly cost × team measured usage ÷ total measured usage`
+
+Do not change the driver quietly from month to month. Version the rule, publish unallocated cost, and show how credits, failed jobs, idle capacity, support, and storage are handled.
+
+## Monthly Close Checklist
+
+Reconcile provider invoice to the usage export; validate currency, tax, and credits; report untagged and shared spend; review anomalies with owners; publish showback; record disputes and adjustments; then lock the period. Move to chargeback only after repeated closes produce stable, explainable totals.
+
+## FinOps Sources
+
+The [FinOps Framework allocation capability](https://www.finops.org/framework/capabilities/allocation/) defines allocation through accounts, tags, labels, hierarchy, and shared-cost rules. The Foundation’s [FinOps for AI overview](https://www.finops.org/wg/finops-for-ai-overview/) extends those practices to GPU and model usage. This article adapts that framework to GPU compute and storage; finance must approve the organization’s final allocation policy.
+
+## FAQ
+
+### Should a small team use chargeback?
+
+Usually start with showback and ownership. Chargeback is useful when budgets and organizational boundaries justify the process.
+
+### How should idle GPU time be allocated?
+
+Assign it to the workload that reserved capacity, a shared reliability pool, or a documented proportional formula. Make the policy explicit.
+
+### Are tokens a fair allocation unit?
+
+They are useful but imperfect because prompt and output processing differ. Validate the formula against measured GPU usage.
+
+### Who owns untagged spend?
+
+The platform or finance owner should track it temporarily, but the report must expose it and drive remediation.
+
+## Related Guides
+
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+- [Per-second GPU billing](https://glows.ai/article/per_second_gpu_billing_en)
+- [Why a cheap GPU cloud can cost more](https://glows.ai/article/cheap_gpu_cloud_real_cost_en)
+- [Cost to run an LLM](https://glows.ai/article/cost_to_run_an_llm_en)
+
+## Next Step
+
+Tag one non-production [Glows.ai workload](https://glows.ai/) with owner, team, project, environment, and expiration. Reconcile one week of compute and storage before expanding the policy.

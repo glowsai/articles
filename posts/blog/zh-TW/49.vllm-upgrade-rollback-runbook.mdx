@@ -1,0 +1,136 @@
+---
+id: vllm_upgrade_rollback_runbook_zh_tw
+title: '安全升級 vLLM：Production Rollback Runbook'
+date: '2026-08-06 10:00'
+lastUpdated: '2026-08-06'
+description: '用固定 artifact、輸出與 load test、canary traffic、自動停止條件與演練過的 rollback，安全升級 production vLLM。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **草稿狀態：** 發布前需在 Glows.ai 以真實 vLLM old/new pair 驗證，包含一次失敗 candidate 與 timed rollback。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 安全升級 vLLM：Production Rollback Runbook
+
+> **安全路徑：** 固定每個 artifact、重現目前 baseline、離線測試輸出與負載、只導入少量 canary traffic、超過預定門檻就自動停止，並在 rollback 驗證完成前保留舊 deployment。
+
+本 production runbook 涵蓋：
+
+- 盤點並固定每個 release surface；
+- 離線比較 output、latency、throughput、memory 與 telemetry；
+- 定義 canary 範圍與自動停止條件；
+- drain traffic 並恢復 immutable 的上一版 deployment；
+- 記錄 evidence、owner、timestamp 與最終決策。
+
+安全的 vLLM 升級不是「安裝最新版再 restart」。Release 可能改變 model support、memory、kernel、flag、API、output format、latency 與 throughput。只有 candidate 通過 versioned acceptance suite 後才能移 traffic，且 previous environment 必須可立即恢復。
+
+## 步驟 1：盤點變更
+
+| Surface | 必填識別 |
+| --- | --- |
+| vLLM | Exact version／commit |
+| Container | Immutable digest |
+| Driver／CUDA | Host 與 runtime version |
+| Model／tokenizer | Repository 與 revision |
+| Quantization | Format 與 implementation |
+| Launch config | 完整 command／config |
+| API contract | Route、request field、response schema |
+
+能分開時，一次只改一個 major surface。
+
+## 步驟 2：建立 Acceptance Suite
+
+包含 startup/readiness、API route、golden prompt、schema/quality、long context、streaming/cancel、目標 load trace、TTFT/TPOT/p95/error/peak VRAM，以及 shutdown/in-flight 行為。Generative output 通常不適合只做 exact string match，應用 task metric 與 bounded semantic check。
+
+## 步驟 3：保留 Immutable Rollback Point
+
+保留 previous container digest、model/tokenizer revision、launch config、environment variable 與相容 runtime。確認 artifact 仍可取得。若 gateway、cache、log 或 routing component 有 state，data migration 必須 reversible。
+
+## 步驟 4：在相同硬體測試
+
+Old/candidate 使用同一 GPU 版本與區域，equal warmup 後重播同一 trace。事前定義 startup、output、TTFT/TPOT、throughput、VRAM 與 error 的 PASS/FAIL 門檻。
+
+## 步驟 5：Canary Traffic
+
+先將小比例可觀測 production traffic 導向 candidate，比較相同 input class。只有 observation window 通過才逐步增加；critical error、output regression、OOM 或 latency 超標時自動停止。
+
+## 步驟 6：Drain 並完成 Rollout
+
+停止把新 request 送到 old replica，讓已接受工作完成或依 policy timeout，再移出 routing。不要在 API contract 不允許時靜默殺掉 in-flight request，並保留 rollback environment 到觀察期結束。
+
+## 步驟 7：Rollback
+
+停止 candidate traffic 增長、恢復 old version routing、依政策 drain/terminate candidate、確認 old readiness/output/latency/error、保存 candidate log，並建立 regression record。
+
+**證據門檻：** 發布 exact Glows.ai config、old/new version、acceptance aggregate、canary timeline、一次故意失敗 candidate、rollback step 與 recovery time。
+
+## 三種失敗演練
+
+### Candidate 無法啟動
+
+Traffic 保持在 old version，收集 dependency、model、driver 與 memory error。
+
+### Candidate 在負載下變慢
+
+即使 average 正常，p95 超門檻也應停止 canary。
+
+### Candidate 改變輸出
+
+Schema/task evaluation 應在大量 traffic 前發現問題，即使 infra metric 正常也要 rollback。
+
+## 建立升級相容性矩陣
+
+| Surface | Pre-production 檢查 |
+| --- | --- |
+| Model/tokenizer | Load exact revision，比較 tokenization 與 chat template |
+| API schema | Diff request default、response field、streaming、error |
+| Output behavior | 可行時跑 deterministic 與 task evaluation |
+| Performance | 比 TTFT、TPOT、p95、throughput、VRAM、startup |
+| Hardware path | 測所有 GPU architecture 與 parallel topology |
+| Container/runtime | Pin image digest、driver compatibility、CUDA、library |
+| Observability | 確認 metric name/label、log、alert、dashboard |
+| Operations | 演練 readiness、draining、restart、rollback |
+
+每列都指定 owner 與 pass/fail evidence。「Pod healthy」不能證明 output、latency 或 metric 相容。
+
+## 依預定訊號回滾
+
+Canary 前定義 stop condition：error rate、schema difference、quality regression、OOM、p95 breach、queue growth、異常 VRAM、crash loop 或 telemetry 遺失，並設定 window 與 minimum sample。
+
+Rollback 應恢復舊 immutable image/configuration，不是從 mutable dependency 重建「上一版」。演練要驗證 recovery time、drain、in-flight request 與 cache warmup。
+
+## Release 與操作資料來源
+
+以官方 [vLLM production quality 與 release process 說明](https://vllm.ai/blog/2026-07-16-keeping-vllm-production-quality)及固定版本 release note 作為變更輸入。[OpenAI-compatible server 文件](https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html)定義 serving surface，但應用程式 output contract、load distribution 與 rollback threshold 必須在本地測試。
+
+## 常見問題
+
+### vLLM 升級可以零停機嗎？
+
+Old/new 能同時運行且 traffic 可漸進轉移時可以，但需要暫時額外容量。
+
+### 可以用 `latest` container tag 嗎？
+
+受控 release 不應使用；要固定 immutable digest。
+
+### 可以不重啟更新 model weight 嗎？
+
+依 vLLM version 與架構而異，請查 [vLLM online serving 文件](https://docs.vllm.ai/en/stable/serving/online_serving/)並實測。
+
+### Rollback window 要保留多久？
+
+需涵蓋代表性 traffic 與延遲失敗，依服務風險決定。
+
+## 延伸閱讀
+
+- [vLLM CUDA OOM 修正](https://glows.ai/article/vllm_cuda_out_of_memory_zh_tw)
+- [雲端 GPU 租用如何運作](https://glows.ai/article/how_cloud_gpu_rental_works_zh_tw)
+- [Llama 3.3 70B 併發容量](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_zh_tw)
+- [不買本機 GPU 執行 DeepSeek](https://glows.ai/article/run_deepseek_without_a_gpu_zh_tw)
+
+## 下一步
+
+在非 production [Glows.ai instance](https://glows.ai/)複製 production config，執行 acceptance suite 並計時 rollback，再安排升級。

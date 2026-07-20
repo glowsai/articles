@@ -1,0 +1,143 @@
+---
+id: vllm_cuda_out_of_memory_ja
+title: 'vLLM CUDA Out of Memory：原因別7つのGPU OOM対策'
+date: '2026-07-29 10:00'
+lastUpdated: '2026-07-29'
+description: 'model weight、KV cache、context、concurrency、CUDA graph、batch制限を確認する原因別7項目でvLLM CUDA OOMを修正します。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **ドラフト状態：** 公開前に指定vLLM releaseとGPU構成でcommandとfailure signatureを再検証してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# vLLM CUDA Out of Memory：原因別7つのGPU OOM対策
+
+> **早く直すには：** OOMがmodel load、KV-cache allocation、warmup、長いrequest、concurrent trafficのどこで発生したか特定し、本当に大きすぎるresourceを変更します。無作為なmemory flagはcontextやcapacityを黙って下げるだけの場合があります。
+
+このトラブルシューティングでは次を確認します。
+
+- Memory failureが発生する正確な段階。
+- GPU、model、CUDA、PyTorch、vLLMのversion。
+- 原因別7つの修正を試す安全な順序。
+- 最長prompt、output、target concurrencyの再試験。
+- 失敗・修正後のcommandとlogの保存。
+
+vLLMのCUDA out-of-memoryは、現在のGPU memory需要がcapacityを超えた状態です。weight load、KV cache、warmup、requestのどこで失敗したかにより修正が変わります。flagを無作為に変えると、起動してもcontext、concurrency、performanceを失います。
+
+error、command、model revision、vLLM version、GPU、memory readingを保存します。
+
+## ステップ1：失敗段階を特定する
+
+| 段階 | 主因 | 最初の確認 |
+| --- | --- | --- |
+| Model load | weight／quantizationが入らない | size、dtype、GPU数 |
+| KV-cache init | context／concurrencyが大きい | `max_model_len`、cache |
+| Warmup／graph | workspace余裕不足 | utilization、eager |
+| 長いrequest | 実contextが超過 | input/output token |
+| Concurrent load | active sequence過多 | queue、batch、concurrency |
+
+[NVIDIA NIM memory troubleshooting](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html)と[vLLM公式](https://docs.vllm.ai/)でversion-specific behaviorを確認します。
+
+## ステップ2：Environmentを記録する
+
+```shell
+nvidia-smi
+python -c "import torch; print(torch.__version__, torch.version.cuda)"
+python -c "import vllm; print(vllm.__version__)"
+```
+
+full launch command、model revision、他processのGPU使用も確認します。
+
+## 修正1：入るModel／Quantizationを使う
+
+weight loadで失敗するならsupported quantizationか小さいmodelへ変更します。4-bit形式でquality/runtime supportは同じではありません。変更後にevaluationし、必要なら大容量GPUまたはtensor parallelを使います。
+
+## 修正2：最大Contextを下げる
+
+```shell
+vllm serve <model-id> --max-model-len <tested-length>
+```
+
+applicationが必要な長さに設定し、prompt＋outputがlimit内か確認します。
+
+## 修正3：Active Sequence／Batched Tokenを減らす
+
+upstream queueを使い、current vLLM settingでactive workloadを制限します。capacityとmemoryのtrade-offなのでthroughput/p95を再測定します。
+
+## 修正4：Runtime Headroomを増やす
+
+```shell
+vllm serve <model-id> --gpu-memory-utilization 0.85
+```
+
+0.85は例です。低くすると余裕が増える一方、KV-cache capacityが減る場合があります。
+
+## 修正5：Graph CaptureをEagerで診断する
+
+CUDA graph capture／warmupで失敗する場合、公式documentのeager optionで原因を切り分けます。performanceが変わるため実測します。
+
+## 修正6：Batch、Input、Output Limitを下げる
+
+offlineはbatchを下げ、onlineはinput/outputを制限し、GPU failure前にqueue/rejectします。
+
+## 修正7：大容量またはMulti-GPUへ移す
+
+必要model/context/concurrencyが入らなければmemoryを増やします。Tensor parallelはcommunicationとoperationsを増やし、2 GPU＝2倍ではありません。
+
+## 修正を検証する
+
+cold startup、longest prompt、max output、target concurrency、長時間memory安定、quantization後qualityを通します。
+
+**証拠ゲート：** 24/48/80 GBで再現可能なfailure/fix command、peak VRAM、context/concurrency、throughput差、匿名化logを公開します。
+
+## OOMの判断フロー
+
+1. **別processがmemoryを使用：**意図しないprocessを停止し、別serviceのleakに合わせてvLLMを調整しない。
+2. **Weight loadで失敗：**model size、dtype、quantization support、tensor-parallel layoutを確認し、小型formatまたは追加memoryを使う。
+3. **KV cache allocationで失敗：**必要なmaximum context/active sequence capacityを下げ、boundary testを再実行する。
+4. **CUDA graph captureで失敗：**現在のeager optionで再現し、性能差を測る。
+5. **長requestで失敗：**tested contractに合うinput/output limitを強制する。
+6. **Concurrent loadで失敗：**admission queueとactive sequence/batched-token limitを調整する。
+7. **時間とともに増加：**snapshot、request mix、releaseを保存し、leakとして調査する。
+
+## 問題を隠すだけの「修正」
+
+Restartはoversized configを直さず、context削減はAPI promiseを壊し、CPU offloadはlatencyを悪化させ、quantizationはqualityを変えます。追加GPUはcommunication costを生み、`gpu-memory-utilization`上昇はheadroomを削ります。
+
+変更後は最長prompt、最大output、target concurrency、sustained runを再試験します。
+
+## Troubleshooting情報源
+
+Pinしたreleaseの[公式vLLM troubleshootingドキュメント](https://docs.vllm.ai/en/stable/usage/troubleshooting.html)とNVIDIAの[NIM memory troubleshooting guide](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html)から確認します。GitHub issueやforumはfailure signatureの照合に役立ちますが、万能な修正ではありません。errorを再現し、一度に一変数だけ変更し、失敗・修正後のlogを保存します。
+
+## よくある質問
+
+### Modelが入るのにOOMになる理由は？
+
+weight以外にKV cache、workspace、graph、active sequenceがmemoryを使います。
+
+### CUDA cacheをclearすれば直りますか？
+
+stale processには有効でも、working setがGPUより大きい構成は直りません。
+
+### `gpu_memory_utilization`を下げれば必ず直りますか？
+
+いいえ。headroomと引き換えにconcurrencyが下がる場合があります。
+
+### CPU offloadは無料の修正ですか？
+
+いいえ。transferとlatencyが増える場合があります。
+
+## 関連ガイド
+
+- [Ollama timeout修正](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_ja)
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [VRAMとは](https://glows.ai/article/what_is_vram_ai_models_ja)
+- [クラウドGPUレンタルの流れ](https://glows.ai/article/how_cloud_gpu_rental_works_ja)
+
+## 次のステップ
+
+非production [Glows.ai instance](https://glows.ai/)で再現し、一度に一変数だけ変更してfailure/fixed recordを残します。

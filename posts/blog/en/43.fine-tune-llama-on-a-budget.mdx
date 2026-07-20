@@ -1,0 +1,167 @@
+---
+id: fine_tune_llama_on_a_budget_en
+title: 'Fine-Tune Llama on a Budget: The QLoRA Cost Playbook'
+date: '2026-07-31 10:00'
+lastUpdated: '2026-07-31'
+description: 'Fine-tune Llama for less with QLoRA, clean licensed data, measured VRAM, early checkpoints, evaluation gates, and complete GPU cost tracking.'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **Draft status:** This runbook must be executed end to end with a verified Llama release, dataset license, evaluation results, and redacted bill before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Fine-Tune Llama on a Budget: The QLoRA Cost Playbook
+
+> **Budget strategy:** Prove the task with a small, clean dataset and short QLoRA run before scaling. Pick the cheapest GPU that fits the measured peak, checkpoint early, stop losing runs quickly, and judge success by evaluation gain per dollar—not training loss alone.
+
+This playbook covers:
+
+- dataset quality, licensing, and an untouched evaluation split;
+- QLoRA memory planning and GPU selection;
+- smoke tests, pilots, budgets, and stop conditions;
+- checkpoints, restart recovery, and artifact retention;
+- quality evaluation and cost per accepted improvement.
+
+The cheapest useful Llama fine-tune is not the run with the lowest GPU bill. It is the smallest reproducible experiment that improves the target task, preserves a recoverable adapter, and survives evaluation. QLoRA can reduce memory by training adapters over a quantized base model, but data quality and evaluation still decide whether the result has value.
+
+This guide plans the workflow without inventing a universal “$5 fine-tune” promise.
+
+## Step 1: Define a Narrow Task and Baseline
+
+Write a one-sentence task definition, such as “extract these six fields from invoices in our accepted JSON schema.” Build a held-out evaluation set before training and run the base model on it.
+
+Record accuracy, schema validity, refusal behavior, latency, and representative failures. If there is no baseline, improvement cannot be measured.
+
+## Step 2: Confirm Model and Data Rights
+
+Use the official Llama license and model card for the selected release. Record the exact model revision. Confirm that the dataset may be used for training and that personal, confidential, or regulated information is handled under the organization’s policy.
+
+Create a dataset manifest with source, license, record count, train/validation/test split, cleaning steps, and known limitations.
+
+## Step 3: Choose the Training Method
+
+Full fine-tuning updates all parameters and usually needs much more memory. LoRA trains low-rank adapters. QLoRA keeps the base model quantized while training adapters, reducing weight memory further.
+
+For a first budget experiment, QLoRA is often the practical starting point when the chosen tooling supports the model. [Unsloth’s documentation](https://unsloth.ai/docs/get-started/fine-tuning-llms-guide) and [Hugging Face TRL](https://huggingface.co/blog/unsloth-trl) provide current workflow references. Pin library versions rather than copying an old notebook blindly.
+
+## Step 4: Estimate VRAM and Select a GPU
+
+Training memory includes quantized weights, adapters, activations, optimizer state, and workspace. Sequence length and micro-batch size can dominate the peak.
+
+Start with:
+
+- short representative sequences;
+- micro-batch size of one;
+- gradient accumulation for effective batch size;
+- gradient checkpointing where supported;
+- a GPU with safety headroom.
+
+Glows.ai listed RTX 4090, RTX 5090, L40S, A100, RTX PRO 6000, H100, H200, and B200 tiers on July 20, 2026. Select by measured memory and completion cost, not status.
+
+## Step 5: Run a Smoke Test
+
+Before a full epoch, run a small subset and verify:
+
+1. loss decreases without numerical failure;
+2. checkpoints are written to persistent storage;
+3. the adapter reloads in a clean process;
+4. evaluation code runs;
+5. expected outputs keep their schema;
+6. peak VRAM and tokens per second are recorded.
+
+This short test is where most configuration mistakes should be found.
+
+## Step 6: Train With an Artifact Trail
+
+Save:
+
+- dataset manifest and hashes;
+- configuration file;
+- environment lock or container digest;
+- console log and metrics;
+- GPU model, region, and runtime;
+- checkpoints and final adapter;
+- evaluation results;
+- redacted usage record.
+
+Checkpoint frequency should reflect failure cost. A checkpoint that has never been restored is not yet a recovery plan.
+
+## Step 7: Evaluate Quality, Not Only Loss
+
+Compare base and tuned models on the held-out set. Report task metrics plus concrete failure examples. Check regression on general instructions and safety-relevant cases where appropriate.
+
+Reject the run if it saves money but degrades the product requirement. Training loss alone is not evidence that the model improved.
+
+## Step 8: Calculate Complete Cost
+
+`total fine-tune cost = GPU runtime + storage + failed runs + evaluation inference + operational time`
+
+Report successful and failed run time. Include dataset preparation if comparing the project with an API fine-tuning service.
+
+**Evidence gate:** Publish the complete run record, observed peak VRAM, training duration, baseline-versus-adapter evaluation, checkpoint restore, deployment smoke test, and redacted Glows.ai bill. Until then, avoid a fixed-price claim.
+
+## Build the Budget Before Starting Training
+
+Separate discovery from the final run:
+
+| Phase | Purpose | Budget control |
+| --- | --- | --- |
+| Data audit | Remove duplicates, leaks, malformed examples, and unlicensed data | Use CPU/local tools where possible |
+| Smoke test | Prove formatting, loss, checkpoint, and evaluation paths | Tiny sample and few steps |
+| Pilot | Compare hyperparameters and data variants | Fixed small budget per candidate |
+| Final run | Train the selected configuration | Checkpoint and evaluate on schedule |
+| Reproduction | Confirm the result from saved artifacts | Reserve time before declaring success |
+
+Estimate GPU compute as `hourly rate × expected hours`, then add failed pilots, evaluation inference, checkpoint storage, downloads, and reproduction. Include a contingency based on measured pilot variance rather than an arbitrary percentage.
+
+Data quality often has better return than extra epochs. A smaller, task-relevant, reviewed dataset can shorten training and make evaluation failures easier to diagnose. Keep the untouched test set outside the training transformation pipeline.
+
+## Define Stop Conditions That Save Money
+
+Stop a run when any predeclared condition occurs:
+
+- training or validation loss becomes non-finite;
+- task evaluation fails to improve after the allowed window;
+- output formatting or safety behavior regresses beyond the threshold;
+- throughput drops materially from the pilot without an explained change;
+- peak VRAM or step time threatens the budget;
+- checkpoint save or restore fails;
+- the data or license review discovers a blocking issue.
+
+An early stop is useful evidence, not wasted spend. Record the configuration and reason so the team does not pay to repeat the same failure.
+
+## Fine-Tuning Sources
+
+The original [QLoRA paper](https://arxiv.org/abs/2305.14314) is the primary source for quantized low-rank fine-tuning. Implementation behavior should be checked against the pinned training framework, such as the current [Hugging Face PEFT documentation](https://huggingface.co/docs/peft/) and the selected Llama model card and license. VRAM, runtime, and quality remain empirical properties of the exact dataset and configuration.
+
+## FAQ
+
+### Can I fine-tune Llama on one RTX 4090?
+
+Some smaller Llama configurations can be adapted with QLoRA on 24 GB, but model size, sequence length, batch settings, and library versions decide. Measure the exact run.
+
+### How much training data do I need?
+
+Quality and task coverage matter more than a universal record count. Start with a focused, reviewed dataset and a held-out evaluation set.
+
+### Is QLoRA the same as full fine-tuning?
+
+No. It trains adapters over a quantized base rather than updating every base-model parameter. It is cheaper but has different capabilities and trade-offs.
+
+### Can I delete the base model after training?
+
+The adapter normally requires a compatible base model at inference. Preserve the exact base revision and license information.
+
+## Related Guides
+
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [What is VRAM?](https://glows.ai/article/what_is_vram_ai_models_en)
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+- [AI data residency and region selection](https://glows.ai/article/taiwan_data_residency_ai_compute_en)
+
+## Next Step
+
+Create the baseline and a 50–100-example smoke-test dataset first. Then [launch a Glows.ai GPU](https://glows.ai/) that fits with headroom and prove checkpoint recovery before extending the run.

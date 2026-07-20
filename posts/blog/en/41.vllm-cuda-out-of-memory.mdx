@@ -1,0 +1,163 @@
+---
+id: vllm_cuda_out_of_memory_en
+title: 'vLLM CUDA Out of Memory: 7 Fixes That Target the Cause'
+date: '2026-07-29 10:00'
+lastUpdated: '2026-07-29'
+description: 'Fix vLLM CUDA out-of-memory errors with 7 cause-specific checks for model weights, KV cache, context, concurrency, graphs, and batch limits.'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **Draft status:** Commands and failure signatures must be retested on the named vLLM release and GPU configurations before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# vLLM CUDA Out of Memory: 7 Fixes That Target the Cause
+
+> **Fix it faster:** Identify whether OOM occurs during model load, KV-cache allocation, warmup, a long request, or concurrent traffic. Then change the resource that is actually too large; random memory flags can hide the failure by silently reducing context or capacity.
+
+Use this troubleshooting guide to:
+
+- locate the exact stage where memory fails;
+- capture the GPU, model, CUDA, PyTorch, and vLLM versions;
+- apply seven cause-specific fixes in a controlled order;
+- retest the longest prompt, output, and target concurrency;
+- preserve the failing and corrected commands and logs.
+
+A vLLM CUDA out-of-memory error means the active GPU memory demand exceeded available capacity. The fastest fix depends on when it failed: while loading weights, allocating KV cache, warming the engine, or processing requests. Changing random flags can make the server start while silently reducing context, concurrency, or performance.
+
+Start by preserving the full error, command, model revision, vLLM version, GPU name, and memory reading. Then diagnose the failure stage.
+
+## Step 1: Identify the Failure Stage
+
+| Failure stage | Common cause | First check |
+| --- | --- | --- |
+| Model load | Weights or quantization do not fit | Model size, dtype, GPU count |
+| KV-cache initialization | Requested context/concurrency is too large | `max_model_len`, cache settings |
+| Warmup or graph capture | Workspace overhead exceeds headroom | Memory utilization and eager mode |
+| First long request | Real context exceeds tested context | Input tokens and output cap |
+| Concurrent load | Too many active sequences | Queue, batch tokens, concurrency |
+
+NVIDIA’s [NIM memory troubleshooting](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html) and the official [vLLM documentation](https://docs.vllm.ai/) are better references for version-specific behavior than copied command snippets.
+
+## Step 2: Capture the Environment
+
+```shell
+nvidia-smi
+python -c "import torch; print(torch.__version__, torch.version.cuda)"
+python -c "import vllm; print(vllm.__version__)"
+```
+
+Record the full launch command and model revision. If another process is using GPU memory, identify it before changing the model configuration.
+
+## Fix 1: Use a Model or Quantization That Fits
+
+If weights fail to load, reduce weight memory with a supported quantization or select a smaller model. Do not assume all 4-bit formats have identical quality or runtime support. Test the task evaluation set after changing precision.
+
+If the model genuinely requires more memory, use a larger-memory GPU or supported tensor-parallel configuration.
+
+## Fix 2: Lower Maximum Context Length
+
+The KV cache grows with sequence length. Set `--max-model-len` to the longest context the application actually needs, not the largest value on the model card.
+
+```shell
+vllm serve <model-id> --max-model-len <tested-length>
+```
+
+Validate that prompts plus requested output tokens remain below the configured limit.
+
+## Fix 3: Reduce Active Sequences or Batched Tokens
+
+High concurrency can exhaust KV cache even when one request works. Apply an upstream queue and reduce the engine’s active workload using version-appropriate vLLM settings. Measure the effect on throughput and p95 latency; the fix trades capacity for memory.
+
+## Fix 4: Leave More Runtime Headroom
+
+`--gpu-memory-utilization` controls how much visible memory vLLM targets for its allocations. A very aggressive value can leave too little room for runtime variation. Lower it carefully and retest.
+
+```shell
+vllm serve <model-id> --gpu-memory-utilization 0.85
+```
+
+The example is a starting point, not a universal safe value. The right setting depends on the model, engine release, graph behavior, and other GPU processes.
+
+## Fix 5: Test Eager Execution for Graph-Capture Failures
+
+If failure occurs during CUDA graph capture or warmup, vLLM’s eager-execution option can help diagnose whether graph memory is the trigger. It can change performance, so treat it as a measured trade-off and verify the current flag in official documentation.
+
+## Fix 6: Reduce Batch, Input, or Output Limits
+
+For offline jobs, reduce batch size. For online serving, cap input and output tokens and control request admission. A service should reject or queue work before the GPU reaches an unrecoverable state.
+
+## Fix 7: Move to a Larger or Multi-GPU Configuration
+
+When the required model, context, and concurrency cannot fit without unacceptable compromises, use more memory. Tensor parallelism adds communication and operational complexity; benchmark it rather than assuming two GPUs double capacity or speed.
+
+## Verify the Fix
+
+A fix is valid only if it passes:
+
+1. cold startup;
+2. longest expected prompt;
+3. maximum output request;
+4. target concurrent load;
+5. sustained run with no memory growth;
+6. quality evaluation after quantization changes.
+
+**Evidence gate:** Publish reproducible failing and corrected commands on 24, 48, and 80 GB configurations. Record peak VRAM, supported context/concurrency, throughput change, and raw scrubbed logs.
+
+## OOM Decision Tree
+
+Follow the first matching branch:
+
+1. **Another process owns memory:** identify and stop the unintended process; do not tune vLLM around a leak from another service.
+2. **Weights fail during load:** verify model size, dtype, quantization support, and tensor-parallel layout. Choose a smaller format or more memory.
+3. **KV-cache allocation fails:** lower the required maximum context or active sequence capacity, then rerun the boundary test.
+4. **CUDA graph capture fails:** reproduce with the current eager-execution option and compare performance before keeping the change.
+5. **One long request fails:** enforce input/output limits that match the tested service contract.
+6. **Concurrent load fails:** queue admissions and reduce active sequences or batched-token limits.
+7. **Memory grows over time:** capture repeated snapshots, request mix, and release version; treat it as a possible leak rather than a static sizing error.
+
+## “Fixes” That Can Hide the Problem
+
+- Restarting clears allocations but does not make an oversized configuration fit.
+- Lowering context can make startup succeed while breaking the promised API limit.
+- CPU offload can avoid OOM while making latency unusable.
+- Aggressive quantization can reduce memory while changing output quality.
+- Adding a second GPU can introduce communication cost or unsupported parallel layouts.
+- Raising `gpu-memory-utilization` can increase cache capacity while removing runtime headroom.
+
+After every change, repeat the longest prompt, maximum output, target concurrency, and sustained run. A startup-only success is not a fixed service.
+
+## Troubleshooting Sources
+
+Start with the pinned release’s [official vLLM troubleshooting documentation](https://docs.vllm.ai/en/stable/usage/troubleshooting.html) and NVIDIA’s [NIM memory troubleshooting guide](https://docs.nvidia.com/nim/large-language-models/latest/troubleshooting/memory.html). GitHub issues and forum posts can expose matching failure signatures, but they are not universal fixes. Reproduce the error, change one variable, and retain both failing and corrected logs.
+
+## FAQ
+
+### Why does vLLM run out of memory when the model fits?
+
+Weights are only part of the allocation. KV cache, runtime workspace, graph capture, and concurrent sequences also consume memory.
+
+### Should I clear the CUDA cache?
+
+Restarting can remove stale process allocations, but it does not solve a configuration whose working set is larger than the GPU.
+
+### Does lowering `gpu_memory_utilization` always help?
+
+No. It can leave more headroom but may reduce KV-cache capacity. Measure both stability and concurrency.
+
+### Is CPU offload a free fix?
+
+No. It can make a model fit while increasing data movement and latency. Benchmark the resulting workload.
+
+## Related Guides
+
+- [Ollama timeout fixes](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_en)
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [What is VRAM?](https://glows.ai/article/what_is_vram_ai_models_en)
+- [How cloud GPU rental works](https://glows.ai/article/how_cloud_gpu_rental_works_en)
+
+## Next Step
+
+Reproduce the failure on a non-production [Glows.ai instance](https://glows.ai/), change one variable at a time, and keep the failing and fixed run records together.

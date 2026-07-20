@@ -1,0 +1,134 @@
+---
+id: llama_3_3_70b_gpu_concurrency_sizing_ja
+title: 'Llama 3.3 70Bで100ユーザーに必要なGPU数は？'
+date: '2026-08-04 10:00'
+lastUpdated: '2026-08-04'
+description: 'request rate、context、KV cache、latency SLO、実測throughput、utilizationからLlama 3.3 70Bの100ユーザー向けGPU数を計算します。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **ドラフト状態：** 指定Glows.ai load test完了前にGPU数を断定しません。本稿はcapacity modelとevidence fieldを提供します。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# Llama 3.3 70Bで100ユーザーに必要なGPU数は？
+
+> **sizingの答え：** 「100 users」だけでは計算できません。利用行動をrequests/secondとsimultaneous sequencesへ変換し、prompt/output長とlatency SLOを定義して、実測したreplica capacityにutilizationとredundancyの余裕を加えて算出します。
+
+「100 concurrent users」だけではGPU数を決められません。10分に1回使う100人と、生成中requestが100件では異なります。200-token outputと2,000-token outputも違います。precision、context、arrival rate、output length、TTFT/TPOT、queue上限でcapacityを設計します。
+
+## Concurrencyを正確に定義する
+
+- Active users：時間内に利用し得る人数。
+- Arrival rate：1秒に入るrequest。
+- In-flight requests：待機／生成中request。
+
+`平均in-flight ≈ arrival rate × 平均system time`
+
+毎秒2 request、平均10秒なら平均in-flightは約20です。tail latencyには余裕が必要です。
+
+## ModelとKV-Cache Memoryを計算する
+
+`VRAM = 重み + KV cache + workspace + headroom`
+
+Llama 3.3 70B weightはprecision/quantizationで変わり、長contextと多in-flight sequenceがcacheを増やします。single request successは100-user testではありません。
+
+## Service-Level Targetを定義する
+
+| Metric | 設定値 |
+| --- | --- |
+| TTFT p95 | Product requirement |
+| TPOT p95 | Product requirement |
+| End-to-end p95 | Prompt/output class別 |
+| Error rate | 最大許容 |
+| Queue wait | 最大許容 |
+| Availability/recovery | Replica/restart policy |
+
+latencyを壊してthroughputを上げません。
+
+## Load-Test Method
+
+匿名化traceのinput/output percentileとarrival timingを保持します。Llama revision、tokenizer、quantization、context、vLLM/SGLang、container、GPU variant/region/interconnect、queue/batch、warmup、durationを固定し、1/10/50/100 in-flightとreal arrival traceを測ります。
+
+## 結果とGPU数
+
+**証拠ゲート：** Glows.ai measurementだけで表を埋め、single-stream tok/sから100 usersを推定しません。
+
+| 構成 | Concurrency/arrival | TTFT p95 | TPOT p95 | Error | Valid throughput | 月額仮定 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Candidate A | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 |
+| Candidate B | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 |
+| Candidate C | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 | 未測定 |
+
+最小数は全SLOをheadroom付きで通る構成です。productionはmaintenance/recovery replicaが追加される場合があります。
+
+## Replica vs Tensor Parallelism
+
+tensor parallelは1 modelを分割し、replicaは独立copyです。1 copyが入るならreplicaでscaleし、fit/performanceが要求するときtensor parallelを使います。
+
+## 3つのTraffic Profile
+
+### Interactive Chat
+
+TTFT/TPOTを優先し、burst capacityとoutput capを用意します。
+
+### Long-Context RAG
+
+prefill/KV cacheが制約になるためreal retrieved-contextを使います。
+
+### Batch Generation
+
+deadline/throughputを優先し、queueでutilizationを上げます。
+
+## Cost Model
+
+`月GPU cost = GPU数 × 時間単価 × active hours + storage + recovery reserve`
+
+scale-downはreal demand/startup、always-onは夜/weekend idleを含め、accepted request costも報告します。
+
+## 架空のスループットを使わない容量計算例
+
+100 registered usersのうちbusy minuteに10 active users、各userが30秒に1 requestなら、`10 ÷ 30 = 0.33 requests/second`です。これはtraffic assumptionでcapacity resultではありません。
+
+Real input/output distributionで1 replicaを測り、SLOを満たすaccepted capacityを`R` requests/secondとすると、`base replicas = ceiling(0.33 ÷ R)`です。70% operating targetなら`planned replicas = ceiling(base replicas ÷ 0.70)`。Replica/node failureに耐える必要があればredundancyを追加し、購入前に仮定をproduct analyticsへ置換します。
+
+## KV Cacheとバースト形状を含める
+
+同じRPSでもlong prompt/output、slow clientはsequenceを長くactiveにしKV-cache demandを増やします。Averageだけでなくp50/p95/max input/output tokensを公開します。
+
+Steady traffic、realistic burst、allowed worst-case requestでqueue depth、active sequences、KV-cache utilization、TTFT、TPOT、p95、error、dropped admissionを記録します。Model load/warmup後にburstへ間に合わないautoscaled replicaはburst capacityではありません。
+
+## Sizing情報源
+
+NVIDIAの[Llama 3.3 70B Dynamo recipe](https://docs.nvidia.com/dynamo/dev/recipes/llama-3-3-70b)は、topology、prompt/output length、concurrency、per-GPU normalizationを明示する必要性を示します。Pinしたreleaseのserving signalは[vLLM metricsドキュメント](https://docs.vllm.ai/en/latest/design/metrics.html)で確認します。本文の式には自社traffic distributionの実測capacityが必要です。
+
+## よくある質問
+
+### H100 1枚で100ユーザーを処理できますか？
+
+context、output、arrival、precision、latencyを知らずには答えられません。
+
+### 4-bitでGPU数は減りますか？
+
+weight memoryは減りますがquality、kernel、KV cache、throughputを検証します。
+
+### 100 usersは100 concurrent requestsですか？
+
+違います。account数ではなくarrival/in-flightを使います。
+
+### Safety marginはどれくらいですか？
+
+traffic variance、failure policy、deployment timeから決め、仮定を公開します。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [VRAMとは](https://glows.ai/article/what_is_vram_ai_models_ja)
+- [LLM実行コスト](https://glows.ai/article/cost_to_run_an_llm_ja)
+- [Nebius vs Glows.ai](https://glows.ai/article/nebius_vs_glows_ai_ja)
+
+## 次のステップ
+
+安全なsampleからtoken length/arrival timingを取り、[Glows.ai](https://glows.ai/)でreplayします。p95/recovery合格後にGPU数を決めます。

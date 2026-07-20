@@ -1,0 +1,150 @@
+---
+id: what_is_gpu_rental_zh_tw
+title: '什麼是 GPU 租用？付費前必查的 7 件事'
+date: '2026-07-22 10:00'
+lastUpdated: '2026-07-22'
+description: '了解 GPU 租用如何運作、要花多少錢、何時比購買划算，以及避免意外帳單與檔案遺失的 7 項付費前檢查。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 發布前需依目前 Glows.ai console 驗證產品行為與畫面。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 什麼是 GPU 租用？付費前必查的 7 件事
+
+> **簡短答案：** GPU 租用是按使用量付費，暫時取得遠端 GPU 環境。付款前應確認 GPU 型號與 VRAM、儲存生命週期、計費方式、區域、連線方法、容量政策，以及哪個操作才會真正停止計費。
+
+GPU 租用是暫時使用遠端 NVIDIA GPU 與完整運算環境。你不必購買顯卡、組工作站並承擔閒置硬體，而是選擇 GPU、執行工作，再依使用時間與儲存付費。
+
+它不只是「借一張顯卡」。你啟動的是包含 GPU、CPU、RAM、磁碟、網路、軟體 image、區域與計費規則的遠端環境。
+
+## 雲端 GPU 租用包含什麼
+
+| 元件 | 為什麼重要 |
+| --- | --- |
+| GPU 型號與 VRAM | 決定模型和 KV cache 是否放得下 |
+| GPU 版本與數量 | 影響效能與多 GPU 行為 |
+| CPU／RAM | 影響前處理、下載與資料管線 |
+| Runtime storage | 放目前執行環境 |
+| 持久儲存 | 跨 session 保存模型、資料與輸出 |
+| 區域 | 影響延遲、資料路徑與庫存 |
+| 軟體 image | 決定 driver、CUDA、框架與設定時間 |
+| 計費器 | 決定運算費何時開始與停止 |
+
+Glows.ai 提供訓練與推論用的隨用隨付 GPU，並公開 Snapshot、Datadrive、Team 與每秒計費等功能。實際使用前要確認所選配置包含哪些項目。
+
+## GPU 租用如何運作
+
+一般流程是：建立帳號與付款方式、選區域／GPU／image／儲存、啟動 instance、連線、下載模型與資料、執行並監控、保存輸出，最後依資料生命週期停止或刪除運算。
+
+最容易出錯的是最後兩步。停止 GPU 不一定刪除持久儲存；刪除 instance 也可能移除 runtime 檔案。重要資料不能只留一份。
+
+## GPU 租用多少錢
+
+`運算成本 = GPU 時薪 × 啟用時間`
+
+Glows.ai 在 2026 年 7 月 20 日標示 RTX 4090 為 $0.49/hr。若確實每秒計費，30 分鐘純運算約 $0.25；但儲存、傳輸、稅、最低餘額與其他條款都可能改變總額。
+
+更好的單位是每個完成成果：每百萬 token、一次成功微調、每 1,000 張影像、每份文件，或每個可用 checkpoint 的成本。
+
+## 什麼情況租比買合理
+
+- 工作偶爾發生或流量突發；
+- 只為一個專案需要昂貴 GPU；
+- 特定模型需要更多 VRAM；
+- 購買前要比較多種 GPU；
+- 團隊立即需要容量；
+- 硬體大部分時間會閒置。
+
+若利用率長期穩定、工作必須在地端、團隊能維運硬體，購買可能合理。計算時要加入電力、散熱、空間、維修、停機與折舊。
+
+## 常見 GPU 租用情境
+
+### LLM 推論
+
+用 vLLM、SGLang、Ollama 等引擎執行開放權重模型。VRAM 需容納權重、runtime overhead 與 context／併發所需 KV cache。
+
+### 微調與訓練
+
+記憶體需涵蓋權重、activation、gradient、optimizer state 與 batch。先建立 checkpoint，並實際測試能否恢復。
+
+### 影像與影片生成
+
+在不購買工作站 GPU 的情況下執行 ComfyUI、Stable Diffusion、Flux 或開放影片模型。workflow、模型與輸出應存到非暫時性位置。
+
+### 資料處理與評估
+
+用 GPU 做 embedding、OCR、reranking、模型評估或夜間 batch，queue 清空後就停止。
+
+## 租用前要問的問題
+
+- 這是 benchmark 使用的同一個 GPU 版本嗎？
+- stop、restart、delete 後哪些資料會留下？
+- 哪些 port 對外開放，如何驗證身分？
+- 是否需要特定區域或資料路徑？
+- 容量不可用時怎麼處理？
+- 環境能否由固定 image 或 container 重建？
+- 如何確認計費已停止？
+
+## GPU 租用、Serverless、模型 API 與自購硬體怎麼選
+
+「租 GPU」可能代表不同採購模式。先選 operating model，再比價格：
+
+| 選項 | 你控制什麼 | 你付什麼 | 適合起步的情境 |
+| --- | --- | --- | --- |
+| GPU instance | OS/container、engine、model、data path | Active compute 與 storage | 客製環境與長任務 |
+| Serverless GPU | Handler、image、scaling policy | Invocation、execution 或 provisioned capacity | 可接受 cold start 的 burst endpoint |
+| Managed model API | Request 與應用邏輯 | Input/output token 或 call | 不先維運基礎設施的產品驗證 |
+| 自有 GPU | 整台機器與 lifecycle | 採購、電力、散熱、維護 | 穩定高利用率或 on-premises 限制 |
+
+API 每 token 看似較貴，卻能避開 idle GPU 與維運。當 workload 可預期、團隊能維持利用率時，rented instance 可能勝出。購買 raw compute 長期可能便宜，但仍有 lead time、備援與工程成本。
+
+## 用七項檢查判斷是否值得租用
+
+長任務前先用短租用證明：
+
+1. **Fit：**指定 model 與 peak workload 有安全餘裕。
+2. **Persistence：**測試檔案能通過預定 stop/restart lifecycle。
+3. **Meter：**預估與實際 compute seconds 能對帳。
+4. **Region：**user、dataset 與外部 service 都走核准路徑。
+5. **Access：**個別 credential 可用，非必要 port 未開放。
+6. **Recovery：**checkpoint 能在新 instance 恢復。
+7. **Shutdown：**團隊能找出所有仍在計費的 resource。
+
+這個低成本試驗才是真正的購買決策。任一項失敗，都應先修正流程或更換服務模式，再上傳重要資料或啟動長任務。
+
+## 定義與產品資料來源
+
+流程依據目前的 [Glows.ai instance 建立文件](https://docs.glows.ai/docs/create-new)，並參考 [DigitalOcean 的 cloud GPU 說明](https://www.digitalocean.com/resources/articles/cloud-gpu)所描述的標準生命週期。硬體、儲存、區域與計費規則可能變動，所有產品細節都應在 live console 再確認。
+
+## 常見問題
+
+### 我需要安裝實體 GPU 嗎？
+
+不需要。GPU 位於遠端資料中心，你透過網路連入環境。
+
+### 可以只租幾分鐘嗎？
+
+要看供應商的最低計費與粒度。Glows.ai 標示每秒計費，仍應用短測試確認計費狀態。
+
+### 租用 GPU 的儲存是永久的嗎？
+
+不一定。重要資料要放到文件所描述的持久儲存、snapshot 或外部備份。
+
+### 敏感資料放在雲端 GPU 安全嗎？
+
+可能，但需審查權限、加密、log、backup、刪除、subprocessor 與完整資料路徑。
+
+## 延伸閱讀
+
+- [台灣雲端 GPU 租用指南](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_zh_tw)
+- [2026 租 GPU 還是買 GPU](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_zh_tw)
+- [$0.49/hr GPU 能做什麼](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_zh_tw)
+- [AI 資料落地與區域選擇](https://glows.ai/article/taiwan_data_residency_ai_compute_zh_tw)
+
+## 下一步
+
+先選一個一小時內能完成的非敏感工作，依[建立 instance 指南](https://docs.glows.ai/docs/create-new)啟動，記錄開始／停止時間、保存一份輸出，並確認運算停止後保留了哪些資料。

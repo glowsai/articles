@@ -1,0 +1,148 @@
+---
+id: gpu_cost_allocation_ai_teams_ja
+title: 'GPUコスト配賦：正体不明のAI支出をなくす方法'
+date: '2026-08-09 10:00'
+lastUpdated: '2026-08-09'
+description: '必須tag、unit economics、shared-service rule、showback、budget、chargebackで正体不明のGPU支出をteam別コストへ変えます。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **ドラフト状態：** 公開前にGlows.ai billing fieldを確認し、実exportへreconcileする匿名reportでsampleを置換します。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# GPUコスト配賦：正体不明のAI支出をなくす方法
+
+> **解決策：** GPU使用前にowner、team、project、environment、workload metadataを付け、computeとstorage costを最小の信頼可能単位でexportします。shared serviceは明示ruleで配賦し、showbackから始め、coverageとreconciliationが信頼できてからchargebackします。
+
+GPU cost allocationは、どのteam、product、experiment、customer outcomeが費用を使ったかを答えます。provider billはresourceを示しますが、engineering/financeはowner/workloadへのstable mappingが必要です。
+
+allocated totalがbillへ一致し、unresolved dollarが見えるときだけ信頼できます。
+
+## Showback vs Chargeback
+
+Showbackは利用額を報告するだけ、chargebackは内部budget/cost centerへ付け替えます。tag/ownershipが未成熟ならshowbackから始め、不完全データでteamへ請求しません。
+
+## 必須Allocation Schema
+
+| Field | 用途 |
+| --- | --- |
+| Owner | Resource責任者 |
+| Team | 組織rollup |
+| Project/product | Business purpose |
+| Environment | Dev/staging/production |
+| Workload | Training/endpoint/notebook/batch |
+| Model | Family/revision |
+| Cost center | Finance mapping |
+| Expiration | Review/shutdown date |
+
+free textでなくstable IDを使い、resource作成時にownerを記録します。
+
+## Compute、Storage、Usageを集める
+
+GPU model/count/region/start/stop/rate、resource ID、persistent storage size/lifetime、project/owner tag、request/token/job ID、successful output、shared overheadを集めます。
+
+Glows.aiはper-second billing、runtime storage、Snapshot、Datadrive、Team controlを案内しています。console/API/exportの実fieldを確認します。
+
+## Dedicated Workloadを配賦する
+
+`allocated cost = compute runtime + persistent storage + direct service`
+
+billed usageとstart/stopをreconcileします。idle notebookもpolicyでcentral poolにしない限りowner projectへ付けます。
+
+## Shared Inferenceを配賦する
+
+request、input/output token、GPU processing time、reserved capacity、weighted combinationを使えます。
+
+`team share = team weighted usage ÷ total weighted usage × shared service cost`
+
+tokenは簡単ですがprefill/decode costが異なります。formulaを公開してperiod内で固定し、idle reserveも明示します。
+
+## BudgetとAnomaly Control
+
+team別weekly/monthly forecast、spend/workload deviation alert、owner/expirationなしGPU、active projectなしstorage、price/GPU changeを検知します。hard limitでunsafe shutdownを起こさないようにします。
+
+## Monthly Reconciliation
+
+`provider bill = allocated team cost + shared platform cost + unresolved variance`
+
+| Section | 値 |
+| --- | --- |
+| Provider total | Bill source of truth |
+| Direct allocation | Dedicated compute/storage |
+| Shared allocation | Formula/team share |
+| Platform overhead | Central cost |
+| Unallocated | Missing owner/tag |
+| Variance | Sourceとの差 |
+
+**証拠ゲート：** source totalへ一致する匿名Glows.ai sample、schema、formula、period、limitation、change logを公開します。
+
+## よくある失敗
+
+1. spend後にtagを追加する。
+2. stable IDなしでteam名を変える。
+3. shared endpointをrequest数だけで配賦する。
+4. idle reserve／persistent storageを無視する。
+5. unreconciled dashboardをfinance truthにする。
+
+## 必須のGPUタグ項目
+
+| Field | Example | Owner |
+| --- | --- | --- |
+| `team` | `search-platform` | Engineering management |
+| `project` | `support-rag` | Product/engineering |
+| `environment` | `dev`、`staging`、`prod` | Platform |
+| `workload` | `training`、`inference`、`evaluation` | Workload owner |
+| `owner` | 個人だけでなくteam alias | Team lead |
+| `cost_center` | Finance-approved code | Finance |
+| `model` | Repository/revision family | ML owner |
+| `expiry` | Review/automatic-stop date | Requester |
+
+Tagは過去に戻って復元しにくいためusage前に付け、可能ならuntagged resourceをreject/quarantineします。Coverageはresource数でなくdollarsで測ります。
+
+## 共有GPUサービスを透明に配賦する
+
+Direct resourceはtagで、shared serviceはaccepted tokens、GPU seconds、token量でweighted request、reserved capacity、fixed splitなど宣言driverで配賦します。
+
+`team share = shared monthly cost × team measured usage ÷ total measured usage`
+
+Ruleをversion管理し、unallocated cost、credit、failed job、idle capacity、support、storageの扱いを公開します。
+
+## 月次締めチェックリスト
+
+Provider invoiceとusage exportをreconcileし、currency/tax/creditを確認、untagged/shared spendとanomalyをownerとreview、showbackを公開し、dispute/adjustmentを記録してperiodをlockします。安定したcloseを複数回確認してからchargebackへ進みます。
+
+## FinOps情報源
+
+[FinOps Framework allocation capability](https://www.finops.org/framework/capabilities/allocation/)はaccount、tag、label、hierarchy、shared-cost ruleでallocationを定義します。Foundationの[FinOps for AI overview](https://www.finops.org/wg/finops-for-ai-overview/)はGPUとmodel usageへ拡張します。本文はGPU computeとstorageに適用したもので、最終allocation policyはfinanceの承認が必要です。
+
+## よくある質問
+
+### Small teamにChargebackは必要ですか？
+
+通常はshowbackとownershipから始め、budget境界が必要になってからchargebackします。
+
+### Idle GPU timeはどう配賦しますか？
+
+capacityをreserveしたworkload、shared reliability pool、documented formulaのいずれかへ明示します。
+
+### Tokenは公平な単位ですか？
+
+便利ですが不完全です。prefill/decode差をmeasured GPU usageと照合します。
+
+### Untagged spendのownerは？
+
+一時的にplatform/financeが追跡し、reportで公開して修正します。
+
+## 関連ガイド
+
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+- [GPU秒単位課金](https://glows.ai/article/per_second_gpu_billing_ja)
+- [安いGPUクラウドが高くなる理由](https://glows.ai/article/cheap_gpu_cloud_real_cost_ja)
+- [LLM実行コスト](https://glows.ai/article/cost_to_run_an_llm_ja)
+
+## 次のステップ
+
+非production [Glows.ai workload](https://glows.ai/)へowner、team、project、environment、expirationを付け、1週間のcompute/storageをreconcileしてから拡張します。

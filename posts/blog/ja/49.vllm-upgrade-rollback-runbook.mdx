@@ -1,0 +1,136 @@
+---
+id: vllm_upgrade_rollback_runbook_ja
+title: 'vLLMを安全に更新：Production Rollback Runbook'
+date: '2026-08-06 10:00'
+lastUpdated: '2026-08-06'
+description: 'artifact pin、output/load test、canary traffic、自動停止条件、rehearsed rollbackでproduction vLLMを安全に更新します。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **ドラフト状態：** 公開前にGlows.ai上のold/new vLLM pairで検証し、failed candidateとtimed rollbackを含めます。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# vLLMを安全に更新：Production Rollback Runbook
+
+> **安全な手順：** 全artifactをpinし、現行baselineを再現し、offlineでoutputとloadをtestし、小さなcanary trafficを流します。宣言済みthresholdで自動停止し、rollbackが証明されるまで旧deploymentを維持します。
+
+このproduction runbookでは次を扱います。
+
+- 全release surfaceのinventoryとpin。
+- Output、latency、throughput、memory、telemetryのoffline比較。
+- Canary scopeとautomatic stop conditionの定義。
+- Traffic drainとimmutableな旧deploymentの復元。
+- Evidence、owner、timestamp、final decisionの記録。
+
+安全なvLLM upgradeはlatestをinstallしてrestartするだけではありません。releaseはmodel support、memory、kernel、flag、API、output、latency、throughputを変えます。candidateがversioned acceptance suiteを通るまでtrafficを移さず、previous environmentを即時復旧可能にします。
+
+## ステップ1：Change Inventoryを作る
+
+| Surface | Identifier |
+| --- | --- |
+| vLLM | Exact version／commit |
+| Container | Immutable digest |
+| Driver／CUDA | Host/runtime version |
+| Model/tokenizer | Repository/revision |
+| Quantization | Format/implementation |
+| Launch config | Full command/config |
+| API contract | Route/request/response |
+
+可能なら一度に一つのmajor surfaceだけ変更します。
+
+## ステップ2：Acceptance Suiteを作る
+
+startup/readiness、API route、golden prompt、schema/quality、long context、stream/cancel、target load、TTFT/TPOT/p95/error/VRAM、shutdown/in-flightを含めます。generative outputはexact textだけでなくtask metricとschemaで検証します。
+
+## ステップ3：Immutable Rollback Pointを保つ
+
+old container digest、model/tokenizer、launch config、environment variable、compatible runtimeを保持し、artifact availabilityを確認します。gateway/cache/log/routingにstateがあればmigrationをreversibleにします。
+
+## ステップ4：同一HardwareでTestする
+
+old/candidateを同じGPU variant/regionで動かし、同じwarmup/traceをrepeatします。startup、output、TTFT/TPOT、throughput、VRAM、errorのPASS/FAILを事前定義します。
+
+## ステップ5：Canary Trafficを流す
+
+small observable trafficをcandidateへ送り、controlと同じinput classで比較します。observation window通過後だけ段階的に増やし、critical error、output regression、OOM、latency超過で停止します。
+
+## ステップ6：DrainしてRolloutを完了する
+
+old replicaへの新requestを止め、accepted workを完了／timeoutしてからroutingから外します。契約なしにin-flightをsilent killせず、rollback environmentを観察期間保持します。
+
+## ステップ7：Rollbackする
+
+candidate traffic増加を停止し、old routingを復元し、candidateをpolicy通りdrain/terminateします。old readiness/output/latency/errorを確認し、candidate evidenceを保存してregression recordを作ります。
+
+**証拠ゲート：** exact Glows.ai config、old/new version、acceptance aggregate、canary timeline、intentionally failed candidate、rollback step、recovery timeを公開します。
+
+## 3つのFailure Drill
+
+### Candidateが起動しない
+
+trafficはoldに残し、dependency/model/driver/memory errorを収集します。
+
+### Load下で遅くなる
+
+averageが正常でもp95がthresholdを超えたらcanaryを止めます。
+
+### Output behaviorが変わる
+
+schema/task evaluationで広いtraffic前に検知し、infra metricが正常でもrollbackします。
+
+## アップグレード互換性表
+
+| Surface | Pre-production check |
+| --- | --- |
+| Model/tokenizer | Exact revision load、tokenization/chat template比較 |
+| API schema | Request default、response field、streaming、errorをdiff |
+| Output | Deterministic/task evaluation |
+| Performance | TTFT、TPOT、p95、throughput、VRAM、startup |
+| Hardware path | 全GPU architecture/parallel topology |
+| Container/runtime | Image digest、driver、CUDA、libraryをpin |
+| Observability | Metric、label、log、alert、dashboard |
+| Operations | Readiness、draining、restart、rollback |
+
+各rowにownerとpass/fail evidenceを付けます。Pod healthだけではoutput、latency、metric互換性を証明しません。
+
+## 宣言済みの指標でロールバックする
+
+Canary前にerror rate、schema difference、quality regression、OOM、p95 breach、queue growth、unexpected VRAM、crash loop、missing telemetryのstop conditionとwindow/sampleを定義します。
+
+Rollbackはmutable dependencyから再buildせず、旧immutable image/configへ戻します。Recovery time、drain、in-flight request、cache warmupをrehearsalします。
+
+## Releaseと運用の情報源
+
+公式の[vLLM production qualityとrelease processの概要](https://vllm.ai/blog/2026-07-16-keeping-vllm-production-quality)とpinしたrelease noteを変更入力にします。[OpenAI-compatible serverドキュメント](https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html)はserving surfaceを定義しますが、applicationのoutput contract、load distribution、rollback thresholdはlocal testが必要です。
+
+## よくある質問
+
+### vLLM upgradeはzero downtimeにできますか？
+
+old/new capacityを同時稼働しtrafficを段階移行できれば可能です。
+
+### `latest` container tagを使えますか？
+
+controlled releaseではimmutable digestを使います。
+
+### Restartなしでweight updateできますか？
+
+version/architectureによります。[vLLM online serving](https://docs.vllm.ai/en/stable/serving/online_serving/)を確認して試します。
+
+### Rollback windowはどれくらい必要ですか？
+
+代表trafficと遅延failureを観測できる期間をservice riskから決めます。
+
+## 関連ガイド
+
+- [vLLM CUDA OOM修正](https://glows.ai/article/vllm_cuda_out_of_memory_ja)
+- [クラウドGPUレンタルの流れ](https://glows.ai/article/how_cloud_gpu_rental_works_ja)
+- [Llama 3.3 70B capacity](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_ja)
+- [ローカルGPUなしでDeepSeek](https://glows.ai/article/run_deepseek_without_a_gpu_ja)
+
+## 次のステップ
+
+非production [Glows.ai instance](https://glows.ai/)へproduction configを複製し、acceptance suiteとrollback時間を確認してからupgradeします。

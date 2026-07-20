@@ -1,0 +1,116 @@
+---
+id: gpt_oss_120b_gpu_benchmark_zh_tw
+title: '單張 GPU 能跑 gpt-oss-120B？三款 GPU 成本測試'
+date: '2026-08-02 10:00'
+lastUpdated: '2026-08-02'
+description: '用相同 vLLM 設定在 A100、H100 與 RTX PRO 6000 測試 gpt-oss-120B，比較 fit、延遲、吞吐與每百萬 token 成本。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 完成受控 Glows.ai 測試前，本文只是 benchmark protocol。不得發布待測欄位或用第三方結果推論。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 單張 GPU 能跑 gpt-oss-120B？三款 GPU 成本測試
+
+> **已知事實：** OpenAI 表示 gpt-oss-120B 以預期格式可放進單張 80 GB GPU，但這不代表有安全記憶體餘裕、實用併發或合理 token 成本。本測試流程將在 A100、H100 與 RTX PRO 6000 驗證這些 production 問題。
+
+有用的 gpt-oss-120B benchmark 不是最高 tokens/sec 截圖，而是能執行 exact model revision、通過 task evaluation，並在指定 latency 下成本最低的配置。
+
+OpenAI 說明 gpt-oss-120b 以原生量化格式可放入單張 80 GB GPU；這不代表每個 80 GB 配置都具備 production concurrency、p95 或相同成本，仍要實測。
+
+## 本次測試的 GPU
+
+| GPU | Glows.ai 當日價格 | 測試角色 |
+| --- | ---: | --- |
+| A100 | $1.20/hr | 資料中心成本基準 |
+| H100 | $2.96/hr | 高吞吐候選 |
+| RTX PRO 6000 | $1.78/hr | 96 GB 單卡候選 |
+
+使用前確認 [Glows.ai](https://glows.ai/)現行價格，並以[官方 gpt-oss 公告](https://openai.com/index/introducing-gpt-oss/)與模型資料確認架構、license 與用法。
+
+## Benchmark 要回答的問題
+
+模型是否有安全記憶體餘裕、單一 request 的 TTFT／TPOT、10／50／目標併發的 p95、符合 SLO 的 throughput、每百萬 token 成本，以及 runtime 設定下品質是否可接受。
+
+## 受控測試設定
+
+固定 model/tokenizer revision、vLLM commit、container、quantization、dtype、context、prompt/output 分布、warmup 與 run duration。記錄 GPU 版本／數量／區域、driver、CUDA、CPU、RAM 與 storage，至少重複三次並公開 variance。
+
+## 結果
+
+**證據門檻：** 只能用 Glows.ai raw result 替換待測值，失敗與 invalid run 也要公開。
+
+| 指標 | A100 | H100 | RTX PRO 6000 |
+| --- | ---: | ---: | ---: |
+| 硬體版本／數量 | 待測 | 待測 | 待測 |
+| Model loads | 待測 | 待測 | 待測 |
+| Peak VRAM | 待測 | 待測 | 待測 |
+| TTFT p50/p95 | 待測 | 待測 | 待測 |
+| TPOT p50/p95 | 待測 | 待測 | 待測 |
+| 目標負載 output tok/s | 待測 | 待測 | 待測 |
+| Error rate | 待測 | 待測 | 待測 |
+| 每百萬 output token 成本 | 待測 | 待測 | 待測 |
+
+## 每百萬 Token 成本
+
+`每百萬 output token 成本 = GPU 時薪 ÷ 合格 output token/小時 × 1,000,000`
+
+同時回報 input token，因為 prefill 與 decode 不同。分別計算飽和 throughput 與真實 offered load；後者更接近 production budget。
+
+## 解讀結果時不要過度宣稱
+
+H100 即使最高吞吐，也只有在合格 throughput 足以抵消時薪時才有經濟優勢。RTX PRO 6000 的 96 GB 簡化 model fit，但不保證最低 latency。A100 若以較低價格通過 SLO，仍可能最經濟。結論要綁定版本、prompt、日期與 engine。
+
+## 重現 Benchmark
+
+公開 container digest、launch command、model/tokenizer revision、去敏 prompt-length distribution、load-generator config、raw JSON/CSV、cost worksheet、invalid notes 與 evaluation summary。
+
+## 單張 GPU 放得下不等於可上 Production
+
+Model load 成功只證明 weight 與 startup allocation 放得下。Production claim 還需要：graph capture/warmup 後的安全 headroom、承諾的 input/output boundary、目標 simultaneous sequence 不 OOM、合格的 TTFT/TPOT/p95/error rate、選定 quantization/runtime 下的品質、無 memory growth 的 sustained run，以及 restart/cache rebuild/recovery time。
+
+先測 single-request latency，再逐級增加 offered load；當 error 或 latency threshold 失敗就停止。若 saturated run 沒通過 user-facing SLO，不能把其 throughput 當成 interactive capacity。
+
+## 發布讓讀者能重算的結果
+
+每張 GPU 都發布 machine-readable row：price timestamp、variant、count、region、container digest、driver、CUDA、vLLM/model revision、flag、prompt distribution、concurrency、run duration 與 raw aggregate。
+
+`每百萬 output token 成本 = run 期間 GPU 金額 ÷ 有效 output token × 1,000,000`
+
+Input token 另外列出，說明是否含 warmup，並發布 invalid run。結論只能指出該 trace 下的 fit、latency、cost winner，不能宣稱通用最快 GPU。
+
+## Benchmark 資料來源
+
+模型 fit、license 與架構應以 OpenAI 的 [gpt-oss 公告](https://openai.com/index/introducing-gpt-oss/)及固定 model repository 為準。Serving 支援與最佳化路徑則查閱[官方 vLLM gpt-oss 指南](https://vllm-project.github.io/2025/08/05/gpt-oss.html)。在原始 Glows.ai run 取代所有 Pending cell 前，不發布結果表。
+
+## 常見問題
+
+### gpt-oss-120B 能跑在一張 GPU 嗎？
+
+OpenAI 表示它可用預期格式放入單張 80 GB GPU；serving headroom、context 與 concurrency 仍需測量。
+
+### H100 每 token 一定最便宜嗎？
+
+不一定。要用符合 target latency 的 accepted throughput 除價格。
+
+### 為什麼測 RTX PRO 6000？
+
+96 GB 讓它成為有意義的單卡候選，實測再決定效能與成本。
+
+### 可以直接和別站 benchmark 比嗎？
+
+只有 model revision、quantization、engine、GPU 版本、prompt 與 latency 規則接近時才合理。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [你需要 H100 嗎](https://glows.ai/article/do_you_need_an_h100_zh_tw)
+- [執行 LLM 的成本](https://glows.ai/article/cost_to_run_an_llm_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+在每個 [Glows.ai GPU](https://glows.ai/)重播同一 trace，保存所有 raw aggregate，選擇同時通過品質與延遲門檻的最低成本配置。

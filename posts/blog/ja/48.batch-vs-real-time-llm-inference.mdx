@@ -1,0 +1,139 @@
+---
+id: batch_vs_real_time_llm_inference_ja
+title: 'Batch vs Real-Time LLM推論：GPUコストが安いのは？'
+date: '2026-08-05 10:00'
+lastUpdated: '2026-08-05'
+description: 'GPU utilization、throughput、TTFT、p95 latency、queue delay、result単価を比較してbatchまたはreal-time LLM推論を選びます。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** 公開前にmatched-mode Glows.ai benchmarkを完了します。例はmethodを説明し、測定済み節約を主張しません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# Batch vs Real-Time LLM推論：GPUコストが安いのは？
+
+> **判断基準：** 待てるworkloadではbatchがGPU utilizationを高め、unit costを下げやすくなります。real-timeは応答性とidle headroomに支払います。多くのproductは両方を使い、interactive requestを低latency path、延期可能な処理をbatch queueへ流します。
+
+Batch inferenceはqueue全体のthroughputと完了コストを最適化し、real-time inferenceは個別requestのresponse latencyを最適化します。両方がengine batchingを使えてもproduct contractは異なります。
+
+公平な比較ではmodel、GPU、token workload、engineを固定し、arrival、scheduler、SLOだけを変えます。
+
+## BatchとReal-Timeの比較
+
+| 観点 | Batch | Real-time |
+| --- | --- | --- |
+| Arrival | Queue／uploaded job | Unpredictable live traffic |
+| Target | Deadline／throughput | TTFT／TPOT／p95 |
+| Capacity | Efficient batchを待てる | Burst用warm headroom |
+| Retry | Job-level／checkpoint | Request-level／overload |
+| Cost risk | Deadline／failed batch | Idle／tail latency |
+
+## Workload ModeとEngine Batchingを混同しない
+
+static batchingはfixed-shape input、continuous batchingはrequest終了ごとに新requestを受けます。real-time serviceもcontinuous batchingを使います。即時streaming answerが必要か、deadlineまでの非同期完了でよいかがarchitectureの違いです。
+
+## Matched Benchmark Setup
+
+model/tokenizer、quantization、context、vLLM、container、GPU、総prompt/token、qualityを固定します。batchは全dataset completion、real-timeはarrival traceとTTFT/TPOT/p95を測り、repeat varianceを報告します。
+
+## 結果
+
+**証拠ゲート：** Glows.ai matched runで未測定値を置換し、匿名化traceを公開します。
+
+| Metric | Batch | Real-time |
+| --- | ---: | ---: |
+| Total prompts/tokens | 未測定 | Same workload |
+| Completion time | 未測定 | 未測定 |
+| Output tok/s | 未測定 | 未測定 |
+| TTFT p95 | 主目的でなくても報告 | 未測定 |
+| End-to-end p95 | 未測定 | 未測定 |
+| GPU utilization | 未測定 | 未測定 |
+| Failed requests | 未測定 | 未測定 |
+| 100万output token cost | 未測定 | 未測定 |
+
+unconstrained throughputとreal-time SLO内throughputを分けます。
+
+## Cost Model
+
+`batch cost = queue完了runtime × GPU rate`
+
+`real-time cost = traffic windowのactive capacity × GPU rate`
+
+storage、retry、replica、startup、operationsを含め、scale-downではcold-start failure/latencyも含めます。
+
+## Workload Decision Guide
+
+### Batchを選ぶ
+
+nightly document extraction、embedding/indexing、evaluation、offline enrichment、deadline report。
+
+### Real-Timeを選ぶ
+
+chat、coding assistant、voice/agent、user-facing search/RAG、synchronous flow。
+
+### Hybrid Queueを使う
+
+interactiveはlatency lane、deferred workはbatch laneへ送り、priority/backpressureでoffline jobがuser trafficを妨げないようにします。
+
+## 運用の違い
+
+Batchはjob identity、idempotency、checkpoint、partial output、deadline alert。Real-timeはadmission control、rate limit、graceful overload、trace、tail-latency alert。両方にversioned model、reproducible container、evaluation、recoveryが必要です。
+
+## 混合設計が有利なことが多い
+
+- **Real-time lane：**User-facing chat、interactive coding、synchronous decisionにTTFT/p95 SLOを設定。
+- **Batch lane：**Document enrichment、evaluation、summarization、embedding、report、待てるretry。
+- **Admission layer：**Workを分類しtoken limitを適用してreal-time queueを保護。
+- **Shared capacity policy：**Real-time SLOを破らずbatchがspare GPUを利用。
+
+同じengineでもqueue、priority、metric、cost attributionを分けます。Interactive peakではbatchをthrottle/pauseし、quiet periodにqueued workで埋めます。
+
+## 判断表
+
+| Question | Real-time | Batch |
+| --- | --- | --- |
+| どれだけ待てるか | TTFT/end-to-end SLO | Queue deadline |
+| Arrivalは予測可能か | Burst headroom | Backlogに合わせschedule |
+| Requestをgroup可能か | Continuous batching | Larger offline batch |
+| Failure時は | Duplicateなしのfast retry | Durable queue/checkpointからresume |
+| Cost unitは | SLO内accepted request | Deadline内accepted document/token |
+
+同一model/GPUで両laneをbenchmarkし、batch queue delayとreal-time idle headroomを含めます。
+
+テスト前にrequestを「2秒以内」「30秒以内」「15分以内」「overnight」などのdeadline bucketに分け、性質の異なるjobを一つの平均値に混ぜず、各bucketで期限内完了率とcostを報告します。Expired、retried、duplicate workも数えます。Business deadlineを逃す安いbatch runは節約ではなく、1回のinteraction lossがidle headroomより高いならalways-warm real-time replicaは合理的です。このdeadline視点により、batchかreal-timeかを一般論ではなく測定可能なservice decisionにできます。
+
+## 推論アーキテクチャの情報源
+
+DigitalOceanの[continuous batchingとstatic batchingのガイド](https://www.digitalocean.com/community/tutorials/continuous-batching-vs-static-batching-llm-inference)は、token generationが一般的なbatching前提を変える理由を説明します。論文[Efficient LLM Serving on Hybrid Real-time and Best-effort Requests](https://arxiv.org/abs/2504.09590)はmixed-workload schedulingを扱います。最終判断は同じmodel、hardware、queue policy、arrival traceで検証します。
+
+## よくある質問
+
+### Batchは常に安いですか？
+
+utilizationを改善しやすいですが、retry、deadline、queue storage、workloadで変わります。
+
+### Continuous batchingはreal-timeですか？
+
+real-timeでよく使うengine schedulingで、offline batch contractとは別です。
+
+### 1 GPUで両方を動かせますか？
+
+可能ですがinterferenceがあります。priority、quota、separate replicaを試します。
+
+### Batchで何を最適化しますか？
+
+deadline内completion、throughput、recovery、costです。
+
+## 関連ガイド
+
+- [LLM実行コスト](https://glows.ai/article/cost_to_run_an_llm_ja)
+- [Llama 3.3 70B capacity](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_ja)
+- [DeepInfra vs Glows.ai](https://glows.ai/article/deepinfra_vs_glows_ai_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+同じ[Glows.ai GPU](https://glows.ai/)で同じprompt setを両modeで実行し、real-time SLOを強制してからcostを比べます。

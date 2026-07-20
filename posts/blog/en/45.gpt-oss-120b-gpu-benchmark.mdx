@@ -1,0 +1,168 @@
+---
+id: gpt_oss_120b_gpu_benchmark_en
+title: 'Can One GPU Run gpt-oss-120B? A 3-GPU Cost Benchmark'
+date: '2026-08-02 10:00'
+lastUpdated: '2026-08-02'
+description: 'Test gpt-oss-120B on A100, H100, and RTX PRO 6000 with matched vLLM settings to compare fit, latency, throughput, and cost per million tokens.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** This article is a benchmark protocol until the controlled Glows.ai runs are complete. Do not publish pending cells or infer results from third-party hardware tests.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Can One GPU Run gpt-oss-120B? A 3-GPU Cost Benchmark
+
+> **What is known:** OpenAI says gpt-oss-120B can fit on a single 80 GB GPU in its intended format. That does not prove safe memory headroom, useful concurrency, or attractive cost per token. This protocol tests those production questions across A100, H100, and RTX PRO 6000.
+
+The useful gpt-oss-120B GPU benchmark is not the highest tokens-per-second screenshot. It is the lowest-cost configuration that runs the exact model revision, passes a task evaluation, and stays within a declared latency limit under realistic load.
+
+OpenAI describes gpt-oss-120b as an open-weight model designed to fit on a single 80 GB GPU through its native quantization format. That fit claim does not establish production concurrency, p95 latency, or cost on every 80 GB configuration. Those require measurement.
+
+## GPUs in This Test
+
+This draft compares A100, H100, and RTX PRO 6000 because they represent a mature datacenter baseline, a newer high-throughput accelerator, and a 96 GB high-memory option. Exact variants must be recorded.
+
+| GPU | Glows.ai rate checked July 20, 2026 | Test role |
+| --- | ---: | --- |
+| A100 | $1.20/hr | Datacenter cost baseline |
+| H100 | $2.96/hr | High-throughput candidate |
+| RTX PRO 6000 | $1.78/hr | 96 GB memory candidate |
+
+Verify current pricing at [Glows.ai](https://glows.ai/) and use the official [gpt-oss announcement](https://openai.com/index/introducing-gpt-oss/) and model materials for architecture, license, and usage details.
+
+## Benchmark Questions
+
+The test must answer:
+
+1. Does the exact model configuration load with safe memory headroom?
+2. What TTFT and TPOT does one interactive request receive?
+3. How does p95 change at 10, 50, and target concurrency?
+4. What throughput remains valid under the latency SLO?
+5. What does that throughput cost per million tokens?
+6. Does output quality remain acceptable under the chosen runtime settings?
+
+## Controlled Test Setup
+
+Keep these constant:
+
+- model repository and revision;
+- tokenizer and chat template;
+- vLLM commit and immutable container;
+- quantization and dtype;
+- context and output limits;
+- prompt/output-length distribution;
+- warmup policy and run duration;
+- client load generator and network path.
+
+Record GPU variant, count, region, driver, CUDA runtime, CPU, RAM, and storage. Run each test at least three times and publish variance.
+
+## Results
+
+**Evidence gate:** Replace every pending value with the raw Glows.ai result. Publish failed and invalid runs alongside successful ones.
+
+| Metric | A100 | H100 | RTX PRO 6000 |
+| --- | ---: | ---: | ---: |
+| Exact hardware variant/count | Pending | Pending | Pending |
+| Model loads | Pending | Pending | Pending |
+| Peak VRAM | Pending | Pending | Pending |
+| TTFT p50/p95 | Pending | Pending | Pending |
+| TPOT p50/p95 | Pending | Pending | Pending |
+| Output tok/s at target load | Pending | Pending | Pending |
+| Error rate | Pending | Pending | Pending |
+| Cost per 1M output tokens | Pending | Pending | Pending |
+
+## Cost per Million Tokens
+
+Use only throughput that meets the declared service target:
+
+`cost per 1M output tokens = hourly GPU cost ÷ accepted output tokens per hour × 1,000,000`
+
+Also report input tokens because prefill cost can dominate long-document workloads. A blended “tokens per second” number can hide whether the test mostly measured input processing or decoding.
+
+Calculate at two loads:
+
+- **Saturated throughput:** enough queued work to keep the GPU busy.
+- **Realistic offered load:** the expected arrival pattern, including idle time.
+
+The second number is usually more useful for a production budget.
+
+## Interpret the Result Without Overclaiming
+
+H100 may produce the highest throughput, but it wins economically only if its valid throughput offsets its hourly premium. RTX PRO 6000 may simplify fit with 96 GB, but memory capacity does not guarantee lower latency. A100 may remain economical if it meets the SLO at a lower rate.
+
+The conclusion must be conditional on model revision, engine version, prompt distribution, and date. Repeat the benchmark after material software changes.
+
+## Reproduce the Benchmark
+
+Publish:
+
+- container digest and launch command;
+- model and tokenizer revisions;
+- scrubbed prompt-length distribution;
+- load-generator configuration;
+- raw JSON/CSV aggregates;
+- cost worksheet;
+- invalid-run notes;
+- evaluation-set summary.
+
+Do not publish sensitive prompts. Synthetic or de-identified traces can preserve length and arrival characteristics.
+
+## One-GPU Fit Is Not a Production Result
+
+A successful model load proves only that weights and startup allocations fit. A production claim also needs:
+
+- safe memory headroom after graph capture and warmup;
+- the advertised input/output boundary;
+- target simultaneous sequences without OOM;
+- acceptable TTFT, TPOT, p95 end-to-end latency, and error rate;
+- stable output quality under the selected quantization and runtime;
+- sustained operation without memory growth;
+- restart, cache rebuild, and recovery timing.
+
+Test single-request latency first, then increase offered load in controlled steps. Stop a stage when the error or latency threshold fails. Do not quote throughput from a saturated run as interactive capacity unless the same run passes the user-facing SLO.
+
+## Publish a Result Readers Can Recalculate
+
+For each GPU, release a machine-readable row containing price timestamp, exact variant, count, region, container digest, driver, CUDA, vLLM revision, model revision, flags, prompt distribution, concurrency, run duration, and raw aggregates.
+
+Calculate cost from accepted output:
+
+`cost per 1M output tokens = GPU dollars during run ÷ accepted output tokens × 1,000,000`
+
+Show input tokens separately, state whether warmup is included, and publish invalid runs. The conclusion should identify fit, latency, and cost winners under the tested trace—not claim a universal fastest GPU.
+
+## Benchmark Sources
+
+Model fit, license, and architecture claims should come from OpenAI’s [gpt-oss announcement](https://openai.com/index/introducing-gpt-oss/) and the pinned model repository. Serving support and optimized paths should be checked in the [official vLLM gpt-oss guide](https://vllm-project.github.io/2025/08/05/gpt-oss.html). The result table remains unpublished until raw Glows.ai runs replace every pending cell.
+
+## FAQ
+
+### Can gpt-oss-120B run on one GPU?
+
+OpenAI states the model can fit on a single 80 GB GPU in its intended format. Actual serving headroom, context, and concurrency still need measurement.
+
+### Is H100 the cheapest per token?
+
+Not automatically. Divide its price by accepted throughput at the target latency and compare the same workload.
+
+### Why include RTX PRO 6000?
+
+Its 96 GB capacity makes it a relevant single-GPU candidate. The benchmark determines whether performance and cost fit the use case.
+
+### Can I compare these numbers with another website?
+
+Only if model revision, quantization, engine, GPU variant, prompts, concurrency, and latency rules match closely.
+
+## Related Guides
+
+- [Best local LLMs and GPU requirements](https://glows.ai/article/best_local_llms_2026_gpu_requirements_en)
+- [Do you need an H100?](https://glows.ai/article/do_you_need_an_h100_en)
+- [Cost to run an LLM](https://glows.ai/article/cost_to_run_an_llm_en)
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+
+## Next Step
+
+Run the published trace on each [Glows.ai GPU](https://glows.ai/), keep every raw aggregate, and choose the lowest-cost configuration that passes both quality and latency gates.

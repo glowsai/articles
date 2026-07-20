@@ -1,0 +1,143 @@
+---
+id: cost_to_run_an_llm_zh_tw
+title: '執行 LLM 要多少錢？真正的 GPU 成本公式'
+date: '2026-07-27 10:00'
+lastUpdated: '2026-07-27'
+description: '用 GPU 價格、吞吐、延遲與利用率，計算 LLM 每小時、每次請求、每位使用者與每百萬 token 的真實成本。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 公式已完成；發布前必須提供可編輯 calculator、Glows.ai load test dataset，並重查所有價格。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 執行 LLM 要多少錢？真正的 GPU 成本公式
+
+> **核心公式：** LLM 單位成本等於運算與儲存總支出，除以符合延遲與品質門檻的有效 request、user 或 token。只看 GPU 時薪會漏掉利用率、閒置、重試、input/output 比例與未達標的效能。
+
+執行 LLM 的成本不只是 GPU 時薪或 API token 單價。自管推論還取決於模型是否放得下、符合延遲時的實測吞吐、流量型態、閒置容量、儲存與維運。API 成本則受 input/output token、cache、模型與平台功能影響。
+
+誠實答案必須綁定有文件的工作負載。
+
+## 四種實用成本單位
+
+| 單位 | 適合用途 |
+| --- | --- |
+| 每 GPU 小時 | 基礎設施預算 |
+| 每次 request | 產品 unit economics |
+| 每百萬 token | 比較推論配置 |
+| 目標流量下每月成本 | 容量與架構決策 |
+
+## GPU 執行成本
+
+`GPU 成本 = 時薪 × 啟用秒數 ÷ 3,600`
+
+Glows.ai 在 2026 年 7 月 20 日列出 RTX 4090 $0.49/hr 到 B200 $5.00/hr。最低時薪不一定有最低 output 成本；GPU 要先放得下模型並通過延遲目標。
+
+## 每百萬 Token 成本
+
+`每百萬輸出 token 成本 = GPU 時薪 ÷ 合格輸出 token/小時 × 1,000,000`
+
+例如某配置 $1.20/hr，並在 p95 目標內維持每小時 60,000 個合格 output token，純運算成本是每百萬 $20。這只是公式示例，不是 Glows.ai benchmark。
+
+要公布 input/output 分布與 concurrency，因為 prefill 與 decode 的硬體壓力不同。
+
+## 每次 Request 成本
+
+`每次 request 成本 = 該期間總 serving 成本 ÷ 成功 request`
+
+失敗與重試耗掉的資源也要算入。API 則可用：
+
+`API request 成本 = input token × input rate + output token × output rate + 其他計費功能`
+
+不同模型只有在同一 evaluation set 都達標後，才適合做成本比較。
+
+## 利用率會改變一切
+
+| 流量型態 | 成本行為 |
+| --- | --- |
+| 持續高需求 | 利用率較高 |
+| 上班時段需求 | 晚上與週末閒置拉高有效成本 |
+| 突發流量 | Warm reserve 降低延遲但增加 idle cost |
+| Offline batch | Deadline 允許時可提高 queue utilization |
+
+$1/hr 的 GPU 若只有 25% 時間做有效工作，每個有效小時接近 $4，還沒算儲存與維運。
+
+## 從 Request 做容量規劃
+
+蒐集 requests per second、peak arrival、input/output token percentile、context、TTFT/TPOT/p95、不同 concurrency 的 throughput、replica/recovery 與 scale up/down delay。依每小時真實 demand 模擬，不要用 peak × 730 小時。
+
+**證據門檻：** 發布版需提供可編輯 calculator 與至少三種 offered load 的 Glows.ai 結果，附 model、engine、quantization、GPU、prompt 分布、commands 與 raw aggregate。
+
+## 成本模型不能漏掉的項目
+
+模型／資料集儲存、cold start、observability、gateway、recovery replica、工程與 on-call、傳輸、失敗部署，以及升級後重新 evaluation。對不確定項目標示「已知、估算、未量測」，不要製造假精準。
+
+## API 還是自己的 GPU
+
+小量且不規則流量通常適合 API；開放模型能通過品質門檻、需求持續且利用率可預測時，專用 GPU 可能有優勢。也可用 hybrid 架構處理 baseline 與 overflow。分界點不是固定 request 數，而會隨 token、batch、latency、model quality 與 idle policy 改變。
+
+## 三種每月成本情境
+
+同一張 GPU 可能產生完全不同的 unit economics。
+
+### 間歇使用的內部助理
+
+若只有平日短暫尖峰、夜間幾乎閒置，持續計費的 dedicated GPU 利用率很低，即使 peak throughput 漂亮，每個有效 request 成本仍會升高。Autoscaling 或 schedule 可降費，但 cold start 與 model load 必須符合產品 latency 容忍度。
+
+### 穩定 Production Endpoint
+
+穩定 request stream 能讓 continuous batching 有效。用真實 prompt distribution 量每小時有效 output token，再算：
+
+`monthly compute = GPU 時薪 × active GPU hours × replica count`
+
+另加 p95 latency 與 failure recovery 所需 spare capacity；100% theoretical utilization 不是安全 production budget。
+
+### Offline 文件 Pipeline
+
+如果文件可在 queue 等待，就用較大 batch，queue 清空後關閉 GPU：
+
+`每文件成本 = (compute + storage + failed-run cost) ÷ 有效文件數`
+
+較快但時薪高的 GPU 可能因縮短 runtime 而勝出。
+
+## 建立財務可稽核的成本表
+
+每份 estimate 都保存：價格、currency、region、GPU variant、timestamp；model、engine、precision、context、prompt/output distribution；offered load、concurrency、latency SLO、error rate、有效 throughput；active、idle、warmup、failed、recovery time；persistent storage、transfer、shared-service allocation；monthly traffic 與 peak multiplier。
+
+同時提出 base、low、high case。Sensitivity range 比單一 cost-per-token 誠實，也能指出下一個 benchmark 應驗證哪個假設。
+
+## 成本方法與資料來源
+
+公式採基本 capacity accounting，並要求實測 serving output。2026 年論文 [Beyond Per-Token Pricing](https://arxiv.org/abs/2606.11690) 說明 offered load 與利用率為何可能主導 self-hosted LLM 單位成本。請使用[官方 vLLM benchmark suite](https://docs.vllm.ai/en/latest/benchmarking/)或同等固定版本的 load generator，並保留原始輸入、無效 run 與價格時間戳。
+
+## 常見問題
+
+### LLM 每小時多少錢？
+
+GPU 時薪差異很大，總成本還有儲存與支援服務。應用能放入模型且實測有效吞吐的配置計算。
+
+### 如何算每百萬 token？
+
+用每小時成本除以每小時合格 token，再乘 1,000,000，並公開延遲與 workload 假設。
+
+### 自管一定比 API 便宜嗎？
+
+不一定。低利用率、工程成本與模型品質差異都可能讓 API 更便宜。
+
+### 閒置 GPU 時間要算嗎？
+
+要。除非架構真的能安全 scale down，idle reserve 就是服務成本。
+
+## 延伸閱讀
+
+- [DeepInfra vs Glows.ai](https://glows.ai/article/deepinfra_vs_glows_ai_zh_tw)
+- [本地 LLM PC vs 雲端 GPU 成本](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_zh_tw)
+- [AWS GPU 定價 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+匯出一週 request 長度與 arrival timing，去除敏感內容，再到 [Glows.ai](https://glows.ai/)重播。做容量承諾前，用量測替換假設。

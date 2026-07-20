@@ -1,0 +1,158 @@
+---
+id: cloud_gpu_pricing_2026_en
+title: 'Cloud GPU Pricing 2026: 8 GPUs From $0.49/Hour'
+date: '2026-07-21 10:00'
+lastUpdated: '2026-07-21'
+description: 'Compare 8 cloud GPUs from $0.49/hour, then calculate the real 2026 cost of runtime, storage, billing minimums, failed jobs, and idle time.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** Rates were checked on July 20, 2026. Recheck the live pricing page, regional availability, and every comparison source before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Cloud GPU Pricing 2026: 8 GPUs From $0.49/Hour
+
+> **At a glance:** Glows.ai listed eight GPUs from $0.49 to $5.00 per hour on July 20, 2026. The cheapest hourly GPU is not automatically the cheapest completed job: VRAM fit, billing granularity, storage, startup time, failures, and utilization can reverse the ranking.
+
+Cloud GPU pricing in 2026 ranges from less than $1 per hour for consumer and workstation cards to several dollars per hour for datacenter accelerators. That range is useful for screening options, but the hourly number is not the bill. A fair estimate includes runtime, billing granularity, persistent storage, failed starts, data transfer, and the time lost when an interrupted job must restart.
+
+Glows.ai listed the following on-demand rates when checked on July 20, 2026. Treat this as a dated snapshot, not a permanent price promise.
+
+| GPU | VRAM | Glows.ai rate checked July 20, 2026 |
+| --- | ---: | ---: |
+| RTX 4090 | 24 GB | $0.49/hr |
+| RTX 5090 | 32 GB | $0.69/hr |
+| L40S | 48 GB | $0.83/hr |
+| A100 | Verify variant at checkout | $1.20/hr |
+| RTX PRO 6000 | 96 GB | $1.78/hr |
+| H100 | Verify variant at checkout | $2.96/hr |
+| H200 | Verify variant at checkout | $3.15/hr |
+| B200 | Verify configuration at checkout | $5.00/hr |
+
+Source: the [Glows.ai pricing table](https://glows.ai/). Hardware variant, region, inventory, included runtime storage, and persistent-storage terms must be confirmed for the selected instance.
+
+## Calculate Total Job Cost, Not Sticker Price
+
+Use this formula as a starting point:
+
+`total job cost = GPU runtime + persistent storage + transfer + restart overhead + operational time`
+
+For a job that runs cleanly, the GPU portion is simple:
+
+`GPU runtime cost = hourly rate × runtime in seconds ÷ 3,600`
+
+At $0.49 per hour, a 20-minute RTX 4090 run has a compute cost of about $0.16 if every second is billable at the stated rate. That number does not include any storage that remains after compute stops. It also assumes the job starts successfully and finishes once.
+
+For long training or batch jobs, add the expected cost of failure. A 40-hour run with no resumable checkpoint can lose most of its spend if it fails in hour 39. A slightly more expensive environment with tested checkpoint recovery may produce the cheaper completed job.
+
+## Why Billing Granularity Changes Short Jobs
+
+Billing units matter most when jobs are short or interactive. Consider a seven-minute task on a $0.49/hour GPU:
+
+| Billing rule | Billed duration | Compute charge |
+| --- | ---: | ---: |
+| Per second | 7 minutes | about $0.06 |
+| Per minute | 7 minutes | about $0.06 |
+| One-hour minimum | 60 minutes | $0.49 |
+
+The arithmetic is only illustrative. Providers may apply startup rules, minimum balances, rounding, reserved capacity, or separate storage charges. Verify the meter with a small test before building a budget around it.
+
+## Match the GPU to the Workload
+
+The cheapest GPU is the least expensive card that completes the workload within its memory and service-level limits. A card that cannot fit the model is not a bargain. A faster GPU may also finish enough sooner to reduce total cost.
+
+| Workload | Start the evaluation with | Main constraint |
+| --- | --- | --- |
+| 7B–14B quantized LLM inference | RTX 4090 or RTX 5090 | Weights plus KV cache |
+| Larger contexts or medium models | L40S or RTX PRO 6000 | VRAM and concurrency |
+| High-throughput 70B inference | A100, H100, H200, or multi-GPU | Latency SLO and interconnect |
+| QLoRA fine-tuning | 24–96 GB GPU depending on model | Activations, optimizer state, batch size |
+| Image generation | RTX 4090, RTX 5090, or L40S | Resolution, model, batch size |
+
+These are evaluation starting points, not universal recommendations. Measure the exact model revision, precision, context length, batch policy, and target concurrency.
+
+## Costs Pricing Tables Commonly Hide
+
+- **Persistent storage:** model weights, datasets, checkpoints, and outputs may remain billable after compute stops.
+- **Data transfer:** moving a large dataset or model cache can add cost and delay.
+- **Startup and download time:** a low hourly rate loses value when every session spends 30 minutes rebuilding the environment.
+- **Interruptions:** spot or marketplace capacity may be cheaper until a job must restart.
+- **Idle capacity:** a dedicated inference GPU costs money while it waits unless the architecture scales down.
+- **Engineering time:** unsupported drivers, inconsistent hosts, and recovery work belong in total cost.
+
+## A Reproducible Price Comparison
+
+Before choosing a provider, write down one representative job and collect the same fields everywhere:
+
+1. Exact GPU model and variant.
+2. Region and availability date.
+3. Billing unit and minimum charge.
+4. Runtime and persistent-storage prices.
+5. Startup time and measured job duration.
+6. Failure and recovery behavior.
+7. Total cost for one completed result.
+
+Do not compare a bare GPU-hour with an instance that bundles storage, CPU, RAM, support, or a different reliability model. Normalize the service first.
+
+## Three Worked Cloud GPU Cost Scenarios
+
+These examples isolate compute so the hidden-cost adjustments stay visible:
+
+| Scenario | Compute arithmetic | Compute-only total |
+| --- | --- | ---: |
+| 20-minute RTX 4090 experiment | $0.49 × 20 ÷ 60 | $0.16 |
+| 8-hour L40S inference job | $0.83 × 8 | $6.64 |
+| 24-hour H100 training run | $2.96 × 24 | $71.04 |
+
+Now adjust each scenario. If the 20-minute experiment spends 12 minutes downloading weights, the user pays for 32 minutes unless the image or persistent cache avoids that setup. If the eight-hour job leaves a 200 GB volume for the rest of the month, storage may outlive compute. If the 24-hour run has a 10% probability of failing without a usable checkpoint, expected completed-job cost is higher than $71.04.
+
+For repeated jobs, calculate both warm and cold starts. A reusable image or Datadrive may cost more while idle but reduce paid setup on every run. The correct comparison uses the same data location, cache state, checkpoint policy, and definition of “complete.”
+
+## Five-Minute Price Verification Checklist
+
+Before approving a budget, capture a dated screenshot or export and answer:
+
+1. Is the price per GPU or per multi-GPU instance?
+2. Which exact memory capacity and hardware variant will launch?
+3. Does the meter round by second, minute, or a minimum block?
+4. Which runtime disk, persistent storage, and transfer charges are separate?
+5. Is the quoted region available now, and does capacity require a commitment?
+6. What action stops compute, and which resources keep billing afterward?
+
+Save those answers beside the workload estimate. A price comparison without a timestamp and configuration is not reproducible.
+
+## Sources and Price Method
+
+The dated rates come from the public [Glows.ai GPU table](https://glows.ai/), checked July 20, 2026. VRAM and hardware positioning should be verified against the selected instance and NVIDIA’s official product pages, such as the [H100 specifications](https://www.nvidia.com/en-us/data-center/h100/), at checkout. Calculations in this guide show their assumptions and use unrounded seconds before displaying rounded dollar values. Recheck price, inventory, GPU variant, region, storage, tax, and transfer terms before publishing or purchasing.
+
+## FAQ
+
+### What is the cheapest cloud GPU?
+
+There is no permanent winner because prices and inventory change. For Glows.ai, the RTX 4090 was the lowest listed GPU rate at $0.49 per hour on July 20, 2026. Verify the live rate and whether 24 GB of VRAM fits the workload.
+
+### How much does an H100 cost per hour?
+
+Glows.ai listed H100 capacity at $2.96 per hour when checked on July 20, 2026. Other providers vary by H100 variant, host configuration, region, commitment, and availability.
+
+### Is storage included with GPU rental?
+
+Glows.ai states that runtime storage is included within published limits and offers Snapshot plus Datadrive for persistence. Confirm the selected configuration and which data survives shutdown or deletion.
+
+### Should I choose the lowest hourly rate?
+
+Choose the lowest total cost that meets memory, latency, reliability, and recovery requirements. A lower hourly price can produce a higher finished-job cost.
+
+## Related Guides
+
+- [AWS GPU pricing vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_en)
+- [Why a cheap GPU cloud can cost more](https://glows.ai/article/cheap_gpu_cloud_real_cost_en)
+- [Rent vs buy a GPU in 2026](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_en)
+- [RunPod vs Vast.ai vs Glows.ai](https://glows.ai/article/runpod_vs_vast_ai_vs_glows_ai_en)
+
+## Next Step
+
+Choose one real workload, record the assumptions above, and [check the current Glows.ai configuration](https://glows.ai/) before launching. Stop the instance after the test, then reconcile the expected compute cost with the actual usage record.

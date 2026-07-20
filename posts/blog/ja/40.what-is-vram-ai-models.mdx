@@ -1,0 +1,140 @@
+---
+id: what_is_vram_ai_models_ja
+title: 'VRAMとは？AIモデルに本当に必要なメモリ容量'
+date: '2026-07-28 10:00'
+lastUpdated: '2026-07-28'
+description: 'VRAMの役割と、LLM、fine-tuning、画像model、context window、batch、concurrencyに必要なGPU memoryの見積もり方を解説します。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **ドラフト状態：** 公開前に3つ以上のGlows.ai構成でVRAM予測と実測を検証してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# VRAMとは？AIモデルに本当に必要なメモリ容量
+
+> **一文で言うと：** VRAMはGPUの作業メモリです。AI workloadはmodel weight、runtime overhead、activationまたはKV cache、batch、concurrency、安全余裕まで収まらなければ、低速化、offload、失敗が起きます。
+
+VRAMはGPUに接続された高bandwidth memoryです。AI workloadはmodel weight、activation、workspace、LLM推論のKV cacheを置きます。working setが入らないと失敗、遅いmemoryへのoffload、または構成変更が必要です。
+
+capacityは「入るか」、bandwidth/computeは「速いか」を答えます。
+
+## VRAMはSystem RAMではない
+
+System RAMはCPU側、VRAMはGPU側です。CPU offloadは可能でもinterconnect transferで遅くなります。128 GB system RAMと24 GB GPUは152 GB GPUではありません。
+
+## LLM Weight Memoryを見積もる
+
+`weight bytes = parameter数 × bytes/parameter`
+
+| Precision | bytes/parameter概算 | 8B raw weight |
+| --- | ---: | ---: |
+| FP32 | 4 | 32 GB |
+| BF16/FP16 | 2 | 16 GB |
+| INT8 | 1 | 8 GB |
+| 4-bit | 0.5 | 4 GB |
+
+実際はquantization metadata、runtime buffer、framework overheadで増えます。
+
+## LLM推論ではKV Cacheを追加する
+
+KV cacheはmodel architecture、token、precision、batch、concurrencyで増えます。modelがloadできても、長いpromptや複数userで失敗することがあります。
+
+`推論VRAM = 重み + KV cache + workspace + safety headroom`
+
+## Fine-TuningはWeight以外も必要
+
+full fine-tuningはweight、gradient、optimizer state、activation、bufferを使います。QLoRAはquantized base＋adapterで削減しますが、activation/optimizerは残ります。sequence、micro-batch、checkpointing、accumulationがpeakを変えます。
+
+## 画像／動画ModelのVRAM
+
+Diffusionはcomponent、resolution、batch、attention、VAEで変わり、videoはframeとtemporal処理が増えます。ComfyUI graph内のControlNet、upscaler、adapter、video nodeもpeakを変えます。
+
+## Minimum、Recommended、Production VRAM
+
+| Label | 意味 |
+| --- | --- |
+| Minimum | 狭いtestをほぼ余裕なく実行 |
+| Recommended | 想定context/batchと余裕 |
+| Production | load下のconcurrency/latency/recoveryを満たす |
+
+VRAM値を出すときはどのlabelか示します。
+
+## 実際のVRAMを測る
+
+```shell
+nvidia-smi
+nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
+```
+
+```python
+import torch
+
+torch.cuda.reset_peak_memory_stats()
+# Run the representative workload here.
+print(torch.cuda.max_memory_allocated() / 1024**3)
+print(torch.cuda.max_memory_reserved() / 1024**3)
+```
+
+startup、typical request、longest request、target concurrencyを測ります。
+
+**証拠ゲート：** LLM推論、QLoRA、画像／動画の各1構成以上でpredicted/observed VRAMと差を公開します。
+
+## Modelが入らないとき
+
+小さいmodel、低precision、quantization、短いcontext、低concurrency/batch、activation checkpointing、CPU offload、tensor parallel、大容量GPUがあります。quality、speed、complexity、costのtrade-offを明示します。
+
+## VRAMを素早く見積もる方法
+
+`weight memory ≈ parameter count × bytes per stored parameter`
+
+ScreeningではBF16/FP16は約2 bytes/parameter、8-bitは約1 byte、4-bitは約0.5 byteで、quantization metadataとruntime overheadは別です。7B modelの16-bit weightは約14 GBですが、full workloadが14 GBに収まる保証ではありません。
+
+| Workload | Weight以外の主なmemory |
+| --- | --- |
+| LLM inference | KV cache、CUDA graph/workspace、concurrent sequences |
+| QLoRA | Quantized base、adapter、activation、gradient、optimizer state |
+| Full fine-tuning | Weight、gradient、optimizer state、activation |
+| Image generation | Components、activation、resolution、batch、workflow node |
+| Video generation | Frame、temporal module、resolution、duration、batch |
+
+Fragmentationとversion-dependent kernelのheadroomを残し、framework allocationと`nvidia-smi`の両方を記録します。
+
+## 境界テストで収まることを証明する
+
+Cold start、最長input/output、target concurrency/training batch、最大image/video workflow、sustained execution、restart/repeatを検証します。Context、batch、qualityを下げた場合は制限を明示します。「24 GBで動く」にはprecision、context、concurrency、engine、model revisionが必要です。
+
+## メモリ情報源
+
+NVIDIAの[GPU Memory Essentials for AI Performance](https://developer.nvidia.com/blog/gpu-memory-essentials-for-ai-performance/)は、model memoryとAI workloadのworking memoryの違いを説明しています。実際のallocationは対象frameworkとmodel revisionで測定します。本文の見積もりはcapacity-planning式であり、named modelがすべてのruntimeに収まる保証ではありません。
+
+## よくある質問
+
+### LLMには何GB必要ですか？
+
+weightにKV cache、runtime overhead、context/concurrencyの余裕を加えます。
+
+### 24 GBでAIはできますか？
+
+多くの量子化中小LLM、画像workflow、developmentに使えます。大型model、長context、高concurrencyは追加memoryが必要です。
+
+### Quantizationで品質は下がりますか？
+
+場合があります。method、bit、model、taskごとにevaluationします。
+
+### 2 GPUのVRAMは単純に合算できますか？
+
+frameworkがshardできても透明な1 poolではなく、interconnectとsoftware supportが必要です。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [DeepSeek V4を実行](https://glows.ai/article/run_deepseek_new_model_one_click_ja)
+- [Cloud RTX 4090でComfyUI](https://glows.ai/article/comfyui_cloud_4090_3_clicks_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+紙上で見積もり、最小候補の[Glows.ai GPU](https://glows.ai/)で実際のcontext、batch、concurrencyを測り、不足が証明されたときだけ上げます。

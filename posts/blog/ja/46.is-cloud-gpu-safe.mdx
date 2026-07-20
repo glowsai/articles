@@ -1,0 +1,115 @@
+---
+id: is_cloud_gpu_safe_ja
+title: 'クラウドGPUは安全？データ投入前の8項目チェック'
+date: '2026-08-03 10:00'
+lastUpdated: '2026-08-03'
+description: 'cloud GPUへdataを投入する前に、isolation、identity、encryption、storage、log、region、deletion、責任分担の8項目を確認します。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **ドラフト状態：** security claimはGlows.ai security ownerが現行policy、certificate scope、architecture、documentで確認します。法的助言ではありません。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# クラウドGPUは安全？データ投入前の8項目チェック
+
+> **安全性の答え：** providerとcustomerの責任が明確で、完全なdata pathが制御されている場合に限り、cloud GPUは安全なworkloadを支えられます。local regionやdedicated GPUだけではisolation、encryption、retention、deletion、complianceを証明できません。
+
+クラウドGPUは安全なAI構成の一部になれますが、「dedicated GPU」「local region」だけでは不十分です。isolation、identity、network、encryption、storage、log、deletion、provider access、connected service、customer controlで決まります。
+
+チームがfull data pathを描き、各controlのownerとevidenceを示せるかが重要です。
+
+## Full Data Pathを描く
+
+prompt/dataset/image/weightのinput、compute region/GPU、runtime/persistent storage、snapshot/backup、model API/vector DB/observability、admin/user access、log/output/retention/deletionを含めます。
+
+GPUが1 regionでも、prompt/logが別serviceへ移ることがあります。
+
+## クラウドGPU責任Matrix
+
+| Control | Provider | Customer |
+| --- | --- | --- |
+| Physical datacenter | Facilityを保護 | Assuranceをreview |
+| Host/platform isolation | Platform control | Service model選択 |
+| Account identity | Identity機能 | Strong auth/offboarding |
+| Instance access | Connectivity control | Key/user/port/service |
+| Guest/container | Base option | Patch/pin environment |
+| Encryption | Platform behaviorを文書化 | App secret/encryption |
+| Retention/deletion | Product lifecycle | Resource削除と検証 |
+
+公開前にverified Glows.ai documentへ置換します。
+
+## IsolationとDedicated Hardware
+
+GPU/host/clusterの共有、isolation、control-plane admin accessを確認します。dedicated GPUはdedicated hostとは限りません。confidential computingと呼ぶにはhardware、attestation、threat model、regionのdocumentが必要です。
+
+## Identity、Network、Secrets
+
+strong authentication、individual identity、least privilege、offboardingを実施します。private key/API secretをnotebook/imageへ置かず、必要portだけ開き、endpointにauth/authz/rate limitを置きます。`0.0.0.0`でlistenしてもinternet公開が安全とは限りません。
+
+## Storage、Snapshot、Deletion
+
+runtime disk、Datadrive、snapshot、external storage、download copyごとにencryption、role、region、retention、backup、deletionを記録します。instance削除とpersistent storage削除は別の場合があります。
+
+**証拠ゲート：** 非機密dataでstop/delete/snapshot/Datadrive detach後の残存とrecoveryを試し、product ownerが確認します。
+
+## Provider Claimを検証する
+
+Glows.ai public siteはISO/IEC 27001:2022とprivacy/termsを掲載しています。公開前にcertificate scope、validity、legal entity、subprocessor、support access、incident process、選択product architectureを確認します。認証は個別構成の安全／compliance保証ではありません。
+
+## 機密Data投入前Checklist
+
+workload/data classification承認、compute/storage/backup/log/API region、contract/privacy/DPA、isolation/admin、identity/port/secret、patch、backup/restore/delete/incidentを確認し、dated architecture/evidenceを保存します。
+
+## 小さな脅威モデルを作る
+
+| Asset | Threat例 | 必要なevidence |
+| --- | --- | --- |
+| Training data/prompt | Unauthorized account/support access | Identity policy、access log、support procedure |
+| Model weight/adapter | Exposed service/shared secret | Network rule、auth、secret rotation |
+| Runtime/snapshot | Residual data/unintended persistence | Encryption、lifecycle、deletion test |
+| API output/log | Sensitive contentがobservabilityへ流出 | Log schema、redaction、retention、region |
+| Availability/budget | Abuse、cryptomining、runaway endpoint | Rate limit、quota、alert、incident response |
+
+Account user、admin、provider operator、subprocessor、internet attacker、connected serviceを列挙します。Controlは実architectureのthreatを扱う場合だけ有効です。
+
+## 本番前の証拠一式
+
+日付付きdata-flow diagram、responsibility matrix、approved region、identity role、open port、encryption/key ownership、storage lifecycle、backup/restore/deletion test、log destination、incident contact、contract、risk acceptanceを保存します。
+
+Instance type、image、storage、region、identity、observability path変更後は再試験し、「fully secure」「compliant by default」のような広すぎる表現を避けます。
+
+## Security情報源とレビュー範囲
+
+英国National Cyber Security Centreの[cloud shared-responsibility guidance](https://www.ncsc.gov.uk/collection/cloud/understanding-cloud-services/cloud-security-shared-responsibility-model)が本文の責任モデルを支えます。Product control、certificate scope、policy、subprocessor、region、retention、deletionは最新のGlows.ai evidenceと契約文書で確認します。このchecklistはレビュー支援であり、compliance certificationや法的助言ではありません。
+
+## よくある質問
+
+### Cloud GPUはlocal GPUより危険ですか？
+
+一概には言えません。riskとresponsibilityが異なるためfull architectureで比較します。
+
+### 台湾GPUなら全dataが台湾に残りますか？
+
+自動ではありません。storage、backup、log、connected API、adminを確認します。
+
+### 機密training dataをuploadできますか？
+
+security/legal/data ownerが構成を承認後に行い、最初は匿名化dataを使います。
+
+### Instance削除で全て消えますか？
+
+runtime、snapshot、persistent storageによるため安全なtestで確認します。
+
+## 関連ガイド
+
+- [AIデータレジデンシー](https://glows.ai/article/taiwan_data_residency_ai_compute_ja)
+- [台湾クラウドGPUガイド](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_ja)
+- [クラウドGPUレンタルの流れ](https://glows.ai/article/how_cloud_gpu_rental_works_ja)
+- [GMI Cloud vs Glows.ai](https://glows.ai/article/gmi_cloud_vs_glows_ai_ja)
+
+## 次のステップ
+
+非機密dataでdata-path diagramとcontrol matrixを作り、[Glows.ai構成](https://glows.ai/)をsecurity/legal ownerとreviewします。

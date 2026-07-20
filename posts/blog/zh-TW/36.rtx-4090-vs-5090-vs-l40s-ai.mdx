@@ -1,0 +1,137 @@
+---
+id: rtx_4090_vs_5090_vs_l40s_ai_zh_tw
+title: 'RTX 4090 vs 5090 vs L40S：AI 租哪張最划算？'
+date: '2026-07-24 10:00'
+lastUpdated: '2026-07-24'
+description: '用 VRAM、時薪、模型是否放得下、穩定性與完整任務成本，比較 RTX 4090、RTX 5090 與 L40S 的 AI 租用價值。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** 硬體與價格已有來源；發布前需完成 Glows.ai 同條件 benchmark。本草稿不宣稱任何效能冠軍。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# RTX 4090 vs 5090 vs L40S：AI 租哪張最划算？
+
+> **快速判斷：** 24 GB 足夠且價格最重要時先測 RTX 4090；32 GB 能避免 offload 或容納更大模型時選 RTX 5090；需要 48 GB 或資料中心導向的運作特性時評估 L40S。效能冠軍仍須用相同工作負載實測。
+
+RTX 4090、RTX 5090 與 L40S 的定位不同：RTX 4090 是 24 GB、雲端入門成本低；RTX 5090 增加到 32 GB 並採較新架構；L40S 提供 48 GB 與資料中心產品特性。勝負取決於 VRAM、吞吐、運作需求與完整任務成本。
+
+Glows.ai 在 2026 年 7 月 20 日標示 RTX 4090 $0.49/hr、RTX 5090 $0.69/hr、L40S $0.83/hr。使用前要確認區域、庫存、host 與現行價格。
+
+## RTX 4090、RTX 5090、L40S 快速比較
+
+| 面向 | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| VRAM | 24 GB | 32 GB | 48 GB |
+| 市場定位 | 消費級 | 消費級 | 資料中心 |
+| 當日 Glows.ai 價格 | $0.49/hr | $0.69/hr | $0.83/hr |
+| 優先測試情境 | 能放入 24 GB 的成本型工作 | 需要 24 GB 以上或較新加速 | 大模型、長 context、資料中心部署 |
+
+硬體規格應以 [NVIDIA 官方資料](https://www.nvidia.com/)與實際 instance 為準。消費卡與資料中心卡即使算力接近，虛擬化、錯誤處理與部署條款仍可能不同。
+
+## 先用 VRAM 做第一道篩選
+
+29 GB 工作無法原樣放入 24 GB RTX 4090。量化、縮短 context、降低 batch、CPU offload 都會改變配置與取捨。
+
+`LLM 推論 VRAM = 權重 + KV cache + runtime workspace + 安全餘裕`
+
+微調還要加入 activation、gradient 與 optimizer state；影像／影片則會受解析度、模型元件與 batch 影響。
+
+## 依工作負載判斷
+
+### RTX 4090
+
+工作能在 24 GB 內保留餘裕，且每次實驗成本重要時，先用 RTX 4090。它適合作為量化中小型 LLM、影像 workflow、開發與單人推論的基準。
+
+### RTX 5090
+
+32 GB 能處理 24 GB 難以容納的配置。只有當增加的記憶體或速度能降低完成成本、或啟用必要工作時，較高時薪才有意義。
+
+### L40S
+
+需要 48 GB 或資料中心特性時優先測 L40S。它可能避免多 GPU 或過度量化，但仍要量測延遲與成本。
+
+## 應該如何做決勝 benchmark
+
+固定 model revision、container、prompt trace、context、concurrency 與 warmup，在三張卡測 TTFT、TPOT、p50/p95、吞吐、peak VRAM、錯誤與 cost per output。
+
+**證據門檻：** 發布前只能用 Glows.ai 控制測試填表。
+
+| 指標 | RTX 4090 | RTX 5090 | L40S |
+| --- | ---: | ---: | ---: |
+| 模型／配置 | 待測 | 待測 | 待測 |
+| Peak VRAM | 待測 | 待測 | 待測 |
+| Throughput | 待測 | 待測 | 待測 |
+| TTFT p95 | 待測 | 待測 | 待測 |
+| 每百萬輸出 token 成本 | 待測 | 待測 | 待測 |
+| Error rate | 待測 | 待測 | 待測 |
+
+不要用不同 host、driver 或 prompt 的網路數字補空格。
+
+## 每個工作成本比時薪重要
+
+`每個完成工作成本 = 時薪 × 實際秒數 ÷ 3,600`
+
+線上推論還要在真實 offered load 下計算。若飽和吞吐違反延遲 SLO，就不能拿來當產品成本。
+
+## 選擇指南
+
+工作完整放入 24 GB 且達到延遲目標，選 RTX 4090；32 GB 或實測速度能降低總成本，選 RTX 5090；48 GB、資料中心特性或較簡單的單卡部署更重要，選 L40S。若兩者都通過，選每個成功成果成本較低者。
+
+## 先確認模型放得下，再看每秒 Token
+
+做 speed benchmark 前先建立 memory budget：
+
+| 候選 GPU | 標示 VRAM | Fit test 必須包含 |
+| --- | ---: | --- |
+| RTX 4090 | 24 GB | Weight、runtime overhead、KV cache/activation、安全餘裕 |
+| RTX 5090 | 32 GB | 相同 precision 與 context 的相同 workload |
+| L40S | 48 GB | 更大 weight/cache 與相同 concurrency target |
+
+Model 勉強 load 成功不代表可以部署。送出最長 prompt、最大 output 與目標 simultaneous sequence。Training 要量到 backward pass 與 checkpoint save 的 peak；影像與影片則測最大 resolution、batch 與 workflow graph。
+
+若 24 GB 配置會 CPU offload 或反覆 OOM，拿它和完全 in-memory 的 32/48 GB run 比 tokens per second 會誤導。每筆結果都應記錄 offload、host RAM、quantization、context 與 batch。
+
+## 計算價格效能損益平衡
+
+依 7 月 20 日價格，RTX 5090 時薪約比 RTX 4090 高 41%，L40S 約高 69%。這不代表它們一定要快 41% 或 69% 才能贏；較大 GPU 還可能避免 CPU offload、支援更多 user、少用一張 GPU，或完成小卡根本跑不了的任務。
+
+`相對價值 = 每小時有效工作量 ÷ GPU 時薪`
+
+使用符合品質與 latency 目標的 image、token、training step 或完成任務，不用 peak hardware metric。租用贏家是在可靠性與恢復條件可接受時，有效 work per dollar 最高者。
+
+## 硬體資料來源
+
+請以 NVIDIA 官方頁面確認 [GeForce RTX 4090](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)、[GeForce RTX 5090](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/) 與 [NVIDIA L40S](https://www.nvidia.com/en-us/data-center/l40s/) 規格。Cloud 結果仍受 host、功率設定、driver、framework、precision、model 與 prompt mix 影響；產品規格不等於 workload benchmark。
+
+## 常見問題
+
+### RTX 5090 一定比 RTX 4090 快嗎？
+
+沒有固定倍數。模型、精度、kernel、batch 與 software support 都會改變結果。
+
+### L40S 一定比 RTX 5090 好嗎？
+
+它有更多 VRAM 與不同產品定位，但是否值得仍取決於實測工作。
+
+### 70B 模型能單卡執行嗎？
+
+全精度通常不行。部分重度量化配置可能放入 48 GB，但 context、KV cache 與品質仍需測試。
+
+### ComfyUI 適合哪張卡？
+
+能放入 24 GB 時先測 RTX 4090；較大模型、解析度或 workflow 再比較 RTX 5090 與 L40S。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [AWS GPU 定價 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_zh_tw)
+- [$0.49/hr GPU 能做什麼](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_zh_tw)
+- [台灣雲端 GPU 租用指南](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_zh_tw)
+
+## 下一步
+
+在三個 [Glows.ai GPU 配置](https://glows.ai/)執行同一模型與 prompt trace，保留 raw output，再依 p95、失敗率與每個成功結果成本做決定。

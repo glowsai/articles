@@ -1,0 +1,166 @@
+---
+id: batch_vs_real_time_llm_inference_en
+title: 'Batch vs Real-Time LLM Inference: Which Cuts GPU Cost?'
+date: '2026-08-05 10:00'
+lastUpdated: '2026-08-05'
+description: 'Choose batch or real-time LLM inference by comparing GPU utilization, throughput, TTFT, p95 latency, queue delay, and cost per result.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** Complete the matched-mode Glows.ai benchmark before publication. The examples explain methodology and do not claim measured savings.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Batch vs Real-Time LLM Inference: Which Cuts GPU Cost?
+
+> **Decision rule:** Batch inference usually lowers unit cost when work can wait because it keeps GPUs fuller. Real-time inference pays for responsiveness and idle headroom. Many products need both: interactive requests on a latency path and deferrable work on a batch queue.
+
+Batch LLM inference optimizes a queue of work for throughput and completion cost. Real-time inference optimizes individual requests for response latency. Both can use batching inside the serving engine, but they expose different product contracts. Choosing the wrong mode can leave a GPU idle for low latency or make users wait behind a throughput-optimized queue.
+
+The fair comparison holds model, GPU, token workload, and engine constant, then changes arrival pattern, scheduler settings, and service-level objective.
+
+## Batch vs Real-Time at a Glance
+
+| Factor | Batch inference | Real-time inference |
+| --- | --- | --- |
+| Request arrival | Queue or uploaded job | Unpredictable live traffic |
+| Primary target | Completion deadline and throughput | TTFT, TPOT, p95 latency |
+| Capacity | Can wait for efficient batches | Needs warm headroom for bursts |
+| Retry model | Job-level retry and checkpoints | Request-level retry and graceful overload |
+| Cost risk | Missed deadline or failed batch | Idle capacity and tail latency |
+
+## Do Not Confuse Workload Mode With Engine Batching
+
+Static batching groups fixed-shape inputs. Continuous batching lets an LLM serving engine admit new requests as others finish. A real-time service can use continuous batching; an offline workload can also run through the same engine.
+
+The architecture question is whether the caller expects an immediate streamed answer or accepts deferred completion by a deadline.
+
+## Matched Benchmark Setup
+
+Keep constant:
+
+- model revision and tokenizer;
+- quantization, context, and output caps;
+- vLLM version and container digest;
+- GPU variant and region;
+- total prompts and token distribution;
+- success and quality criteria.
+
+For batch mode, queue the entire dataset and record completion time. For real-time mode, replay a timestamped arrival trace and enforce TTFT/TPOT/p95 limits. Repeat runs and publish variance.
+
+## Results
+
+**Evidence gate:** Replace pending cells with the Glows.ai matched-mode run and release the scrubbed trace.
+
+| Metric | Batch mode | Real-time mode |
+| --- | ---: | ---: |
+| Total prompts/tokens | Pending | Same workload |
+| Completion time | Pending | Pending |
+| Output tokens/sec | Pending | Pending |
+| TTFT p95 | Not primary; report anyway | Pending |
+| End-to-end p95 | Pending | Pending |
+| GPU utilization | Pending | Pending |
+| Failed requests | Pending | Pending |
+| Cost per 1M output tokens | Pending | Pending |
+
+Report both unconstrained throughput and the real-time throughput that remains within the latency SLO. Do not use saturated throughput to price an interactive service if it violates p95.
+
+## Cost Model
+
+Batch cost is driven by total GPU time required to finish before the deadline. Real-time cost includes warm capacity that may wait for requests.
+
+`batch cost = runtime to complete queue × GPU rate`
+
+`real-time cost = active capacity across traffic window × GPU rate`
+
+Add storage, retries, replicas, startup, and operations to both. If real-time capacity scales down, include cold-start effects and failed or delayed requests.
+
+## Workload Decision Guide
+
+### Use batch
+
+- document extraction that can finish overnight;
+- embeddings and indexing;
+- evaluation suites;
+- offline enrichment;
+- report generation with a deadline.
+
+### Use real time
+
+- interactive chat;
+- coding assistance;
+- voice or agent interactions;
+- user-facing search and RAG;
+- synchronous application workflows.
+
+### Use a hybrid queue
+
+Route interactive requests to a latency lane and deferred work to a batch lane. Apply priorities and backpressure so a large offline job cannot starve user traffic. Share model replicas only after measuring interference.
+
+## Operational Differences
+
+Batch systems need job identity, idempotency, checkpointing, partial-output handling, and deadline alerts. Real-time systems need admission control, rate limiting, graceful overload, request tracing, and tail-latency alerts.
+
+Both need versioned models, reproducible containers, quality evaluation, storage controls, and recovery tests.
+
+## A Hybrid Design Often Wins
+
+Split work by latency value:
+
+- **Real-time lane:** user-facing chat, interactive coding, or synchronous decisions with a declared TTFT and p95 target.
+- **Batch lane:** document enrichment, evaluation, summarization, embeddings, report generation, or retries that can wait.
+- **Admission layer:** classifies work, applies token limits, and prevents the real-time queue from being overwhelmed.
+- **Shared capacity policy:** allows batch work to consume spare GPU time without violating the real-time SLO.
+
+The lanes can use the same engine but need separate queues, priorities, metrics, and cost attribution. During interactive peaks, throttle or pause batch work. During quiet periods, fill available capacity with queued work.
+
+## Compare With a Decision Worksheet
+
+For each workload, record:
+
+| Question | Real-time implication | Batch implication |
+| --- | --- | --- |
+| How long can the user wait? | Set TTFT and end-to-end SLO | Set queue deadline |
+| Is arrival predictable? | Reserve headroom for bursts | Schedule capacity around backlog |
+| Can requests be grouped? | Continuous batching only | Larger offline batches may be valid |
+| What happens on failure? | Fast retry without duplicate response | Resume from durable queue/checkpoint |
+| What is the cost unit? | Accepted request at SLO | Accepted document/token by deadline |
+
+Benchmark both lanes with the same model and GPU. A cost comparison that ignores queue delay for batch or idle headroom for real-time is incomplete.
+
+Before testing, divide requests into deadline buckets such as under 2 seconds, under 30 seconds, under 15 minutes, and overnight. Report completion rate and cost inside each bucket rather than averaging incompatible jobs together. Also count expired, retried, and duplicate work: a cheap batch run that misses the business deadline is not a saving, while an always-warm real-time replica may be justified when one missed interaction costs more than its idle headroom. This deadline view turns “batch or real-time?” into a measurable service decision instead of a generic architecture preference.
+
+## Inference Architecture Sources
+
+DigitalOcean’s [continuous versus static batching guide](https://www.digitalocean.com/community/tutorials/continuous-batching-vs-static-batching-llm-inference) explains why token generation changes ordinary batching assumptions. The research paper [Efficient LLM Serving on Hybrid Real-time and Best-effort Requests](https://arxiv.org/abs/2504.09590) frames the mixed-workload scheduling problem. Validate the final choice with the same model, hardware, queue policy, and arrival trace.
+
+## FAQ
+
+### Is batch inference always cheaper?
+
+It often improves utilization, but retries, deadlines, queue storage, and workload shape matter. Measure the completed workload.
+
+### Is continuous batching real-time or batch?
+
+It is an engine scheduling technique commonly used in real-time serving. It is different from an offline batch job contract.
+
+### Can one GPU handle both modes?
+
+Yes, but workloads can interfere. Use priorities, quotas, or separate replicas and test p95 during concurrent work.
+
+### What should I optimize for batch inference?
+
+Completion time, throughput, failure recovery, and cost within the deadline—not first-token latency alone.
+
+## Related Guides
+
+- [Cost to run an LLM](https://glows.ai/article/cost_to_run_an_llm_en)
+- [Llama 3.3 70B concurrency sizing](https://glows.ai/article/llama_3_3_70b_gpu_concurrency_sizing_en)
+- [DeepInfra vs Glows.ai](https://glows.ai/article/deepinfra_vs_glows_ai_en)
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+
+## Next Step
+
+Take one representative prompt set and run it in both modes on the same [Glows.ai GPU](https://glows.ai/). Keep the hardware fixed and compare cost only after the real-time SLO is enforced.

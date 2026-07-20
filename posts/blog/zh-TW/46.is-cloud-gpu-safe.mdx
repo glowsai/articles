@@ -1,0 +1,117 @@
+---
+id: is_cloud_gpu_safe_zh_tw
+title: '雲端 GPU 安全嗎？上傳資料前必做的 8 項檢查'
+date: '2026-08-03 10:00'
+lastUpdated: '2026-08-03'
+description: '上傳資料前完成 8 項雲端 GPU 安全檢查：隔離、identity、加密、儲存、log、區域、刪除與責任分工。'
+tags:
+  - Blog
+  - AI Operations
+---
+
+> **草稿狀態：** 資安宣稱需由 Glows.ai security owner 審查，並連結目前政策、證書範圍、架構與產品文件。本文不是法律意見。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 雲端 GPU 安全嗎？上傳資料前必做的 8 項檢查
+
+> **安全性答案：** 只有在供應商與客戶責任明確、完整資料路徑受控時，雲端 GPU 才能支援安全工作負載。GPU 位於本地區域或標示為 dedicated，並不能單獨證明隔離、加密、保留、刪除或 compliance。
+
+雲端 GPU 可以是安全 AI 架構的一部分，但「dedicated GPU」或「在地區域」不是完整答案。安全取決於隔離、identity、network exposure、加密、storage、log、刪除、provider access、connected service 與客戶設定。
+
+真正要問的是：團隊能否畫出完整資料路徑、為每個 control 指派 owner，並提出配置符合預期的證據？
+
+## 畫出完整資料路徑
+
+涵蓋 prompt、dataset、image、model weight 的輸入；compute region/GPU；runtime/persistent storage；snapshot/backup；model API、vector DB、observability；admin/user access；log、output、retention 與 deletion。
+
+GPU 在某區域，不代表 prompt 或 log 不會流向其他服務。
+
+## 雲端 GPU 責任矩陣
+
+| 控制 | 供應商責任 | 客戶責任 |
+| --- | --- | --- |
+| 實體資料中心 | 營運與保護設施 | 審查可用 assurance |
+| Host／platform isolation | 實作平台控制 | 選合適 service model |
+| Account identity | 提供 identity 功能 | 強 authentication、offboarding |
+| Instance access | 提供連線控制 | 管 key、user、port、service |
+| Guest／container | 提供 base option | patch 並固定環境 |
+| Encryption | 文件化平台行為 | 管 application secret 與所需加密 |
+| Retention／deletion | 定義產品生命週期 | 移除資源並驗證結果 |
+
+發布前要用 verified Glows.ai 文件替換通用矩陣。
+
+## 隔離與 Dedicated Hardware
+
+確認 GPU、host 或 cluster 是否共享、如何隔離、control-plane admin 能存取什麼。Dedicated GPU 不必然等於 dedicated host。只有平台文件化硬體、attestation、threat model 與區域時，才能稱 confidential computing。
+
+## Identity、Network 與 Secrets
+
+使用強驗證與個別 identity、least privilege、離職移除；不要把 private key/API secret 放進 notebook/image；只開必要 port；inference endpoint 加 authentication、authorization 與 rate limit。`0.0.0.0` 監聽不等於適合直接公開。
+
+## Storage、Snapshot 與刪除
+
+分別記錄 runtime disk、Datadrive、snapshot、external storage 與下載副本的 encryption、role、region、retention、backup 與 deletion。刪 instance 不一定刪 persistent storage；提早刪 runtime 也可能遺失成果。
+
+**證據門檻：** 以非敏感資料測試 stop、delete、snapshot 與 Datadrive detach 後保留／可恢復項目，並由產品 owner 驗證。
+
+## 驗證供應商宣稱
+
+Glows.ai 公開網站顯示 ISO/IEC 27001:2022 認證，並連結 privacy policy 與 terms。發布前要確認 certificate scope、有效性、legal entity、subprocessor、support access、incident process 與所選產品架構。認證不是每個客戶配置都安全或合規的保證。
+
+## 敏感資料上線前檢查
+
+核准 workload/data classification；確認 compute、storage、backup、log、API region；審查 contract/privacy/DPA；確認 isolation/admin access；限制 identity、port、secret；patch runtime；測試 backup、restore、delete 與 incident escalation；保存有日期的 architecture/evidence record。
+
+## 建立小型威脅模型
+
+選 control 前先列出要保護的項目：
+
+| Asset | 威脅例子 | 需要的證據 |
+| --- | --- | --- |
+| Training data/prompt | 未授權 account 或 support access | Identity policy、access log、support procedure |
+| Model weight/adapter | Exposed service 或 shared secret 造成外洩 | Network rule、authentication、secret rotation |
+| Runtime/snapshot | Residual data 或非預期 persistence | Encryption、lifecycle、deletion test |
+| API output/log | 敏感內容進 observability tool | Log schema、redaction、retention、region |
+| Availability/budget | Abuse、cryptomining、runaway endpoint | Rate limit、quota、alert、incident response |
+
+明確列出 account user、administrator、provider operator、subprocessor、internet attacker 與 connected service。Control 只有在處理真實 architecture 的 threat 時才有價值。
+
+## 上線前準備證據包
+
+保存帶日期的 data-flow diagram、responsibility matrix、核准 region、identity role、exposed port、encryption/key ownership、storage lifecycle、backup/restore 與 deletion test、log destination、incident contact、合約與 risk acceptance。
+
+更換 instance type、image、storage、region、identity 或 observability path 後要重測。Marketing security claim 應連到支援它的 evidence 與 scope，避免「完全安全」或「預設 compliant」等廣泛說法。
+
+## 資安資料來源與審查界線
+
+英國 National Cyber Security Centre 的[cloud shared-responsibility 指南](https://www.ncsc.gov.uk/collection/cloud/understanding-cloud-services/cloud-security-shared-responsibility-model)支援本文責任模型。產品控制、certificate scope、policy、subprocessor、region、retention 與 deletion 必須以最新 Glows.ai 證據及合約為準。本 checklist 只協助審查，不是 compliance certification 或法律意見。
+
+## 常見問題
+
+### 雲端 GPU 一定比本機 GPU 不安全嗎？
+
+不一定。兩者風險與責任不同，要比較完整架構和營運控制。
+
+### 台灣 GPU 代表所有資料留在台灣嗎？
+
+不一定。Storage、backup、log、connected API 與 admin 都要驗證。
+
+### 可以上傳機密訓練資料嗎？
+
+只有在 security、legal 與 data owner 核准配置與控制後；先用去識別化測試資料。
+
+### 刪除 instance 會清掉全部資料嗎？
+
+取決於 runtime、snapshot 與 persistent-storage 行為，必須安全實測。
+
+## 延伸閱讀
+
+- [AI 資料落地與區域選擇](https://glows.ai/article/taiwan_data_residency_ai_compute_zh_tw)
+- [台灣雲端 GPU 租用指南](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_zh_tw)
+- [雲端 GPU 租用如何運作](https://glows.ai/article/how_cloud_gpu_rental_works_zh_tw)
+- [GMI Cloud vs Glows.ai](https://glows.ai/article/gmi_cloud_vs_glows_ai_zh_tw)
+
+## 下一步
+
+先用非敏感資料建立 data-path diagram 與 control matrix，再由組織 security／legal owner 審查所選 [Glows.ai 配置](https://glows.ai/)。

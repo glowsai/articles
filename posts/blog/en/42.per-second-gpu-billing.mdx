@@ -1,0 +1,164 @@
+---
+id: per_second_gpu_billing_en
+title: 'Per-Second GPU Billing: When It Actually Saves Money'
+date: '2026-07-30 10:00'
+lastUpdated: '2026-07-30'
+description: 'See when per-second GPU billing beats per-minute or hourly minimums—and how startup, idle time, storage, and shutdown rules erase the savings.'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **Draft status:** Reconcile the worked Glows.ai example with a redacted usage record and current billing documentation before publication.
+
+> **Draft last reviewed:** July 20, 2026. Revalidate prices, versions, availability, and product behavior on publication day.
+
+# Per-Second GPU Billing: When It Actually Saves Money
+
+> **Bottom line:** Per-second billing helps short or intermittent jobs only when compute starts cleanly and stops promptly. Image pulls, setup time, idle notebooks, persistent storage, failed runs, and minimum charges can matter more than the billing increment.
+
+Per-second GPU billing charges compute according to actual metered runtime instead of rounding every session to a full hour. It creates the largest advantage for short experiments, bursty jobs, and development sessions that are shut down promptly. It does not mean every related resource stops costing money when the GPU stops.
+
+The practical question is: which state starts the compute meter, which state stops it, and what storage remains afterward?
+
+## The Basic Calculation
+
+`compute charge = hourly rate × billable seconds ÷ 3,600`
+
+At a rate of $0.49 per hour:
+
+| Runtime | Exact compute arithmetic |
+| ---: | ---: |
+| 7 minutes | about $0.06 |
+| 20 minutes | about $0.16 |
+| 73 minutes | about $0.60 |
+
+These are arithmetic examples. Taxes, minimum balance, storage, rounding policy, and other service terms may alter the actual charge.
+
+## Per-Second vs Per-Minute vs Hourly Minimums
+
+For long, uninterrupted jobs, the difference between second and minute granularity is small. For short sessions, an hourly minimum dominates.
+
+| Seven-minute job | Billable time |
+| --- | ---: |
+| Per second | 420 seconds |
+| Per minute | 7 minutes |
+| One-hour minimum | 60 minutes |
+
+Granularity also changes behavior. When stopping a test immediately saves money, teams are less likely to leave an idle GPU running “until later.”
+
+## Know the Billing State Machine
+
+A cloud instance can move through several states:
+
+`requested → provisioning → running → stopping → stopped/deleted`
+
+The provider must define which transitions are billable. Do not infer that “not connected” means “not billed.” A running GPU can accrue charges even when no process uses it.
+
+Glows.ai advertises per-second billing. Confirm in the current product documentation and console when billing starts and stops for the chosen service.
+
+**Evidence gate:** The publication version must include a timestamped seven-minute test showing launch, usable connection, shutdown action, completed state, expected arithmetic, and the matching redacted usage record.
+
+## Compute Can Stop While Storage Continues
+
+Runtime and persistent storage are different resources. A stopped or deleted GPU does not necessarily delete a Datadrive, snapshot, model cache, or other persistent volume. That behavior is useful because it preserves work between sessions—but it also means cost and data retention need separate controls.
+
+Before shutdown, document:
+
+- files on runtime storage;
+- files on persistent storage;
+- what a snapshot contains;
+- which action deletes each resource;
+- whether storage has a separate meter.
+
+## Where Per-Second Billing Helps Most
+
+### Development and debugging
+
+Launch, reproduce an error, collect logs, stop. Ten small sessions should not require ten full GPU-hours when the service truly meters seconds.
+
+### Bursty inference
+
+If startup time and architecture allow safe scale-down, per-second billing reduces idle cost between bursts. Keep recovery capacity and latency targets in the calculation.
+
+### Short batch jobs
+
+OCR, embeddings, evaluation, and data preprocessing can run from a queue and stop when empty.
+
+### GPU comparison tests
+
+Run the same trace on several GPUs without committing to an hour on each. Setup and model-download time still count if they occur while compute is active.
+
+## Where It Does Not Solve the Cost Problem
+
+Per-second billing cannot fix poor utilization inside a continuously running service. It also does not remove persistent-storage charges, network fees, failed jobs, engineering time, or capacity reserved for availability.
+
+For a 24/7 workload, throughput, reliability, and cost per accepted request matter more than fine billing granularity.
+
+## Operational Controls
+
+- Assign an owner and expiration time to every instance.
+- Alert on running GPUs with low utilization.
+- Stop compute after notebook or shell disconnect only when safe.
+- Preserve checkpoints before automated shutdown.
+- Review persistent storage separately from compute.
+- Reconcile expected and actual charges during the first week.
+
+## Break-Even Math for Short GPU Jobs
+
+At $0.49 per hour, the compute-only difference is most visible below an hour:
+
+| Actual runtime | Exact per-second charge | Hour-block charge |
+| ---: | ---: | ---: |
+| 3 minutes | about $0.02 | $0.49 |
+| 17 minutes | about $0.14 | $0.49 |
+| 73 minutes | about $0.60 | $0.98 |
+
+The table assumes billing starts and stops with the measured runtime and that the hour-block provider rounds every job upward. Real services may use free allowances, minimum account balances, startup charges, per-minute rounding, or different storage policies.
+
+For repeated short jobs, add setup time to every run. A three-minute inference task that spends 12 billed minutes pulling an image and model is a 15-minute cost event. A persistent cache may reduce future compute time while creating an idle storage charge. Model both paths over a month.
+
+## Verify the Meter With a Controlled Test
+
+1. Record the balance and wall-clock time before launch.
+2. Start the smallest suitable instance and note when it becomes billable.
+3. Run a fixed five-minute workload.
+4. Stop compute using the documented action.
+5. Confirm the billed seconds and compute charge.
+6. Recheck after ten minutes for storage or still-running resources.
+7. Repeat after attaching persistent storage.
+
+Do not use sensitive data. Save the timestamps and usage export so product or billing support can reconcile any difference.
+
+## Billing Sources and Assumptions
+
+Glows.ai’s public site states per-second billing; verify the current meter, startup boundary, stop behavior, minimum balance, and storage lifecycle in the live product before relying on the examples. For an independent example of the same billing model, RunPod’s official [cloud GPU page](https://www.runpod.io/product/cloud-gpus) also describes per-second GPU billing; its other terms do not establish Glows.ai behavior. Every calculation here separates active compute from persistent storage. Add taxes, credits, transfer, reserved capacity, and failed provisioning when they apply.
+
+## FAQ
+
+### Does per-second billing mean there is no minimum charge?
+
+Not necessarily. Billing granularity and minimum charges are separate policies. Verify both.
+
+### Does closing SSH stop billing?
+
+No. Disconnecting from a running instance generally does not stop the compute resource. Use the provider’s stop or delete control.
+
+### Will snapshots keep costing money?
+
+Persistent resources can have separate pricing. Check current terms and delete only when the data is no longer required.
+
+### Is per-second billing useful for training?
+
+Yes for short or variable runs, but checkpoint recovery and total completed-job cost are more important for long training.
+
+## Related Guides
+
+- [Cloud GPU pricing in 2026](https://glows.ai/article/cloud_gpu_pricing_2026_en)
+- [Why a cheap GPU cloud can cost more](https://glows.ai/article/cheap_gpu_cloud_real_cost_en)
+- [What a $0.49/hour GPU can do](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_en)
+- [Rent vs buy GPU in 2026](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_en)
+
+## Next Step
+
+Run one short, non-sensitive workload on [Glows.ai](https://glows.ai/). Record every state transition, stop compute, and verify both the compute line and any persistent resources.

@@ -1,0 +1,122 @@
+---
+id: cloud_gpu_vs_google_colab_zh_tw
+title: '雲端 GPU vs Google Colab：2026 年哪個更省？'
+date: '2026-07-26 10:00'
+lastUpdated: '2026-07-26'
+description: '比較 2026 年雲端 GPU 與 Google Colab 的價格、GPU 選擇、session 限制、儲存、可重現性與完整專案成本。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **草稿狀態：** Colab plan 與資源分配會變。發布前需重跑 notebook 並核對官方價格。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 雲端 GPU vs Google Colab：2026 年哪個更省？
+
+> **簡短答案：** Notebook 實驗通常用 Colab 起步最方便；需要指定 GPU、可預期 session、持久環境、可重現部署或 production 式連線時，隨用隨付雲端 GPU 更容易合理化。應比較完成整個專案的成本，而不是只看訂閱費。
+
+需要快速打開 notebook、可以接受動態硬體與 session 限制時，Google Colab 很方便。需要指定 GPU、固定環境、提供服務或控制關機時間時，隨用隨付雲端 GPU 更適合。
+
+真正要選的是 managed notebook session，還是可控制的 GPU 環境。
+
+## 雲端 GPU 與 Google Colab 快速比較
+
+| 問題 | Google Colab | 隨用隨付雲端 GPU |
+| --- | --- | --- |
+| 介面 | Hosted notebook | SSH、notebook、app、container、API |
+| 硬體選擇 | 依 plan 與供應 | 從庫存選指定 GPU |
+| Session | 可能 reset／disconnect | 自行控制 instance 生命週期 |
+| 檔案持久性 | 通常靠外部 drive／下載 | 依供應商持久儲存 |
+| Production API | 非主要用途 | 安全設定後可部署 |
+| 計費 | 免費／付費 plan、compute units | GPU 時間、儲存等資源 |
+
+Google 說明付費 plan 使用 compute units，資源供應具有動態性。應查看最新 [Google Colab pricing](https://cloud.google.com/colab/pricing)，不要假設一定取得某張 GPU 或不中斷。
+
+## 快速 Notebook 工作選 Colab
+
+Colab 適合學習、短實驗、分享 notebook、可容忍 reset 的工作，以及先驗證 library。它省掉 server 管理，但 runtime 不是永久主機，available accelerator 可能變動。
+
+```python
+import torch
+print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else "No CUDA GPU")
+```
+
+## 需要控制就選雲端 GPU
+
+需要指定 GPU/VRAM、長任務與 checkpoint、固定 container、inference endpoint、持久 model cache、網路／區域控制或可重現 benchmark 時，選擇雲端 GPU。
+
+Glows.ai 列出 RTX 4090 到 B200，並公開 ready-to-start environment、持久儲存與每秒計費。仍要確認所選配置的實際行為。
+
+## 比較同一個專案，而不是兩個不同 Demo
+
+在兩個環境執行同一 notebook 與 dataset，記錄 GPU/VRAM、設定時間、是否完成、wall-clock、disconnect/restart、保存的 artifact 與總成本。
+
+**證據門檻：** 發布版需有同日對照實跑、notebook repository、dependency lock、時間戳記與 Colab 分配限制。不得宣稱付費 plan 永遠提供特定 GPU。
+
+## 成本取決於工作型態
+
+頻繁 notebook 使用時 subscription 可能合理；短而密集的 GPU 工作可能受益於每秒租用。Colab 要計算 plan／compute units；雲端 GPU 要計算 runtime、持久儲存、setup 與 recovery。硬體不同就必須明確揭露。
+
+## 持久性是營運分界
+
+Notebook、requirements、資料、checkpoint 與輸出都要離開暫時 runtime。雲端 GPU 也要弄清楚 ephemeral 與 persistent disk。任何一小時以上工作，都應先做 checkpoint 並測試 restore。
+
+## 選擇指南
+
+便利與協作優先，且可接受動態硬體，選 Colab；GPU 型號、環境、儲存生命週期、網路或可重現效能是需求，選雲端 GPU。常見流程是 Colab 探索、受控 GPU benchmark／長任務，再依實測建立 production。
+
+## 依使用者與工作負載做決策
+
+| 情境 | 起步選項 | 何時切換 |
+| --- | --- | --- |
+| Notebook 學習或短課程 | Colab | Limit 或 availability 中斷課程時 |
+| 一次性模型探索 | Colab 或低價 cloud GPU | 需要指定 accelerator 或更多 VRAM 時 |
+| 團隊可重現實驗 | 固定 image 的 cloud GPU | Colab 仍可作 shared notebook 前端 |
+| 多小時 fine-tune | Cloud GPU | 必須先測 persistence 與 checkpoint recovery |
+| 公開 inference endpoint | Cloud GPU 或 managed serving | 需要 auth、monitoring、穩定 runtime 與 capacity planning |
+| 敏感組織資料 | 僅限核准環境 | 由 architecture、policy、contract 與 data path 決定 |
+
+答案會隨 project 階段改變。團隊可以用 Colab 探索、在 instance 重現，再用 managed endpoint 部署；migration cost 也要納入比較。
+
+## 計算每個完成專案的成本
+
+Colab 要納入 subscription/compute unit、硬體不可用或 session 中斷的時間，以及外部 storage。Cloud GPU 要納入 active runtime、persistent storage、setup、failed start 與 idle time。
+
+`project cost = platform charge + storage + transfer + rerun + engineering time`
+
+在兩邊跑同一個小任務，記錄 GPU identity、setup 分鐘、execution 分鐘、檔案是否保留與最終帳單。若 project 要十個 session，就要乘上重複 setup；較低名目 plan 價格可能因反覆重建或缺少指定 accelerator 而輸掉。
+
+## 比較資料來源
+
+Google plan 行為與限制應查閱官方 [Colab FAQ](https://research.google.com/colaboratory/faq.html) 與 [Colab 價格頁](https://cloud.google.com/colab/pricing)。Cloud GPU 價格與產品行為則在所選供應商的 live console 確認。Plan、compute unit、accelerator 與庫存會變動，因此本文比較決策條件，不承諾永久贏家。
+
+## 常見問題
+
+### Google Colab 免費嗎？
+
+有免費存取，但資源動態且有限制；付費條款以官方頁面為準。
+
+### Colab Pro 保證 GPU 嗎？
+
+不要假設永久保證特定 accelerator，仍受產品條款與供應影響。
+
+### 雲端 GPU 一定比 Colab 快嗎？
+
+若選到更強硬體可能更快，但公平比較要固定 notebook、模型、資料與版本。
+
+### Colab 能跑 production API 嗎？
+
+Colab 主要為互動式 notebook，不適合當持久 production endpoint。
+
+## 延伸閱讀
+
+- [Paperspace vs Glows.ai](https://glows.ai/article/paperspace_vs_glows_ai_zh_tw)
+- [Ollama timeout 修正](https://glows.ai/article/ollama_timeout_slow_fix_cloud_gpu_zh_tw)
+- [2026 租 GPU 還是買 GPU](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+同一 notebook 分別在 Colab 與 [Glows.ai GPU](https://glows.ai/)執行一次，記錄硬體、設定時間、完成、恢復與總成本，再決定預設環境。

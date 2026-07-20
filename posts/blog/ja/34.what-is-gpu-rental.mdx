@@ -1,0 +1,136 @@
+---
+id: what_is_gpu_rental_ja
+title: 'GPUレンタルとは？支払う前に確認すべき7項目'
+date: '2026-07-22 10:00'
+lastUpdated: '2026-07-22'
+description: 'GPUレンタルの仕組み、料金、購入より有利な場面と、想定外の請求やファイル消失を防ぐ支払い前の7項目を解説します。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **ドラフト状態：** 公開前に現在のGlows.ai consoleで製品挙動と画面を検証してください。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# GPUレンタルとは？支払う前に確認すべき7項目
+
+> **短い答え：** GPUレンタルは、使用量に応じて支払う一時的なリモートGPU環境です。支払う前に、正確なGPUとVRAM、storage lifecycle、課金メーター、region、接続方法、capacity policy、課金を本当に止める操作を確認します。
+
+GPUレンタルとは、NVIDIA GPUと周辺の計算環境へ一時的にリモートアクセスすることです。GPUを購入してワークステーションに設置する代わりに、必要なGPUを選び、実行時間とストレージに応じて支払います。
+
+「グラフィックスカードを借りる」だけではありません。GPU、CPU、RAM、disk、network、software image、region、課金ルールを含むremote environmentです。
+
+## クラウドGPUレンタルに含まれるもの
+
+| 要素 | 重要な理由 |
+| --- | --- |
+| GPUとVRAM | modelとKV cacheが入るか決める |
+| variantと台数 | 性能とmulti-GPU挙動を変える |
+| CPU／RAM | 前処理、download、pipelineに影響 |
+| Runtime storage | 実行中の環境を保持 |
+| 永続ストレージ | session間でmodel/data/outputを保存 |
+| Region | latency、data path、inventoryに影響 |
+| Software image | driver、CUDA、frameworkを決める |
+| Billing meter | 課金の開始／停止を決める |
+
+Glows.aiは学習／推論向けのオンデマンドGPU、Snapshot、Datadrive、Team、秒単位課金を案内しています。選択構成に含まれる機能を確認してください。
+
+## GPUレンタルの流れ
+
+アカウントと支払いを設定し、region／GPU／image／storageを選び、instanceを起動します。接続後にmodelとdataを準備し、実行と監視を行い、必要なoutputを永続化してからcomputeを停止または削除します。
+
+停止しても永続ストレージが残る場合があり、instance削除でruntime fileが消える場合があります。重要データを1カ所だけに置かないでください。
+
+## GPUレンタルの料金
+
+`計算コスト = GPU時間単価 × active runtime`
+
+Glows.aiでは2026年7月20日にRTX 4090が$0.49/hrでした。正確な秒課金なら30分の計算部分は約$0.25ですが、storage、transfer、税、最低残高などは別です。
+
+比較には、100万token、成功したfine-tune、1,000画像、処理文書、利用可能checkpointなど、完了結果あたりのコストを使います。
+
+## 借りる方が購入より合理的な場面
+
+- 一時的／burst型のワークロード
+- 高価なGPUが一つのprojectだけ必要
+- modelに大容量VRAMが必要
+- 購入前に複数GPUをbenchmarkしたい
+- すぐcapacityが必要
+- hardwareが多くの時間idleになる
+
+高利用率が続き、on-premises要件があり、運用能力があれば購入も合理的です。電力、冷却、場所、保守、停止、減価償却を含めます。
+
+## 主なGPUレンタル用途
+
+### LLM推論
+
+vLLM、SGLang、Ollamaなどでopen-weight modelを実行します。重み、runtime、context／concurrencyのKV cacheをVRAMに収めます。
+
+### Fine-Tuningと学習
+
+重み、activation、gradient、optimizer state、batchを考慮し、早期checkpointとrestoreを試します。
+
+### 画像／動画生成
+
+ComfyUI、Stable Diffusion、Flux、open video modelを実行し、workflow、model、outputを一時disk以外へ保存します。
+
+### データ処理と評価
+
+embedding、OCR、reranking、evaluation、nightly batchを実行し、queueが空になったら停止します。
+
+## レンタル前の確認事項
+
+benchmarkと同じGPU variantか、stop/restart/delete後に何が残るか、portとauthentication、region/data path、capacity不足時、環境再現、課金停止の確認方法を明確にします。
+
+## GPUレンタル、Serverless、Model API、購入の選び方
+
+「GPUを借りる」には複数の購入modelがあります。価格より先にoperating modelを選びます。
+
+| Option | Controlするもの | 支払うもの | 向く用途 |
+| --- | --- | --- | --- |
+| GPU instance | OS/container、engine、model、data path | Active computeとstorage | Custom環境、長時間job |
+| Serverless GPU | Handler、image、scaling policy | Invocation、execution、provisioned capacity | Cold startを許容するburst endpoint |
+| Managed model API | Requestとapplication logic | Input/output tokenまたはcall | Infrastructureなしの高速検証 |
+| Owned GPU | Machine全体とlifecycle | 購入、電力、冷却、保守 | 安定した高utilization、on-premises要件 |
+
+APIはtoken単価が高く見えてもidle GPUと運用を避けます。Instanceはloadが予測可能で利用率を上げられると有利です。購入はraw computeで勝ってもlead time、redundancy、engineering effortが必要です。
+
+## 7項目で契約可否を判断する
+
+長いrunの前に、短いレンタルでfit、persistence、meter、region、access、recovery、shutdownを証明します。Exact modelがheadroom付きで収まり、test fileがstop/restart後に残り、compute secondsを照合でき、承認data pathを通り、個別credentialと最小portで接続し、新instanceからcheckpointを復元し、課金中resourceをすべて特定できることが条件です。
+
+一つでも失敗したら、重要dataや長時間jobの前にworkflowまたはservice modelを修正します。
+
+## 定義と製品情報源
+
+手順は現在の[Glows.ai instance作成ドキュメント](https://docs.glows.ai/docs/create-new)と、[DigitalOceanのcloud GPU解説](https://www.digitalocean.com/resources/articles/cloud-gpu)にある標準的なlifecycleを基にしています。hardware、storage、region、billing ruleは変わるため、製品固有の内容はlive consoleで再確認してください。
+
+## よくある質問
+
+### 物理GPUを設置する必要がありますか？
+
+ありません。GPUはremote datacenterにあり、network経由で利用します。
+
+### 数分だけ借りられますか？
+
+最低料金と課金単位によります。Glows.aiは秒単位課金を案内していますが、短いテストで状態を確認します。
+
+### Storageは永久ですか？
+
+自動ではありません。重要データにはdocumented persistent storage、snapshot、外部copyを使います。
+
+### 機密データに安全ですか？
+
+安全な構成は可能ですが、access、encryption、log、backup、deletion、subprocessor、data pathを審査します。
+
+## 関連ガイド
+
+- [台湾のクラウドGPUレンタル](https://glows.ai/article/taiwan_cloud_gpu_rental_guide_2026_ja)
+- [2026年GPUは買うか借りるか](https://glows.ai/article/why_ai_users_stopped_buying_gpus_2026_ja)
+- [$0.49/hrのGPUでできること](https://glows.ai/article/what_can_a_0_49_hour_gpu_do_ja)
+- [AIデータレジデンシーとregion選択](https://glows.ai/article/taiwan_data_residency_ai_compute_ja)
+
+## 次のステップ
+
+1時間以内に終わる非機密ワークロードを選び、[instance作成ガイド](https://docs.glows.ai/docs/create-new)に従います。開始／停止、output保存、停止後に残るデータを確認してください。

@@ -1,0 +1,117 @@
+---
+id: fine_tune_llama_on_a_budget_zh_tw
+title: '低成本微調 Llama：QLoRA 省錢實戰手冊'
+date: '2026-07-31 10:00'
+lastUpdated: '2026-07-31'
+description: '用 QLoRA、乾淨合法資料、VRAM 實測、早期 checkpoint、evaluation gate 與完整 GPU 成本追蹤，降低 Llama 微調費用。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 發布前需以確認過的 Llama release、dataset license、evaluation、checkpoint 與去識別化帳單完整執行。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 低成本微調 Llama：QLoRA 省錢實戰手冊
+
+> **省錢策略：** 先用少量乾淨資料與短 QLoRA run 證明任務有效，再擴大規模。選擇能容納實測峰值的最低成本 GPU，提早 checkpoint，快速停止無效 run，並用每一美元帶來的 evaluation 改善判斷成敗。
+
+本實戰手冊涵蓋：
+
+- 資料品質、授權與未接觸 training 的 evaluation split；
+- QLoRA memory planning 與 GPU 選擇；
+- smoke test、pilot、budget 與停止條件；
+- checkpoint、restart recovery 與 artifact retention；
+- 品質評估與每個有效改善的成本。
+
+最便宜且有用的 Llama 微調，不是 GPU 帳單最低的 run，而是能改善目標任務、留下可恢復 adapter、並通過 evaluation 的最小可重現實驗。QLoRA 可降低記憶體，但資料品質與評估才決定成果是否有價值。
+
+## 步驟 1：定義窄任務與 Baseline
+
+用一句話定義任務，例如「從發票抽取六個欄位並輸出指定 JSON schema」。訓練前先建立 held-out evaluation set，測 base model 的 accuracy、schema validity、refusal、latency 與失敗案例。
+
+## 步驟 2：確認模型與資料權利
+
+依所選 release 的官方 Llama license 與 model card，記錄 exact revision。確認 dataset 可合法用於訓練，個資、機密或受監管資料也符合組織政策。Dataset manifest 應包含來源、license、筆數、split、cleaning 與限制。
+
+## 步驟 3：選擇訓練方法
+
+Full fine-tuning 更新所有 parameter，通常需要更多記憶體；LoRA 訓練低秩 adapter；QLoRA 以量化 base model 搭配 adapter。第一次 budget experiment 可先評估 QLoRA，並參考目前 [Unsloth 文件](https://unsloth.ai/docs/get-started/fine-tuning-llms-guide)與 [Hugging Face TRL](https://huggingface.co/blog/unsloth-trl)。固定 library version，不要盲抄舊 notebook。
+
+## 步驟 4：估算 VRAM 並選 GPU
+
+Training memory 包含量化權重、adapter、activation、optimizer state 與 workspace。先以短 sequence、micro-batch 1、gradient accumulation、支援時使用 gradient checkpointing，並保留安全餘裕。
+
+Glows.ai 在 2026 年 7 月 20 日列出 RTX 4090 到 B200；選擇應依 peak memory 與完成成本，而不是 GPU 名氣。
+
+## 步驟 5：先跑 Smoke Test
+
+用小 subset 確認 loss 正常、checkpoint 寫入 persistent storage、adapter 能在乾淨 process reload、evaluation 可執行、輸出 schema 正確，並記錄 peak VRAM 與 tokens/sec。
+
+## 步驟 6：保留完整 Artifact Trail
+
+保存 dataset manifest/hash、config、environment lock/container digest、log、GPU/region/runtime、checkpoint/final adapter、evaluation 與去識別化 usage record。Checkpoint 必須真的 restore 過才算 recovery plan。
+
+## 步驟 7：評估品質，不只看 Loss
+
+在 held-out set 比較 base 與 tuned model，回報 task metric 與具體失敗。也要檢查通用 instruction 與必要的 safety regression。訓練 loss 降低不等於產品變好。
+
+## 步驟 8：計算完整成本
+
+`微調總成本 = GPU runtime + storage + failed runs + evaluation inference + operational time`
+
+**證據門檻：** 發布 run record、peak VRAM、training duration、baseline vs adapter evaluation、checkpoint restore、deployment smoke test 與去識別化 Glows.ai 帳務。完成前不要宣稱固定價格。
+
+## 訓練前先建立預算
+
+把 discovery 與 final run 分開：
+
+| 階段 | 目的 | Budget 控制 |
+| --- | --- | --- |
+| Data audit | 移除 duplicate、leak、錯誤格式與無授權資料 | 可行時用 CPU/local tool |
+| Smoke test | 證明 format、loss、checkpoint、evaluation path | 小 sample、少量 step |
+| Pilot | 比較 hyperparameter 與 data variant | 每個候選固定小額 budget |
+| Final run | 訓練已選 configuration | 按排程 checkpoint 與 evaluate |
+| Reproduction | 從保存 artifact 重現結果 | 宣布成功前預留時間 |
+
+GPU compute 是 `時薪 × 預估小時`，還要加 failed pilot、evaluation inference、checkpoint storage、download 與 reproduction。Contingency 應依 pilot variance，而非任意百分比。
+
+## 設定真正能省錢的停止條件
+
+預先定義條件：loss 變成 non-finite；task evaluation 在允許 window 未改善；format 或 safety regression 超過 threshold；throughput 無原因明顯低於 pilot；peak VRAM/step time 威脅 budget；checkpoint 無法 save/restore；data 或 license review 出現 blocker。
+
+提早停止是有效證據，不是浪費。記錄 configuration 與原因，避免團隊再次付費重跑同一失敗。
+
+## 微調資料來源
+
+原始 [QLoRA 論文](https://arxiv.org/abs/2305.14314)是 quantized low-rank fine-tuning 的主要來源。實作行為應對照固定 training framework，例如最新 [Hugging Face PEFT 文件](https://huggingface.co/docs/peft/)，以及所選 Llama model card 與 license。VRAM、runtime 與品質仍是特定 dataset 和設定的實測結果。
+
+## 常見問題
+
+### 一張 RTX 4090 能微調 Llama 嗎？
+
+部分較小配置可用 QLoRA 在 24 GB 執行，但仍取決於模型、sequence、batch 與 library。
+
+### 需要多少訓練資料？
+
+品質與任務涵蓋比固定筆數重要。先用聚焦、審查過的資料與 held-out set。
+
+### QLoRA 等於 Full Fine-Tuning 嗎？
+
+不等於。它在量化 base 上訓練 adapter，成本較低但能力與取捨不同。
+
+### 訓練後可以刪除 Base Model 嗎？
+
+Adapter 通常需要相容的 base model，必須保留 exact revision 與 license 資訊。
+
+## 延伸閱讀
+
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [什麼是 VRAM](https://glows.ai/article/what_is_vram_ai_models_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+- [AI 資料落地與區域選擇](https://glows.ai/article/taiwan_data_residency_ai_compute_zh_tw)
+
+## 下一步
+
+先建立 baseline 與 50–100 筆 smoke-test dataset，再啟動有餘裕的 [Glows.ai GPU](https://glows.ai/)，並在延長 run 前證明 checkpoint 可恢復。

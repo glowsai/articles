@@ -1,0 +1,124 @@
+---
+id: sglang_vs_vllm_ja
+title: 'SGLang vs vLLM：Productionで選ぶべき推論エンジン'
+date: '2026-08-07 10:00'
+lastUpdated: '2026-08-07'
+description: '同一production testでSGLangとvLLMのcorrectness、TTFT、p95、throughput、cost、compatibility、recoveryを比較します。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** matched Glows.ai benchmark/recovery完了前にwinnerを断定しません。公開前にcurrent releaseをpinします。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# SGLang vs vLLM：Productionで選ぶべき推論エンジン
+
+> **正直な答え：** 永続的で普遍的な勝者はいません。両projectは急速に変化し、結果はmodel architecture、engine revision、prompt mix、concurrency、kernel、hardwareで変わります。同一testでcorrectness、tail latency、recovery、upgrade gateを通過したengineを選びます。
+
+SGLangとvLLMは高速に進化するLLM inference engineです。winnerはmodel、release、kernel、GPU、prompt、structured output、concurrencyで変わります。実際に運用するworkloadでcontrolled testします。
+
+throughputだけでなくAPI compatibility、startup、observability、model coverage、failure recovery、upgrade riskを比較します。
+
+## SGLang vs vLLM概要
+
+| 領域 | 確認内容 |
+| --- | --- |
+| Model support | exact model/quantization |
+| API | 必要route/response behavior |
+| Performance | TTFT/TPOT/p95/throughput/error |
+| Memory | Peak VRAM/KV cache |
+| Feature | Cache/structured output/adapter |
+| Operations | Metric/log/startup/recovery |
+| Upgrade | Release/regression/rollback |
+
+[SGLang repository](https://github.com/sgl-project/sglang)と[vLLM document](https://docs.vllm.ai/)で同じ日付の機能を確認します。
+
+## Controlled Benchmark Method
+
+model/tokenizer、quantization、container/runtime、GPU/CPU/RAM/region、context/output、prompt distribution、client/network/warmup/durationを固定します。documented engine settingのみ調整し、out-of-box/tunedを分けます。
+
+## Latency・Throughput結果
+
+1/10/50/real traceを測り、repeat varianceを報告します。
+
+**証拠ゲート：** 同hardware Glows.ai resultとraw aggregateで表を埋めます。
+
+| Metric | SGLang | vLLM |
+| --- | ---: | ---: |
+| Version/commit | 未測定 | 未測定 |
+| Startup time | 未測定 | 未測定 |
+| Peak VRAM | 未測定 | 未測定 |
+| TTFT p50/p95 | 未測定 | 未測定 |
+| TPOT p50/p95 | 未測定 | 未測定 |
+| Valid output tok/s | 未測定 | 未測定 |
+| Error rate | 未測定 | 未測定 |
+| 100万token cost | 未測定 | 未測定 |
+
+valid throughputはlatency/error threshold内です。
+
+## Workload-Specific FeatureをTestする
+
+long shared prefix/cache、structured JSON、LoRA、tool call、multimodal、tensor parallel、cancel/streamを追加し、speedだけでなくquality/schemaを検証します。
+
+## Operational Fit
+
+cold/warm startup、readiness、metric、log、config、image size、download、graceful termination、crash recoveryを測ります。両engineでupgrade/rollback rehearsalを行います。
+
+## Cost比較
+
+`100万output token cost = GPU時間単価 ÷ valid output token/時 × 1,000,000`
+
+同じGlows.ai hardware/offered loadで、saturatedだけでなくreal utilizationを計算します。
+
+## 選び方
+
+exact model/featureを支援し、measured targetとoperational riskで勝つ方を選びます。engine-neutral harnessを残し、new releaseを再testします。1 modelの結果で全社winnerを決めません。
+
+## 両推論エンジンに同じテスト基盤を使う
+
+同じrequest body、arrival time、prompt/output distribution、cancellationを送るclientを作り、engine-specific settingはversioned configにします。Model、tokenizer、quantization、GPU、driver、container base、warmup、network path、run durationを固定します。
+
+Output validity/task evaluation、TTFT、TPOT、p50/p95、accepted input/output tok/s、error/timeout/cancellation/OOM、peak VRAM、cache utilization、startup/recovery、realistic/saturated loadのcost per million accepted tokensを収集します。各conditionを複数回走らせvarianceを示し、prompt orderをrandomizeします。
+
+## 速度だけでなく本番適合性を評価する
+
+結果を見る前にownerがweighted scorecardを承認します。Latency-sensitive productはp95/recovery、batch pipelineはthroughputを重くできます。Model coverage、API compatibility、observability、upgrade effort、documentation、team familiarityも含めます。
+
+Hard gateはscoreより優先し、output corruption、required model path不足、安全にrecover不能なら高速でもwinnerではありません。
+
+Benchmark前にpass thresholdを記録します。たとえばcontract suiteでschema regressionがゼロ、p95 TTFTがproduct target未満、error rateが合意した上限未満、recoveryがdeployment budget内という条件です。すべてのhard gateを通過した構成だけでcostを比較し、rejectしたrunと理由もresult packageに残します。これにより、好みのengineが一つのmetricで勝った後にthresholdを動かすことを防ぎ、次のreleaseも同じproduction-ready定義で比較できます。
+
+## 推論エンジンの情報源
+
+Feature、flag、対応hardware、release behaviorは公式[SGLangドキュメント](https://docs.sglang.ai/)と[vLLMドキュメント](https://docs.vllm.ai/)で確認します。2026年の研究[The Silent Hyperparameter](https://arxiv.org/abs/2605.19537)は、model weightが同じでもinference backendがreproducibilityに影響し得ることを示すため、correctnessをthroughputと同等に評価します。
+
+## よくある質問
+
+### SGLangはvLLMより速いですか？
+
+workload/release次第です。exact model/hardware/trafficで測ります。
+
+### 両方OpenAI API compatibleですか？
+
+機能はありますがroute、field、stream、tool behaviorをtestします。
+
+### App codeを変えず移行できますか？
+
+可能な場合もありますがcontract testが必要です。
+
+### 運用しやすいのはどちらですか？
+
+team、platform、metric、failure、upgradeで変わります。
+
+## 関連ガイド
+
+- [vLLM upgrade/rollback](https://glows.ai/article/vllm_upgrade_rollback_runbook_ja)
+- [vLLM CUDA OOM修正](https://glows.ai/article/vllm_cuda_out_of_memory_ja)
+- [Batch vs real-time](https://glows.ai/article/batch_vs_real_time_llm_inference_ja)
+- [LLM実行コスト](https://glows.ai/article/cost_to_run_an_llm_ja)
+
+## 次のステップ
+
+同じmodel/traceを2つのpinned containerにし、同じ[Glows.ai GPU](https://glows.ai/)でcompatibility/recovery/performanceを比較します。

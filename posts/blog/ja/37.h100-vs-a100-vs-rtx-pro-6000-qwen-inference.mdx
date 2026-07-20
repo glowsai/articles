@@ -1,0 +1,132 @@
+---
+id: h100_vs_a100_vs_rtx_pro_6000_qwen_inference_ja
+title: 'H100 vs A100 vs RTX PRO 6000：Qwenに最適なのは？'
+date: '2026-07-25 10:00'
+lastUpdated: '2026-07-25'
+description: 'H100、A100、RTX PRO 6000をVRAM、latency、throughput、100万tokenコストで比較し、Qwenに最適なGPUを選びます。'
+tags:
+  - Blog
+  - Inference Economics
+---
+
+> **ドラフト状態：** 公開前に同条件Qwen benchmarkを完了し、未測定値を置換してください。料金確認日は2026年7月20日です。
+
+> **下書き最終確認：** 2026年7月20日。公開日に料金、version、availability、product behaviorを再確認してください。
+
+# H100 vs A100 vs RTX PRO 6000：Qwenに最適なのは？
+
+> **判断基準：** A100は低価格なdatacenter baseline、H100は高throughput候補、RTX PRO 6000は96 GBのsingle-GPU候補です。最適解は、対象Qwen modelが収まり、latency目標を満たす構成の中で総コストが最も低いものです。
+
+H100、A100、RTX PRO 6000は、Qwen推論で異なる制約を解きます。H100は新しいdatacenter throughput、A100は成熟したbaseline、RTX PRO 6000は96 GB VRAMと低い表示料金が特徴です。
+
+正しい勝者は、対象Qwen modelを実行し、latency目標を満たす最小総コスト構成です。
+
+## ハードウェアと料金スナップショット
+
+| GPU | 確認するmemory | Glows.ai料金 | 評価役割 |
+| --- | --- | ---: | --- |
+| A100 | variantにより40／80 GB | $1.20/hr | 成熟datacenter baseline |
+| H100 | 選択variantを確認 | $2.96/hr | 高throughput候補 |
+| RTX PRO 6000 | 96 GB | $1.78/hr | 大容量memory候補 |
+
+PCIe／SXM、GPU数、interconnect、region、hostを確認します。公式特性は[NVIDIA H100](https://www.nvidia.com/en-us/data-center/h100/)などを参照します。
+
+## Qwen構成を先に固定する
+
+model family/size/revision、BF16／FP8／INT8／4-bit、context、input/output token分布、concurrency、arrival rate、TTFT／TPOT／p95、serving engineを記録します。concurrency 1でloadできても、production loadでKV cache不足になる場合があります。
+
+## Memory容量が判断を変える理由
+
+`必要VRAM = 重み + KV cache + runtime workspace + 安全余裕`
+
+RTX PRO 6000の96 GBはquantizationやKV cacheの余裕を作れます。H100が高速でも、memory不足でtensor parallelが必要ならコストと障害面が増えます。
+
+## 同条件Benchmark方法
+
+model/tokenizer、vLLM/SGLang commit、container、precision、context、trace、warmup、run durationを固定します。1、10、50、target in-flight requestを測り、repeat varianceを報告します。
+
+**証拠ゲート：** controlled Glows.ai runだけで表を埋めます。
+
+| 指標 | A100 | H100 | RTX PRO 6000 |
+| --- | ---: | ---: | ---: |
+| Hardware variant | 未測定 | 未測定 | 未測定 |
+| Peak VRAM | 未測定 | 未測定 | 未測定 |
+| TTFT p95 | 未測定 | 未測定 | 未測定 |
+| TPOT p95 | 未測定 | 未測定 | 未測定 |
+| SLO内tok/s | 未測定 | 未測定 | 未測定 |
+| Error rate | 未測定 | 未測定 | 未測定 |
+| 100万output tokenコスト | 未測定 | 未測定 | 未測定 |
+
+## 有効なLatency SLOでコストを計算する
+
+`100万output tokenコスト = GPU時間単価 ÷ 有効output token/時 × 1,000,000`
+
+有効とはTTFT、TPOT、error、qualityを満たすことです。offered loadとprompt distributionを併記します。
+
+## 各GPUを最初に試す場面
+
+### A100から始める
+
+確認したvariantにmodelが入り、成熟したsoftwareと低い完了コストが期待できるbaselineです。
+
+### H100から始める
+
+厳しいlatency、高concurrency、対応precisionが重要な場合に試します。speedupが価格差を上回る必要があります。
+
+### RTX PRO 6000から始める
+
+96 GBでsingle-GPU構成が簡単になる場合に試し、bandwidthや運用特性も測ります。
+
+## テスト前にQwenワークロードを定義する
+
+| Input | 公開するfield | 結果が変わる理由 |
+| --- | --- | --- |
+| Model | Repositoryとimmutable revision | Architecture/weightでfitとspeedが変わる |
+| Precision | BF16、FP8、AWQなど | Memory、kernel、qualityが変わる |
+| Prompt mix | p50/p95 input/output tokens | Prefill-heavyとdecode-heavyを分ける |
+| Load | Request rate、concurrency | Batchingとqueueingを決める |
+| SLO | TTFT、TPOT、p95、error rate | 使用可能なthroughputを定義する |
+| Quality gate | Task set、acceptance threshold | 高速だが劣化した構成を除外する |
+
+Interactive traceとthroughput traceを最低1つずつ測ります。長prompt prefillで勝つGPUがdecodeで負けることや、saturated throughputが高くても実loadのtail latencyを満たさないことがあります。
+
+## 勝者を3種類に分ける
+
+- **Fit winner：**安全なmemory headroomを持つ最も単純な有効構成。
+- **Latency winner：**error/quality limitを満たしp95が最低。
+- **Cost winner：**指定loadのaccepted million tokens単価が最低。
+
+最後にworkload別で推奨します。Controlled result tableが埋まるまで、H100、A100、RTX PRO 6000の優位性はhypothesisです。
+
+## テスト入力と情報源
+
+Variant仕様はNVIDIA公式の[A100](https://www.nvidia.com/en-us/data-center/a100/)と[H100](https://www.nvidia.com/en-us/data-center/h100/)を使い、architecture、license、tokenizer、revisionは対象Qwen model cardで確認します。料金は[Glows.ai](https://glows.ai/)から取得し、run当日に再確認します。Vendorのpeak performanceは、本文のmatched serving testの代わりになりません。
+
+## よくある質問
+
+### H100は必ずA100より速いですか？
+
+新しいGPUですが、model、precision、engine、batch、latency制約で実現差は変わります。
+
+### 96 GBならRTX PRO 6000が最良ですか？
+
+model fitには有利ですが、最小latency／最大throughputを保証しません。
+
+### 大型Qwenを1 GPUで提供できますか？
+
+size、quantization、context、concurrencyによります。
+
+### Input／output tokenのどちらでコストを出しますか？
+
+可能なら分けます。Prefillとdecodeの負荷は異なります。
+
+## 関連ガイド
+
+- [ローカルLLMとGPU要件](https://glows.ai/article/best_local_llms_2026_gpu_requirements_ja)
+- [AWS GPU料金 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_ja)
+- [Nebius vs Glows.ai](https://glows.ai/article/nebius_vs_glows_ai_ja)
+- [2026年クラウドGPU料金](https://glows.ai/article/cloud_gpu_pricing_2026_ja)
+
+## 次のステップ
+
+3つの[Glows.ai GPU](https://glows.ai/)で同じQwen traceを実行し、raw aggregateと構成を公開して、同じSLOを通る最安結果を選びます。

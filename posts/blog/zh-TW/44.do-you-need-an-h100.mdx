@@ -1,0 +1,114 @@
+---
+id: do_you_need_an_h100_zh_tw
+title: '你真的需要 H100 嗎？一張表選對 AI GPU'
+date: '2026-08-01 10:00'
+lastUpdated: '2026-08-01'
+description: '用工作負載決策表判斷 H100 何時值得較高價格，以及 RTX 4090、5090、L40S、A100 或 RTX PRO 6000 何時已足夠。'
+tags:
+  - Blog
+  - Model Deployment
+---
+
+> **草稿狀態：** 發布前需以受控 Glows.ai 量測完成 workload decision table。本草稿不做通用效能宣稱。
+
+> **草稿最後審查：** 2026 年 7 月 20 日。發布當天請重新確認價格、版本、庫存與產品行為。
+
+# 你真的需要 H100 嗎？一張表選對 AI GPU
+
+> **簡短答案：** 如果較低成本 GPU 能放下模型並達成工作目標，多半不需要 H100。當 H100 的 memory bandwidth、tensor format、interconnect 或吞吐能大幅降低完成時間或單位成本，足以抵銷較高時薪時，它才特別有價值。
+
+只有當 H100 的記憶體、低精度加速、吞吐、互連或資料中心特性能讓工作通過較便宜 GPU 無法達成的要求，並降低總成本時，你才需要 H100。不能因為它知名就直接選。
+
+先寫下模型、精度、context、concurrency、latency target 與 deadline，再測能通過的最低成本配置。
+
+## H100 的價格溢價
+
+Glows.ai 在 2026 年 7 月 20 日標示 H100 $2.96/hr；RTX 4090 $0.49、RTX 5090 $0.69、L40S $0.83、A100 $1.20、RTX PRO 6000 $1.78。H100 必須以更多合格工作、啟用必要配置或降低營運複雜度，抵消較高時薪。
+
+## 先定義五個需求
+
+1. 模型是否放得下：權重、KV cache、runtime 與餘裕。
+2. 精度：BF16、FP8、INT8、4-bit 與品質限制。
+3. 延遲：TTFT、TPOT、end-to-end p95。
+4. 容量：RPS、concurrency 或 training deadline。
+5. 營運：reliability、interconnect、support、recovery。
+
+RTX 4090 若全部通過，就不需要 H100；若兩張較便宜 GPU 增加成本與故障面，單張 H100 反而可能簡單。
+
+## 常常不需要 H100 的工作
+
+量化 7B–14B 單人開發、能放入 24 GB 的 ComfyUI、較小 QLoRA、deadline 寬鬆的 batch，以及低／不確定流量 prototype。RTX 4090／5090 可作低成本基準，記憶體不足再測 L40S／RTX PRO 6000。
+
+## 應該測試 H100 的工作
+
+嚴格 latency SLO 的高併發 LLM、能放入確認 H100 配置的大模型／context、受益於低精度加速的訓練、需要相關互連的多 GPU 工作，以及能用更少 replica 抵消時薪的 production service。
+
+「應測」不等於「一定勝」。
+
+## 在同一 Service Level 比較
+
+固定 model、precision、prompt distribution、context、concurrency、engine 與 quality evaluation，記錄 peak VRAM、TTFT/TPOT p95、合格 throughput、error rate、每個結果成本與 recovery time。
+
+**證據門檻：** 至少發布一個互動式 LLM、一個 batch 與一個 training/fine-tuning 的 Glows.ai 測試，附 raw aggregate 與最低成本通過配置。
+
+## 實用 GPU 決策階梯
+
+1. 24 GB 足夠先測 RTX 4090。
+2. 需要 32 GB 或較新 kernel 再測 RTX 5090。
+3. 記憶體是限制時測 L40S／RTX PRO 6000。
+4. 需要成熟資料中心基準時測 A100。
+5. latency、throughput、precision 或 multi-GPU 要求出現時測 H100。
+6. 只有在實測 bottleneck 需要時才上 H200／B200。
+
+不要為了名氣往上升級。
+
+## 使用工作負載決策矩陣
+
+| Workload signal | 先從 H100 以下起步 | 何時升級測 H100 |
+| --- | --- | --- |
+| Model fit | Model 與 peak memory 放得下低價 GPU | 需要 offload、多 GPU 或不可接受限制 |
+| Interactive inference | 低價 GPU 達成 TTFT/p95 | Tail latency 或 throughput 未達 SLO |
+| Batch inference | Queue 能在 deadline 內清空 | 加速能讓總成本低於 premium |
+| Fine-tuning | QLoRA/LoRA pilot 放得下且按時完成 | Deadline 或 precision path 改變經濟性 |
+| Multi-GPU training | 小 topology scale 良好 | H100 interconnect/kernel 明顯改善 scaling |
+
+不要因 model card 提到 H100 就升級；應因實測 constraint 有明確價值，例如 missed deadline、replica 過多、latency 不合格或工程工時。
+
+## 計算 H100 損益平衡
+
+`每結果成本 = GPU 時薪 × runtime 小時 ÷ 有效結果數`
+
+若 H100 時薪較高但完成更多有效工作，就用相同 result unit 比較。納入低價 GPU 的額外 replica、cross-GPU communication 與更長 runtime，也要納入 H100 idle time。若配置成本勝出卻未達 quality、error-rate 或 latency gate，仍應淘汰。
+
+## 硬體決策資料來源
+
+請以 NVIDIA 官方 [H100](https://www.nvidia.com/en-us/data-center/h100/)、[A100](https://www.nvidia.com/en-us/data-center/a100/) 與 [L40S](https://www.nvidia.com/en-us/data-center/l40s/) 文件確認 variant 與支援功能。Peak specification 只能用來初篩；決策表仍需以實際 workload 的 time-to-result、latency、throughput、品質與成本完成驗證。
+
+## 常見問題
+
+### H100 是每個 LLM 的最佳 GPU 嗎？
+
+不是。小模型或低使用量在便宜 GPU 上也能達到同一目標。
+
+### H100 值得用來微調嗎？
+
+大型或有 deadline 的工作可能值得；QLoRA 與小模型則可能在低成本 GPU 更經濟。
+
+### RTX 4090 可以取代 H100 嗎？
+
+能在 24 GB 放入且不需要資料中心特性的工作可以，但兩者不是營運上相同的產品。
+
+### 更快 GPU 一定每 token 更便宜嗎？
+
+不一定；speedup 必須超過時薪溢價，且符合 latency 與 utilization。
+
+## 延伸閱讀
+
+- [H100 vs A100 vs RTX PRO 6000 跑 Qwen](https://glows.ai/article/h100_vs_a100_vs_rtx_pro_6000_qwen_inference_zh_tw)
+- [本地 LLM 與 GPU 需求](https://glows.ai/article/best_local_llms_2026_gpu_requirements_zh_tw)
+- [AWS GPU 定價 vs Glows.ai](https://glows.ai/article/aws_vs_glows_ai_gpu_price_comparison_zh_tw)
+- [2026 雲端 GPU 價格](https://glows.ai/article/cloud_gpu_pricing_2026_zh_tw)
+
+## 下一步
+
+寫下五個需求，先測最低成本 [Glows.ai GPU](https://glows.ai/)。只有仍有量測限制時，再升級到 H100。
