@@ -1,0 +1,217 @@
+---
+id: choose_gpu_quantization_open_model
+title: 'How to Choose a GPU and Quantization Level for an Open Model'
+date: '2026-07-23 10:00'
+description: 'Learn how to estimate model VRAM, compare FP16, FP8, INT8, and INT4, and choose a GPU and quantization level for open-model inference.'
+tags:
+  - Tutorial
+---
+
+# How to Choose a GPU and Quantization Level for an Open Model
+
+Choosing a GPU for an open model starts with memory, but model weights are only part of the calculation. You must also leave room for the KV cache, inference-engine overhead, temporary tensors, and concurrent requests. Quantization can reduce weight memory, but it does not make every model fit every GPU.
+
+The safest approach is to estimate the workload, choose a compatible precision, and validate the configuration with a representative prompt before committing to a longer deployment.
+
+{/* Editorial: Before publication, add screenshots and measured peak VRAM from a real Glows.ai instance. Record the GPU, model revision, inference engine, context length, concurrency, and quantization format used in the test. */}
+
+## The short answer
+
+Use this sequence:
+
+1. Check the model card for parameter count, supported precision, and recommended runtime.
+2. Estimate the memory occupied by the weights.
+3. Add KV-cache memory for the target context length and concurrency.
+4. Add operational headroom for the inference engine and temporary allocations.
+5. Confirm that the quantization format is supported by both the GPU and runtime.
+6. Load the model and measure peak VRAM with a realistic test.
+
+A configuration that barely loads is not necessarily production-ready. If the GPU is already full before traffic arrives, longer prompts or concurrent requests can trigger out-of-memory errors.
+
+## Why this decision is easier to control on Glows.ai
+
+Glows.ai lets you choose the GPU and environment for the workload instead of forcing every model into one fixed configuration. That flexibility is valuable only when it is paired with measurement: start with the smallest configuration that appears viable, confirm memory and performance, then scale only when the evidence supports it.
+
+The practical customer advantage is control over the full experiment:
+
+- Choose the GPU for the model instead of changing the model to fit a bundled API.
+- Mount Datadrive so the same weights can be reused across instances.
+- Preserve a working environment with a Snapshot.
+- Release compute after testing while keeping the assets that matter.
+- Repeat the test on another configuration using the same model and data.
+
+Glows.ai is a strong fit when you want that infrastructure and model control. If you only need a handful of calls to a provider-managed model and do not want to operate an endpoint, a hosted API may be simpler. Making that distinction before checkout is part of making a good decision.
+
+## What uses GPU memory during inference?
+
+### Model weights
+
+Weights are usually the largest fixed allocation. A rough lower-bound estimate is:
+
+```text
+weight memory ≈ parameter count × bytes per parameter
+```
+
+| Weight format | Approximate storage per parameter | Rough weight memory for an 8B model |
+|---|---:|---:|
+| FP32 | 4 bytes | 32 GB |
+| FP16 or BF16 | 2 bytes | 16 GB |
+| INT8 or FP8 | 1 byte | 8 GB |
+| INT4 | 0.5 byte | 4 GB |
+
+These values are planning estimates, not guaranteed runtime measurements. Quantized checkpoints also contain metadata, scales, and other tensors. Some layers may remain at higher precision.
+
+### KV cache
+
+Autoregressive models retain key and value tensors for tokens already processed. This KV cache grows with:
+
+- Input length
+- Generated output length
+- Number of active sequences
+- Number and shape of attention layers
+- KV-cache data type
+
+This is why a model may serve one short request successfully but fail under long context or concurrency.
+
+### Runtime overhead
+
+CUDA contexts, kernels, graph capture, temporary tensors, communication buffers, and the inference engine itself use additional memory. Reserve headroom instead of allocating every advertised gigabyte to model weights.
+
+As an initial planning rule, leave at least 10–20% headroom, then replace that estimate with a measured peak. Workloads with long contexts, multimodal inputs, or unpredictable concurrency may require more.
+
+## FP16, BF16, FP8, INT8, and INT4
+
+Quantization represents model values with lower precision. It can reduce memory use and sometimes improve throughput, but the result depends on the model, method, hardware, and runtime.
+
+The [Hugging Face quantization guide](https://huggingface.co/docs/transformers/quantization/concept_guide) distinguishes post-training quantization from quantization-aware training and documents multiple supported backends. The [vLLM quantization documentation](https://docs.vllm.ai/en/stable/features/quantization/) maintains a hardware compatibility table because support differs across GPU architectures.
+
+| Format | Good starting point when | Main tradeoff |
+|---|---|---|
+| FP16/BF16 | The model fits with comfortable headroom | Highest memory use |
+| FP8 | Supported hardware and checkpoint are available | Hardware and format compatibility |
+| INT8 | FP16 does not fit or density matters | Possible performance or quality variation |
+| INT4 | Memory is the primary constraint | Greater quality and kernel-compatibility risk |
+
+Do not choose INT4 only because it is smallest. A smaller checkpoint can still be slower if the selected runtime lacks an optimized kernel for that format.
+
+## How to estimate a viable GPU
+
+### Step 1: Fix the workload assumptions
+
+Write down:
+
+- Exact model and revision
+- Weight format
+- Maximum input and output length
+- Expected concurrent requests
+- Inference engine and version
+- Target latency or throughput
+
+Without these inputs, “Which GPU does this model need?” has no single reliable answer.
+
+### Step 2: Estimate weight memory
+
+Suppose an 8-billion-parameter model is stored in FP16:
+
+```text
+8 billion × 2 bytes ≈ 16 GB
+```
+
+That does not mean a 16 GB GPU is sufficient. KV cache and runtime allocations have not been included.
+
+For a pre-quantized 4-bit checkpoint, a rough lower bound is:
+
+```text
+8 billion × 0.5 bytes ≈ 4 GB
+```
+
+Again, the real allocation will be higher.
+
+### Step 3: Add context and concurrency
+
+Test the context length users will actually send. If typical prompts are 2,000 tokens, do not validate only with a ten-token prompt. If the endpoint will handle four parallel requests, test at four or more.
+
+### Step 4: Check runtime compatibility
+
+Confirm that the selected engine supports:
+
+- The model architecture
+- The checkpoint format
+- The GPU architecture
+- The desired tensor-parallel configuration
+- The required context length
+
+For vLLM, use its current quantization compatibility table rather than an older third-party list.
+
+### Step 5: Measure on a real instance
+
+After creating the instance, monitor memory:
+
+```bash
+watch -n 1 nvidia-smi
+```
+
+Record memory at these points:
+
+1. Before starting the server
+2. After model loading
+3. During one representative request
+4. During expected concurrency
+5. During the longest supported request
+
+## Single GPU or multiple GPUs?
+
+Use a single GPU when it fits the model and workload with acceptable performance. It is simpler to configure and avoids communication overhead.
+
+Use tensor parallelism when the model cannot fit on one GPU or when a supported multi-GPU configuration improves the required performance. Multiple GPUs do not automatically produce linear speedups. Interconnect bandwidth, model architecture, kernels, and batch shape all matter.
+
+For a practical distributed example, see [running DeepSeek-R1 with SGLang on multiple GPUs](https://glows.ai/article/deepseek_r1_using_sglang).
+
+## Common mistakes
+
+### Matching checkpoint size directly to VRAM
+
+Files on disk are not the complete runtime allocation.
+
+### Ignoring context length
+
+KV-cache growth can turn a successful demo into an out-of-memory production service.
+
+### Assuming all 4-bit formats behave the same
+
+AWQ, GPTQ, bitsandbytes, GGUF, and other formats use different paths and have different hardware support.
+
+### Testing only one request
+
+Production memory and latency depend on concurrency.
+
+### Choosing the largest GPU before testing
+
+Start with a reasoned estimate. A short validation can reveal whether a smaller, less expensive configuration meets the target.
+
+## GPU-selection checklist
+
+- [ ] Exact model and revision recorded
+- [ ] Weight format confirmed
+- [ ] Runtime compatibility checked
+- [ ] Context and concurrency defined
+- [ ] Weight memory estimated
+- [ ] KV cache considered
+- [ ] Operational headroom reserved
+- [ ] Peak VRAM measured
+- [ ] Latency and throughput validated
+- [ ] Test configuration documented
+
+## Next steps
+
+Download reusable weights with [the Hugging Face model guide](https://glows.ai/article/download_huggingface_models), then validate the deployment using a repeatable benchmark. If you plan to expose an API, the next guide explains how to deploy vLLM with an OpenAI-compatible endpoint.
+
+When the test is finished, you should know exactly why the selected GPU is sufficient, what would cause the workload to outgrow it, and which files will remain after compute is released. That is a much safer basis for continued spending than choosing hardware by reputation alone.
+
+Continue with [the Glows.ai Cloud GPU Customer Playbook](https://glows.ai/article/cloud_gpu_customer_playbook), or contact [support@glows.ai](mailto:support@glows.ai) before scaling an uncertain configuration.
+
+## Sources
+
+- [Hugging Face: Quantization concepts](https://huggingface.co/docs/transformers/quantization/concept_guide)
+- [Hugging Face: bitsandbytes](https://huggingface.co/docs/bitsandbytes/)
+- [vLLM: Quantization](https://docs.vllm.ai/en/stable/features/quantization/)

@@ -1,0 +1,282 @@
+---
+id: benchmark_llm_latency_throughput
+title: 'How to Benchmark LLM Latency and Throughput'
+date: '2026-07-23 10:40'
+description: 'Measure time to first token, output speed, p95 latency, throughput, concurrency, and error rate for an LLM endpoint.'
+tags:
+  - Tutorial
+---
+
+# How to Benchmark LLM Latency and Throughput
+
+An LLM endpoint meets its performance target only when it handles representative prompts at expected concurrency. Measure time to first token, inter-token latency, end-to-end latency, throughput, and error rate. Report percentiles such as p50, p95, and p99 instead of relying on one average.
+
+This guide creates a repeatable benchmark process for a vLLM or OpenAI-compatible endpoint.
+
+{/* Editorial: Add a first-party benchmark dataset and results before publication. Include raw output, test date, model revision, GPU, region, vLLM version, prompt lengths, output lengths, request rate, concurrency, and client location. */}
+
+## Define the target first
+
+A benchmark needs a pass/fail condition. Example targets:
+
+- p95 time to first token below `[target]`
+- p95 end-to-end latency below `[target]`
+- At least `[target]` output tokens per second
+- At least `[target]` successful requests per second
+- Error rate below `[target]`
+
+Choose targets from the product experience, not from a convenient benchmark result.
+
+## Metrics that matter
+
+### Time to first token
+
+Time to first token (TTFT) is the interval from request arrival to the first generated token. It is especially important for streaming chat because it shapes perceived responsiveness.
+
+### Inter-token latency
+
+Inter-token latency is the time between generated tokens. It is also described as time per output token.
+
+### End-to-end latency
+
+This is the total time from sending a request to receiving the complete response.
+
+### Throughput
+
+Throughput is completed work per unit of time. Report:
+
+- Requests per second
+- Input tokens per second
+- Output tokens per second
+- Total tokens per second
+
+### Error rate
+
+```text
+error rate =
+failed requests / total requests
+```
+
+Count timeouts, invalid responses, out-of-memory failures, connection errors, and application-level rejection separately.
+
+The [vLLM production metrics documentation](https://docs.vllm.ai/en/stable/usage/metrics/) defines histograms for TTFT, inter-token latency, end-to-end latency, and other serving metrics.
+
+## Build a representative prompt set
+
+Do not benchmark one short prompt repeatedly unless that is the production workload.
+
+Create groups:
+
+- Short input, short output
+- Long input, short output
+- Short input, long output
+- Long input, long output
+- Tool or structured-output requests, if used
+- Multilingual or domain-specific requests, if used
+
+Record token-length distributions. Remove personal or confidential data.
+
+## Separate cold and warm tests
+
+Cold-start testing measures:
+
+- Instance startup
+- Storage attachment
+- Weight loading
+- Engine initialization
+- Time until the health check passes
+
+Warm serving tests start after the model is loaded and initial requests have completed. Do not mix cold-start results into steady-state latency without labeling them.
+
+## Establish a baseline
+
+Start with:
+
+- One request at a time
+- Fixed input and output lengths
+- Streaming enabled if production uses streaming
+- A stable client-to-server network path
+- Explicit generation settings
+
+Run enough requests to observe variation. A single request is a demonstration, not a benchmark.
+
+## Increase load gradually
+
+Test controlled stages:
+
+| Stage | Concurrent requests | Purpose |
+|---|---:|---|
+| Baseline | 1 | Best-case latency |
+| Light | 2–4 | Early batching behavior |
+| Expected | Production estimate | Validate the target |
+| Stress | Above expected | Find saturation |
+
+As load rises, throughput may improve while per-request latency worsens. Record both.
+
+## Use vLLM's benchmark command
+
+Current vLLM releases provide `vllm bench serve`. Check the installed version:
+
+```bash
+vllm --version
+vllm bench serve --help
+```
+
+A draft custom-dataset command is:
+
+```bash
+vllm bench serve \
+  --backend openai-chat \
+  --base-url http://127.0.0.1:8000 \
+  --endpoint /v1/chat/completions \
+  --model MODEL_ID \
+  --dataset-name custom \
+  --dataset-path /datadrive/bench/prompts.jsonl \
+  --num-prompts 100 \
+  --request-rate 4 \
+  --save-result \
+  --save-detailed
+```
+
+CLI flags can change between versions. Treat `--help` and the current [vLLM benchmark documentation](https://docs.vllm.ai/en/stable/benchmarking/cli/) as authoritative.
+
+Store raw results on Datadrive:
+
+```bash
+mkdir -p /datadrive/bench/results
+```
+
+## Use server metrics
+
+If the server exposes `/metrics`:
+
+```bash
+curl -s http://127.0.0.1:8000/metrics > /datadrive/bench/results/metrics.txt
+```
+
+Capture:
+
+- TTFT
+- Inter-token latency
+- End-to-end latency
+- Queue time
+- Requests running and waiting
+- Prompt and generation tokens
+- KV-cache utilization
+
+Also capture:
+
+```bash
+nvidia-smi --query-gpu=timestamp,name,memory.used,memory.total,utilization.gpu \
+  --format=csv
+```
+
+## Report percentiles
+
+An average can hide slow requests. Report:
+
+| Metric | p50 | p95 | p99 | Maximum |
+|---|---:|---:|---:|---:|
+| TTFT |  |  |  |  |
+| End-to-end latency |  |  |  |  |
+| Inter-token latency |  |  |  |  |
+
+Also report success rate and throughput for each load stage.
+
+## Interpret the result
+
+### High TTFT, acceptable output speed
+
+Possible causes include long prompts, queueing, prefill cost, or cold behavior.
+
+### Good baseline, poor concurrent latency
+
+The endpoint may be saturated. Inspect queue time, KV-cache use, batching, and GPU utilization.
+
+### Low GPU utilization
+
+The client may not send enough work, preprocessing may be slow, or the workload may be CPU or network bound.
+
+### Out-of-memory failures
+
+Reduce context, active sequences, or model size. Consider a supported quantization or larger configuration.
+
+### High throughput, unacceptable quality
+
+Performance optimization is not useful if the model fails the task. Run quality evaluation beside the serving benchmark.
+
+## Make comparisons fair
+
+When comparing GPUs, engines, or quantization:
+
+- Use the same model revision
+- Use the same prompt set
+- Use the same output limits
+- Use the same sampling parameters
+- Use the same request schedule
+- Use equivalent warm-up
+- Report the client location
+- Repeat tests
+
+Change one major variable at a time.
+
+## Use benchmarks to protect the buying decision
+
+A benchmark should tell you whether to keep, change, or stop a deployment. On Glows.ai, you can use the same prompt set to compare a different GPU, quantization, model, or region without rebuilding the evaluation method.
+
+Define the decision before the test:
+
+| Result | Action |
+|---|---|
+| Target met with headroom | Preserve the setup and proceed |
+| Latency misses but GPU is saturated | Test a larger or additional GPU |
+| GPU is underused | Investigate client, batching, CPU, or network bottlenecks |
+| Quality misses | Change the model or configuration before scaling |
+| Unit cost misses | Improve utilization or compare with a hosted API |
+
+This keeps spending tied to a product requirement. A more expensive configuration is justified only when it changes an outcome that matters.
+
+## Reproducible report template
+
+```yaml
+date: 2026-07-23
+client_location: replace-me
+server_region: replace-me
+gpu: replace-me
+image_id: replace-me
+model: replace-me
+model_revision: replace-me
+quantization: replace-me
+vllm_version: replace-me
+max_model_len: replace-me
+prompt_dataset: replace-me
+num_requests: replace-me
+request_rate: replace-me
+concurrency: replace-me
+```
+
+Attach the raw results and analysis script.
+
+## Benchmark checklist
+
+- [ ] SLO defined
+- [ ] Representative prompt set prepared
+- [ ] Cold and warm tests separated
+- [ ] Baseline measured
+- [ ] Expected concurrency tested
+- [ ] Stress test completed
+- [ ] p50, p95, and p99 reported
+- [ ] Errors categorized
+- [ ] GPU and server metrics captured
+- [ ] Quality checked
+- [ ] Raw results retained
+
+The result should be saved with the deployment manifest and cost estimate. Together, those records explain what Glows.ai delivered, what the application required, and why the selected configuration was accepted.
+
+Continue with [the Glows.ai Cloud GPU Customer Playbook](https://glows.ai/article/cloud_gpu_customer_playbook), or contact [support@glows.ai](mailto:support@glows.ai) when platform behavior prevents a fair test.
+
+## Sources
+
+- [vLLM benchmark CLI](https://docs.vllm.ai/en/stable/benchmarking/cli/)
+- [vLLM production metrics](https://docs.vllm.ai/en/stable/usage/metrics/)
+- [vLLM OpenAI-compatible server](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/)
