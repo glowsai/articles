@@ -1,0 +1,24 @@
+---
+id: benchmark_llm_latency_throughput_zh_tw
+title: '如何測試 LLM 的延遲與吞吐量'
+date: '2026-08-11 10:00'
+description: '測量首 token 時間、輸出速度、p95 延遲、吞吐量、併發數與錯誤率的方法。'
+tags:
+  - Tutorial
+---
+
+# 如何測試 LLM 的延遲與吞吐量
+
+基準測試不是宣稱「很快」，而是用可重現的測量回答是否符合使用者需求。請固定模型 revision、GPU、地區、推論引擎、輸入集與併發數。
+
+## 最低限度要記錄的指標
+
+- time to first token（TTFT）
+- 端到端延遲與 p50/p95/p99
+- 每秒輸出 token、總 token/秒、成功率
+- 併發數、輸入/輸出 token 數與排隊時間
+- GPU 使用率、VRAM、模型、runtime 與地區
+
+只測短的單一請求，無法證明正式環境品質。warm-up 後用代表性輸入重複測量，並在多個併發等級下測試。失敗、timeout、截斷與品質下降同樣是結果。
+
+先定義目標，例如「p95 低於 X 秒、成功率高於 Y%、通過品質評估」，不要把條件不同的測試混在一起比較。

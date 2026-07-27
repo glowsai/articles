@@ -1,0 +1,23 @@
+---
+id: checkpoint_recover_gpu_job_zh_tw
+title: '如何為長時間 GPU 工作建立 Checkpoint 並復原'
+date: '2026-08-13 10:00'
+description: '保存 checkpoint、環境、日誌與輸出，讓中斷的雲端 GPU 工作可以繼續執行。'
+tags:
+  - Tutorial
+---
+
+# 如何為長時間 GPU 工作建立 Checkpoint 並復原
+
+請把執行個體的本機磁碟視為暫存空間。不能遺失的權重、資料集、checkpoint、輸出、設定與日誌，應放在 Datadrive 或其他持久化儲存位置。
+
+## 可復原工作的條件
+
+1. 開始前就決定 checkpoint 儲存頻率與位置。
+2. 記錄模型 revision、程式 commit、依賴、seed、命令、GPU 與地區。
+3. 環境變更使用 Snapshot；會變動的資料放在 Datadrive。
+4. 實際中斷工作，並在另一個執行個體從 checkpoint 重新啟動。
+
+復原文件要包含：找出最後一個正常 checkpoint、掛載持久化儲存、重建環境、resume 命令，以及驗證結果完整性。從未實際測試過的 checkpoint 不算復原方案。
+
+不要把秘密資訊寫進 checkpoint 或日誌；釋放執行個體前，先確認需要保存的檔案已在持久化儲存中。

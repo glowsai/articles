@@ -1,0 +1,24 @@
+---
+id: deploy_vllm_openai_compatible_api_ja
+title: 'Glows.ai で vLLM を OpenAI 互換 API としてデプロイする方法'
+date: '2026-08-06 10:00'
+description: 'GPU インスタンス上で vLLM を起動し、認証済みの OpenAI 互換 API を検証する手順。'
+tags:
+  - Tutorial
+---
+
+# Glows.ai で vLLM を OpenAI 互換 API としてデプロイする方法
+
+vLLM は対応モデルを OpenAI 互換エンドポイントで提供できます。GPU、永続ストレージ、モデル、公開ポートを選び、認証済みのリクエストで実際に検証してから利用します。
+
+## デプロイ手順
+
+1. モデルと context/concurrency に合う GPU、リージョン、イメージを選ぶ。
+2. 重みと設定を Datadrive に置き、モデル revision と vLLM/CUDA の版を記録する。
+3. `vllm serve` を必要なモデル、host、port、認証設定で起動する。
+4. `/v1/models` と chat completion を認証付きで試し、ログ、起動時間、VRAM、エラーを保存する。
+5. 公開前に network exposure、秘密情報、rate limit、監視、復旧手順をレビューする。
+
+OpenAI 互換でも、対応 endpoint、chat template、tool 呼び出し、パラメータはモデルと vLLM 版により異なります。アプリが使う機能を必ずテストしてください。
+
+本番化前に [LLM レイテンシとスループットのベンチマーク](https://glows.ai/article/benchmark_llm_latency_throughput_ja) を実施します。
