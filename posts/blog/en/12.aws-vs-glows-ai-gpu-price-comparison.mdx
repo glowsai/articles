@@ -1,0 +1,119 @@
+---
+id: aws_vs_glows_ai_gpu_price_comparison_en
+title: 'AWS GPU Pricing vs Glows.ai: Same AI Job, 2–3× the Bill'
+date: '2026-07-10 10:00'
+description: 'We priced the same AI job on AWS GPU instances and on Glows.ai using July 2026 public rates — same L40S GPU, 2.2× the bill. See the math.'
+tags:
+  - Blog
+---
+
+# AWS GPU Pricing vs Glows.ai: Same AI Job, 2–3× the Bill
+
+Here is the short version of AWS GPU pricing vs Glows.ai in July 2026: the exact same NVIDIA L40S GPU costs **$1.861/hour** on AWS (`g6e.xlarge`, us-east-1 on-demand) and **$0.83/hour** on [Glows.ai](https://glows.ai) — a 2.2× difference on identical silicon. Move up to the A100 tier and the gap widens to **3.4×**, with AWS giving you half the VRAM. For a defined 20-GPU-hour fine-tuning job, the AWS bill lands around **$53** once storage is included; the Glows.ai bill is **$16.60**.
+
+Every number in this article comes from public price sheets, with sources and dates. We did not run a secret benchmark — we priced the same job on both rate cards, and you can redo every line of the math yourself.
+
+![AWS GPU pricing vs Glows.ai — rows of server racks in a cloud data center](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1600&auto=format&fit=crop)
+
+## The Method: Public Price Sheets, Not a Lab Test
+
+A headline like "we ran the same AI job on both clouds" usually hides an unverifiable benchmark. So let's be precise about what we did instead.
+
+We defined one concrete job: **20 GPU-hours on a 48GB NVIDIA L40S** — a realistic budget for a QLoRA fine-tune of an 8B-class model plus evaluation passes, and a duration you can scale linearly (10-hour job? halve every figure). Then we priced that job on both platforms using on-demand rates published in July 2026. The L40S is the cleanest possible comparison because both AWS and Glows.ai rent that exact GPU. No performance assumptions needed — same chip, same VRAM, two price tags.
+
+Where GPUs differ between platforms (AWS doesn't rent consumer cards like the RTX 4090), we say so and compare published specs, not invented speed tests.
+
+## AWS GPU Pricing in July 2026: What Each Instance Costs
+
+AWS hides its GPUs behind instance names, so here is the decoder ring with current us-east-1 on-demand rates:
+
+| AWS instance | GPU inside | VRAM | On-demand $/hr | $/GPU-hr | Source |
+| --- | --- | --- | --- | --- | --- |
+| `g6.xlarge` | 1× NVIDIA L4 | 24GB | $0.805 | $0.805 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/g6.xlarge), July 2026 |
+| `g5.xlarge` | 1× NVIDIA A10G | 24GB | $1.006 | $1.006 | [AWS G5 page](https://aws.amazon.com/ec2/instance-types/g5/), July 2026 |
+| `g6e.xlarge` | 1× NVIDIA L40S | 48GB | $1.861 | $1.861 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/g6e.xlarge), July 2026 |
+| `p4d.24xlarge` | 8× NVIDIA A100 | 40GB each | $32.77 | $4.10 | [Vantage instance tracker](https://instances.vantage.sh/aws/ec2/p4d.24xlarge), July 2026 |
+| `p5.48xlarge` | 8× NVIDIA H100 | 80GB each | ~$55 | ~$6.88 | [IntuitionLabs provider survey](https://intuitionlabs.ai/articles/h100-rental-prices-cloud-comparison), April 2026 |
+
+Two things to know before reading that table:
+
+- **P-series instances only come in 8-GPU blocks.** You cannot rent a single on-demand H100 or A100 on EC2 — the smallest unit is the full 8-GPU machine at $32–55+/hour.
+- **Prices are moving up, not down.** AWS raised EC2 GPU Capacity Block prices roughly 20% on July 1, 2026 — the second increase in six months, after a 15% hike earlier in the year ([Investing.com, July 2026](https://www.investing.com/news/stock-market-news/aws-raising-gpu-instance-prices-20-on-july-1-4762879)). Post-hike, a reserved P5 H100 bills at $5.191 per accelerator-hour in US regions.
+
+## The Same Job, Priced on Both Platforms
+
+Glows.ai publishes flat per-hour rates with per-second billing ([glows.ai](https://glows.ai), July 2026): RTX 4090 24GB at $0.49/hr, L40S 48GB at $0.83/hr, A100 SXM4 80GB at $1.20/hr, H100 80GB at $2.96/hr.
+
+Here is the cloud GPU price comparison, normalized to one GPU-hour:
+
+| GPU tier | AWS option | AWS $/GPU-hr | Glows.ai option | Glows.ai $/hr | AWS costs |
+| --- | --- | --- | --- | --- | --- |
+| 24GB, budget | `g6.xlarge` (L4) | $0.805 | RTX 4090 | $0.49 | 1.6× |
+| 24GB, mid | `g5.xlarge` (A10G) | $1.006 | RTX 4090 | $0.49 | 2.1× |
+| 48GB — same GPU | `g6e.xlarge` (L40S) | $1.861 | L40S | $0.83 | 2.2× |
+| A100 class | `p4d` (A100 **40GB**) | $4.10 | A100 SXM4 **80GB** | $1.20 | 3.4× |
+| H100 80GB | `p5` (H100) | ~$6.88 | H100 | $2.96 | 2.3× |
+
+The 24GB rows deserve a footnote that makes them worse for AWS, not better. The A10G in `g5.xlarge` is a 31.2 TFLOPS (FP32) part with 600 GB/s of memory bandwidth; the RTX 4090 is an 82.6 TFLOPS part with 1,008 GB/s (NVIDIA published specs). At the 24GB tier, AWS charges 2.1× the price for the slower chip — so the cost per finished job spreads even further than the cost per hour.
+
+### Worked example: the 20-hour L40S fine-tune
+
+| Line item | AWS (`g6e.xlarge`) | Glows.ai (L40S) |
+| --- | --- | --- |
+| Compute, 20 GPU-hours | 20 × $1.861 = **$37.22** | 20 × $0.83 = **$16.60** |
+| Storage: 200GB gp3 EBS, 1 month | 200 × $0.08 = **$16.00** | — (Datadrive keeps files between instances) |
+| Data egress | $0 (within 100GB/month free tier) | $0 |
+| **Job total** | **$53.22** | **$16.60** |
+
+Same GPU, same 20 hours: **3.2× the bill** with storage, 2.2× on compute alone. Storage caveats: the EBS volume persists whether you use it or not, and 200GB is a modest allowance once model weights (15–40GB each) and datasets pile up. On Glows.ai, [Datadrive](https://docs.glows.ai/docs/datadrive-app) holds your model files while instances are off.
+
+### Worked example: the 72-hour H100 run
+
+A three-day training run on one H100: AWS at ~$6.88/GPU-hr comes to **$495.36** — and remember, on-demand you'd actually be renting the 8-GPU `p5.48xlarge` at ~$55/hr ($3,960 for 72 hours) unless 7 idle GPUs earn their keep. Glows.ai at $2.96/hr comes to **$213.12** for the single H100 you actually need. That $282 gap per run is the "embarrassing" part of the headline — and it's pure rate-card arithmetic.
+
+## The Line Items the AWS Rate Card Hides
+
+To keep this fair in both directions: EC2 Linux instances bill **per-second with a 60-second minimum**, so billing granularity is not AWS's problem. These are:
+
+- **EBS storage never sleeps.** gp3 volumes cost $0.08/GB-month whether the instance runs or not ([AWS EBS pricing](https://aws.amazon.com/ebs/pricing/)). Delete the volume and you re-download your models next session.
+- **Egress after the free tier.** Data out of AWS costs $0.09/GB beyond 100GB/month ([AWS data transfer pricing](https://aws.amazon.com/ec2/pricing/on-demand/)). Pulling a 40GB checkpoint home twice a month starts to register.
+- **Quota requests before your first GPU.** New AWS accounts default to a vCPU quota of 0 for G- and P-family instances; you file a Service Quotas increase and wait for approval before launching anything ([AWS Service Quotas docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-on-demand-instances.html)). Budget hours to days, not minutes.
+- **You assemble the stack yourself.** Deep Learning AMIs help, but there's no one-click ComfyUI or Ollama image — driver, CUDA, and framework setup time is on your clock, and the meter runs during setup.
+
+## When AWS Is Still the Right Choice
+
+A price comparison that pretends AWS is never worth it isn't credible, so here is the honest other side:
+
+- **Compliance and audits.** HIPAA-eligible services, FedRAMP, PCI DSS, SOC 1/2/3 — if your workload needs certified infrastructure and signed BAAs, the hyperscaler premium is the cost of passing the audit.
+- **Spot instances.** AWS advertises up to 90% off on-demand for interruptible capacity. A `g6e.xlarge` spot instance can undercut almost anyone — if your job checkpoints gracefully and tolerates being killed.
+- **Data gravity.** If your training data already lives in S3, moving compute to the data is often cheaper than moving terabytes out at $0.09/GB.
+- **Enterprise scale.** Savings Plans, Reserved Instances, and Capacity Blocks with EFA networking make sense for multi-node clusters running months at a time — that's a different sport from renting one GPU for an evening.
+- **Managed pipeline tooling.** SageMaker, Bedrock, and the IAM/VPC machinery matter when a 40-person team ships models to production.
+
+If you're a team with a compliance officer, price AWS seriously. If you're one person with a fine-tuning job, keep reading.
+
+## What This Means If You Just Want to Run a Model Tonight
+
+For individual builders, the pattern from the tables is consistent: **the specialist platform charges 1.6–3.4× less per GPU-hour and skips the quota queue and stack assembly.** On Glows.ai you pick a preconfigured image — DeepSeek, Ollama, ComfyUI, and others — and the instance starts in 30–60 seconds with per-second billing. We've run the same style of public-pricing math for [building a local PC vs renting](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_en) and for [batch-generating 1,000 images for about $2](https://glows.ai/article/generate_1000_ai_images_for_2_dollars_en); the arithmetic keeps pointing the same direction for individual workloads. If your money currently goes to per-seat AI video subscriptions instead, [that comparison](https://glows.ai/article/ai_video_subscription_vs_gpu_rental_en) is worth five minutes too.
+
+## FAQ
+
+### How much does an AWS GPU instance cost per hour?
+
+As of July 2026, the cheapest AWS GPU instance is the `g6.xlarge` (NVIDIA L4, 24GB) at about $0.80/hour on-demand in us-east-1. A 24GB A10G (`g5.xlarge`) is $1.006/hour, a 48GB L40S (`g6e.xlarge`) is $1.861/hour, and H100s work out to roughly $6.88 per GPU-hour — sold only in 8-GPU blocks at ~$55/hour.
+
+### Why is AWS GPU pricing 2–3× higher than specialist GPU clouds?
+
+You are paying for the surrounding platform: compliance certifications, IAM and VPC integration, S3 proximity, and enterprise support. Industry surveys in 2026 consistently find hyperscaler GPU rates 2–3× above GPU-first providers for equivalent hardware ([IntuitionLabs, April 2026](https://intuitionlabs.ai/articles/h100-rental-prices-cloud-comparison)). None of that overhead helps a solo fine-tuning job.
+
+### Is AWS ever cheaper for GPU workloads?
+
+Yes, in three cases: spot instances (up to 90% off, if your job tolerates interruption), workloads whose data already sits in S3 (egress costs can exceed compute savings), and long-running enterprise clusters covered by Savings Plans or Capacity Blocks.
+
+### Can I rent an RTX 4090 on AWS?
+
+No. AWS offers datacenter GPUs only (L4, A10G, L40S, A100, H100 and newer). Consumer cards like the RTX 4090 — which outruns the similarly priced-tier A10G on published specs at 82.6 vs 31.2 FP32 TFLOPS — are available on specialist platforms; Glows.ai lists it at $0.49/hour as of July 2026.
+
+## Run the Numbers Yourself
+
+The whole point of public-pricing math is that you don't have to trust us: open the AWS rate card and the [Glows.ai](https://glows.ai) pricing page side by side and price your own job. Then, if the arithmetic lands where ours did, [create a Glows.ai account](https://glows.ai), launch an instance from the [create-new guide](https://docs.glows.ai/docs/create-new), and put your first 20 GPU-hours on the cheaper column of the table. At $0.83/hour for an L40S, the experiment costs less than an AWS quota-approval wait.

@@ -1,0 +1,120 @@
+---
+id: comfyui_cloud_4090_3_clicks_ja
+title: 'ComfyUIが遅い？クラウドRTX 4090なら3クリックでどんなワークフローも実行できる'
+date: '2026-07-10 10:00'
+description: 'ComfyUIが遅い原因の大半はVRAM不足。クラウドRTX 4090ならSDXLが1枚約6〜8秒、時間あたり$0.49（約75円）から秒単位課金。設定済みComfyUIを3クリックで起動。'
+tags:
+  - Blog
+---
+
+# ComfyUIが遅い？クラウドRTX 4090なら3クリックでどんなワークフローも実行できる
+
+ComfyUIが遅いと感じるなら、原因はほぼ確実にVRAMであって、ワークフローの組み方ではありません。モデルがGPUメモリに収まらないと、ComfyUIは重みをシステムRAMへ退避（オフロード）しながら動くため、本来20秒の生成が3分かかるようになります。起動オプションやキャッシュ系の高速化は効果があっても限定的で、グラボのVRAMを増やしてくれるものは一つもありません。約24〜30万円のグラボ買い替えなしで解決する方法が、ComfyUIをクラウドで動かすこと。Glows.aiなら、設定済みComfyUIイメージがRTX 4090（24 GB）上で1時間$0.49（約75円）から秒単位課金で使え、起動は30〜60秒。手順はわずか3クリック——`Create New`、イメージ選択、`Complete Checkout` です。
+
+![ComfyUIクラウドGPUインスタンスを支えるサーバーラック](https://images.unsplash.com/photo-1587831990711-23ca6441447b?q=80&w=1600&auto=format&fit=crop)
+
+この記事で扱う内容：
+
+- その「遅さ」がローカル最適化で直るかどうかの見分け方（VRAM診断）
+- お金をかける前に試すべき無料の高速化
+- 出典つきの生成秒数比較：RTX 3060 vs クラウドRTX 4090
+- Glows.aiでの3クリック起動手順
+- 自分のワークフロー・カスタムノード・モデルの持ち込み方
+- レンタル vs グラボ買い替えの損益分岐点
+
+## ComfyUIが遅くなる3つの原因
+
+「ComfyUIが遅い」という悩みの大半は次の3つに集約され、コンソール出力から診断できます。
+
+1. **VRAM不足によるオフロード。**モデルの必要量よりGPUメモリが少ないと、ComfyUI（あるいは`--lowvram`/`--medvram`オプション）は毎ステップ、GPUとシステムRAMの間で重みを往復させます。Flux.1 Dev FP16はダウンロードだけで約23 GBあり、12 GBのカードには物理的に載りません。コミュニティのベンチマークでは、RTX 3060上の量子化＋オフロード構成のFluxは1枚30〜60秒です（[FormulaModの2026年GPU比較](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks)）。
+2. **メモリ枯渇によるクラッシュ。**VRAMを完全に使い切るとバックエンドが生成途中で落ち、ブラウザにはお馴染みの「Reconnecting…」ループが表示されます。[ComfyUI公式トラブルシューティング](https://docs.comfy.org/troubleshooting/overview)は、ログ内の`CUDA out of memory`が決定的な手がかりだとしています。
+3. **GPU世代の差。**モデルが収まっていても、演算性能の差は残ります。公開ベンチマークでは、1024×1024のSDXL画像1枚にRTX 3060は約22秒、RTX 4090は最適化の度合いに応じて3〜8秒です（[sdxlturbo.aiの3060 vs 4090比較](https://sdxlturbo.ai/blog-RTX-3060-12GB-vs-4090-Do-You-Really-Need-an-RTX-4090-for-AI-22231)、[Prompting PixelsのGPUベンチマーク](https://www.promptingpixels.com/gpu-benchmarks)）。
+
+診断の問いは一つだけ。「ワークフローで使うモデル一式が、余裕をもってVRAMに収まるか？」——収まるならローカル最適化は本当に効きます。収まらないなら、それは物理法則との戦いであり、後述のクラウドGPUこそが本当の答えです。
+
+## まず試すべき無料のローカル高速化
+
+何かを借りる前に、30分だけ以下を試してください。すべて無料で、「あと少しでモデルが収まる」カードならこれで十分なことも多いです。
+
+- **ネイティブ解像度で生成する。**SDXLとFluxの学習解像度は1024×1024。解像度を2倍にすると処理時間はおよそ4倍になります。大きい画像は後からアップスケールを。
+- **ステップ数を減らす。**多くのサンプラーで実用域は20〜30ステップ。50〜80ステップは時間が2〜3倍になるだけで、見た目はほぼ変わりません。
+- **FP8／量子化モデルを使う。**Flux.1 DevのFP8版はVRAM要件がFP16の約半分。16 GBカードにとっては「収まる」と「オフロード開始」の分かれ目です。
+- **TeaCache。**公開テストでは、attentionブロックの出力をステップ間でキャッシュする仕組みにより、Fluxで3倍、Wan2.1動画で2.8倍の高速化が画質劣化なしで計測されています（[Guillaume Bieler、Medium、2025年](https://medium.com/@guillaume.bieler/speed-up-comfyui-image-and-video-generation-with-teacache-4409fac3def9)）。
+- **attention最適化と起動オプション。**`--use-flash-attention`、SageAttention、`--preview-method none`はいずれも実測で効きます。現時点の推奨は[ComfyUIのパフォーマンス議論スレッド](https://github.com/comfyanonymous/ComfyUI/discussions/4457)にまとまっています。
+
+そして上限をはっきり言います。上記はすべて「いま持っているGPUの速度に係数を掛ける」ものであり、VRAMを1バイトも増やしません。Fluxがカードに載らないなら、TeaCacheはオフロードというダンスを3倍速にするだけで、ダンス自体は消えません。この時点で、ComfyUIのクラウドGPUは贅沢品ではなく、「完成1枚あたり」で見れば安い選択肢になります。
+
+## 同じワークフローはクラウドRTX 4090でどれだけ速いか
+
+よくあるミドルクラスのカードとRTX 4090の、公開されている生成秒数を設定・出典つきで並べます。
+
+| モデルと設定 | RTX 3060（12 GB） | RTX 4090（24 GB） | 差 | 出典 |
+| --- | --- | --- | --- | --- |
+| SDXL 1.0、20ステップ、1024×1024 | 約22秒 | 素のComfyUIで約6〜8秒（最適化で約3秒まで） | 3〜7倍 | [sdxlturbo.ai](https://sdxlturbo.ai/blog-RTX-3060-12GB-vs-4090-Do-You-Really-Need-an-RTX-4090-for-AI-22231)、[Prompting Pixels](https://www.promptingpixels.com/gpu-benchmarks)、[FormulaMod](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks) |
+| Flux.1 Dev FP8、20ステップ、1024×1024 | 30〜60秒（量子化＋CPUオフロード） | 約9〜10秒 | 3〜6倍 | [FormulaMod](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks)、[ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| Flux.1 Dev FP16、20ステップ、1024×1024 | 12 GBには載らない | 15〜17秒 | — | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| FLUX.1-Kontext（画像編集） | 12 GBでは実用不可 | 約23秒、VRAM使用量約18 GB | — | 実測値：[Glows.ai公式ComfyUIチュートリアル](https://glows.ai/article/run_comfyui_on_glowsai)より |
+
+下の2行に注目してください。これは高速化の話ではなく、12 GBカードではフル精度で「そもそも動かない」ワークフローです。FLUX.1-Kontextの数字は一次データで、チュートリアル執筆時にGlows.aiのRTX 4090インスタンス上で実測したもの。生成中のVRAM使用量は約18 GBで、4090の24 GBには余裕で収まりますが、コンシューマー向けミドルクラスのカードでは到底届きません。
+
+全体像としては、[Tom's Hardwareの45 GPU比較ベンチマーク](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks)がStable Diffusionのスループットでコンシューマー向けの首位にRTX 4090を置いています。画像生成のレンタル定番が、より高価なデータセンター向けカードではなく4090なのはこのためです。
+
+## 3クリックでComfyUIをクラウドに立ち上げる
+
+セットアップの全工程を、水増しなしで数えます。必要なのはGlows.aiのアカウント（登録は無料）だけ。その後のComfyUIクラウドインスタンスの起動は3クリックで、各画面の詳細は[インスタンス作成ガイド](https://docs.glows.ai/docs/create-new)にあります。
+
+### Step 1: `Create New` をクリック
+
+Glows.aiのコンソールで`Create New`をクリックし、Workload Typeに**Inference GPU — 4090**を選びます。料金は1時間$0.49（約75円）からの秒単位課金です（2026年7月確認。リージョンと空き状況により変動します）。
+
+### Step 2: ComfyUIイメージを選択
+
+設定済みの**ComfyUI FLUX.1-Kontext**イメージを選びます。依存パッケージ、モデル、ポート8188で待ち受けるComfyUIサービスまで準備済み——CUDAのインストールも、Python環境のデバッグも、同梱ワークフローでのモデル不足エラーもありません。
+
+### Step 3: `Complete Checkout` をクリック
+
+インスタンスは30〜60秒で起動します。`My Instances`ページで**HTTP Port 8188**のリンクを開けば、ブラウザにComfyUIが表示され、操作はローカルと同じ。ワークフローテンプレートを選び、プロンプトを書き換えて`RUN`を押すだけです。
+
+**注意：**セッションが終わったらインスタンスを停止してください。秒単位課金が効くのは、GPUを夜通しアイドルさせない場合だけです。停止したインスタンスをアカウントに残しておく分には料金はかかりません。
+
+スクリーンショットつきの完全な手順（APIからComfyUIを呼ぶ方法を含む）は[Glows.aiでカスタムComfyUIワークフローを実行する方法](https://glows.ai/article/run_comfyui_on_glowsai)をご覧ください。
+
+## 自分のワークフロー・ノード・モデルはそのまま持ち込める
+
+ホスティング版ComfyUIへの定番の反論が「でも自分の環境はカスタマイズ済みだから」。クラウドインスタンスはロックされたデモではなく1台のフルマシンなので、カスタマイズはそのまま付いてきます。
+
+- **ワークフロー：**ワークフローJSON（メタデータ入りPNGでも可）をブラウザにドラッグするだけ。ローカルと同じです。モデルが足りなければ、どのファイルをどのフォルダに置くべきかComfyUIが列挙します。
+- **カスタムノード：**同梱のComfyUI Managerでノードパックをデスクトップと同じ手順でインストールでき、`Manager → Restart`でバックエンドをその場で再起動できます。
+- **モデル：**checkpointやLoRAは`wget`やHugging Faceからデータセンター級の帯域でダウンロード。最速ルートは[Glows.aiでHugging Faceモデルをダウンロードする方法](https://glows.ai/article/download_huggingface_models)で解説しています。
+- **永続化：**Datadrive（Glows.aiのクラウドストレージ）をマウントして`extra_model_paths.yaml`を向ければ、モデルはインスタンスをまたいで保持され、20 GBの重みを毎回落とし直す必要がなくなります。5分で終わる設定手順は[ComfyUIのモデル保存パスをカスタム設定する方法](https://glows.ai/article/set_comfyui_model_path)に。
+
+## クラウド4090レンタル vs グラボ買い替え
+
+ComfyUIの遅さへのもう一つの解はハードウェア更新なので、両方の費用を並べます。
+
+| 選択肢 | 初期費用 | 3時間セッションあたり | 備考 |
+| --- | --- | --- | --- |
+| RTX 4090を購入 | 約$1,600〜2,000（約24〜30万円。450 Wを賄う電源も別途） | 限界費用はほぼ0 | 2026年半ばの小売相場 |
+| Glows.aiでRTX 4090をレンタル | 0円 | 約$1.47（約220円）、$0.49/時換算 | 秒単位課金。生成中だけ支払い |
+
+カード1枚の購入価格は、$0.49/時換算でおよそ3,200〜4,000レンタル時間に相当します。週3晩・1回3時間の生成ペースなら、購入が元を取るまで6年以上——電気代を無視し、レンタル側のGPUが更新され続ける一方で購入したカードは古くなる一方だという点も無視しての計算です。より詳しい試算は、LLM自作PC版が[ローカルLLM PC vs クラウドGPUコスト](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_ja)、大量画像生成版が[AI画像1,000枚を約2ドルで生成する方法](https://glows.ai/article/generate_1000_ai_images_for_2_dollars_ja)にあります。この料金なら、SDXL画像1,000枚のGPU時間コストは約$0.95（約145円）です。
+
+毎日何時間も生成する、グラボをゲームにも使う、オフライン環境が必須——そういう場合は購入が今でも合理的です。それ以外なら、稼働率の計算はレンタルに軍配が上がります。
+
+## よくある質問
+
+**ComfyUIが遅いのはなぜ？**
+ほとんどの場合VRAMです。モデルがGPUメモリを超えると、ComfyUIは重みをシステムRAMにオフロードし、生成時間が数倍になります。量子化Fluxは12 GBのRTX 3060で1枚30〜60秒、24 GBのRTX 4090なら9〜17秒。コンソールに`lowvram`モードの表示や`CUDA out of memory`エラーがないか確認してください。
+
+**カスタムノードや自作ワークフローはクラウドのComfyUIでも動く？**
+動きます。Glows.aiのインスタンスはフルマシンです。ワークフローJSONをドラッグし、ノードパックはComfyUI Managerでインストールし、ローカルで使っているcheckpointやLoRAもダウンロードできます。Datadriveをマウントすればモデルはセッションをまたいで保持されます。
+
+**クラウドでComfyUIを動かす費用は？**
+Glows.aiのRTX 4090インスタンスは1時間$0.49（約75円）から、秒単位課金です（2026年7月時点）。3時間のセッションで約$1.47（約220円）、SDXL画像1,000枚のバッチでGPU時間コストは約$0.95です。
+
+**毎回モデルをダウンロードし直す必要はある？**
+Datadriveに保存すれば不要です。ComfyUIの`extra_model_paths.yaml`をマウント先に一度向けるだけで、以後のどのインスタンスからも即座にモデルが見えます。設定しない場合のみ、新規インスタンスごとに重みの再ダウンロードが必要になります。
+
+## プログレスバーを眺める時間は終わり
+
+正直なまとめです。モデルがVRAMに収まるなら、まず無料の最適化を。収まらないなら——あるいはSDXL1枚22秒が制作の反復速度を殺しているなら——1時間$0.49のクラウドRTX 4090は、どのハードウェア対策よりも初期費用が3桁安い解決策です。[Glows.aiに登録](https://glows.ai)して`Create New`をクリックし、ComfyUIイメージを選んで、手元で一番遅いワークフローを走らせてみてください。自分で計ったビフォーアフターこそ、唯一意味のあるベンチマークです。

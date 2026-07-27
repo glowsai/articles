@@ -1,0 +1,116 @@
+---
+id: run_deepseek_without_a_gpu_zh_tw
+title: '沒有顯卡也能跑 DeepSeek：時租 0.49 美元的雲端 RTX 4090 解法'
+date: '2026-07-10 10:00'
+description: '筆電跑不動 DeepSeek-R1？在 Glows.ai 以每小時 0.49 美元（約新台幣 16 元）租雲端 RTX 4090，幾分鐘內載入 32B 模型，即租即用。'
+tags:
+  - Blog
+---
+
+# 沒有顯卡也能跑 DeepSeek：時租 0.49 美元的雲端 RTX 4090 解法
+
+沒有顯卡想跑 DeepSeek，最快的方法是按小時租一張：在 [Glows.ai](https://glows.ai) 租用配備 24 GB VRAM 的雲端 NVIDIA RTX 4090，每小時 0.49 美元起（約新台幣 16 元，2026 年 7 月查核官網價格），官方預裝的 DeepSeek-R1 映像檔 30–60 秒內開機，直接跑大多數筆電根本載入不了的 32B 蒸餾模型。你只為實際使用的小時數付費，不必掏出 1,599 美元（約新台幣 5.2 萬元）買下整張卡。
+
+本文涵蓋：
+
+- DeepSeek 各版本模型的硬體需求與 VRAM 實際數字
+- 沒有顯卡跑 DeepSeek 的三條路，以及每條路的罩門
+- 租卡 vs 買卡的損益兩平計算（以小時計）
+- 從註冊到收到第一個 DeepSeek-R1 回覆的完整步驟
+
+![用來在沒有顯卡的情況下跑 DeepSeek 的資料中心 GPU 伺服器](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1934&auto=format&fit=crop)
+
+## 為什麼你的筆電跑不動 DeepSeek-R1：硬體需求解析
+
+DeepSeek-R1 的硬體需求歸根究柢就是一個數字：VRAM。模型權重必須塞進顯示卡記憶體，而推理模型讓情況更糟——R1 在給出答案前會先產生數百到數千個「思考」token，推論期間會在權重之外再多吃 1–4 GB 的 KV cache（[Local AI Master](https://localaimaster.com/blog/deepseek-r1-local-setup-guide)，2026）。
+
+以下是各版本 DeepSeek-R1 在 4-bit 量化下所需的 VRAM，並對應到實際裝得下的消費級硬體（數據來源：[APX ML](https://apxml.com/posts/system-requirements-deepseek-models)、[Local AI Master](https://localaimaster.com/blog/deepseek-r1-local-setup-guide)）：
+
+| 模型 | 所需 VRAM（4-bit） | 裝得下的消費級硬體 |
+| --- | --- | --- |
+| R1-Distill 1.5B | 約 2.3 GB | 幾乎所有 4 GB 以上的筆電 GPU |
+| R1-Distill 7B/8B | 約 5.5–8 GB | RTX 4060 筆電（8 GB）——多數電競筆電的天花板 |
+| R1-Distill 14B | 約 10–12 GB | RTX 3060 12 GB / RTX 4070 以上桌機 |
+| R1-Distill 32B | 約 20 GB | 只有 RTX 3090 或 RTX 4090（24 GB） |
+| R1-Distill 70B | 約 40 GB | 沒有單張消費級顯卡辦得到；需要 2 張 24 GB |
+| R1 671B（完整版） | 即使 1.58-bit 量化也要 131 GB 以上 | 多 GPU 伺服器等級硬體 |
+
+從表格底部往上看，問題一目了然。大家口中的「DeepSeek」——32B 蒸餾版以上——起跳就是 20 GB VRAM。一般電競筆電出廠只有 8 GB；內顯和多數 MacBook Air 一旦 KV cache 開始堆疊，連 7B 這關都過得勉強。
+
+所以 1.5B 和 7B 蒸餾版在本地跑沒問題，但那是練習用的小模型，不是讓 DeepSeek 一戰成名的推理引擎。想要 32B 等級的體驗，你需要 24 GB VRAM——而這正是按小時租用雲端 GPU 補上的缺口。
+
+## 不買顯卡跑 DeepSeek 的三條路
+
+自己的機器跑不動 DeepSeek 時，你有三條實際可行的出路，但三者並不等價。
+
+| | 純 CPU（本機記憶體） | 託管 API | 按小時租雲端 GPU |
+| --- | --- | --- | --- |
+| 前期成本 | 認真的機器約 6,000 美元（約新台幣 19.5 萬元） | 0 元 | 0 元 |
+| 使用成本 | 電費 | 按 token 計費 | 每小時 0.49 美元起 |
+| 速度（32B–671B 等級） | 每秒 5–8 個 token | 快 | 每秒約 28–45 個 token（32B 於 RTX 4090） |
+| 資料留在自己環境 | 是 | 否——提示詞會送到第三方 | 是——你自己的執行個體 |
+| 可自選量化、系統提示詞、微調模型 | 是 | 否 | 是 |
+| 建置時間 | 數天（硬體＋設定） | 幾分鐘 | 約 10 分鐘 |
+
+**純 CPU** 跑得起來——但很勉強。PC Gamer 記錄過一台雙 EPYC、384 GB DDR5 記憶體的機器跑完整 671B 模型，速度每秒 5–8 個 token，硬體成本約 6,000 美元（[PC Gamer](https://www.pcgamer.com/hardware/graphics-cards/today-i-learned-i-can-run-my-very-own-deepseek-r1-chatbot-on-just-usd6-000-of-pc-hardware-and-no-megabucks-nvidia-gpus-required/)，2025 年 2 月）。以這個速度，1,000 個 token 的推理鏈要跑超過兩分鐘，答案才剛要開始出現。
+
+**託管 API** 便宜又快，日常聊天用它就對了。但提示詞離開了你的掌控，量化版本不能挑、LoRA 微調不能載，也沒辦法讓 Open WebUI 之類的本地工具指向一個真正由你操作的模型。
+
+**按小時租雲端 GPU** 給你的是第三欄：一張專屬 RTX 4090，在你自己的執行個體上用 Ollama 或 vLLM 跑 DeepSeek 權重。用起來跟本機顯卡一模一樣——SSH 連進去、換模型、換量化——只差在卡是別人買的。
+
+## 算給你看：租雲端 RTX 4090 vs 自己買一張
+
+RTX 4090 上市定價 1,599 美元（[NVIDIA](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)，2022 年 10 月），且多數時間市價高於定價；在台灣通路長期落在新台幣 6 萬元上下。Glows.ai 出租同一張 24 GB 的卡，每小時 0.49 美元起（glows.ai 價格頁，2026 年 7 月查核）。損益兩平點：
+
+> 1,599 美元 ÷ 每小時 0.49 美元 ≈ 3,263 個小時的租用時數，買卡才划算——這還沒算這張卡滿載 450 W 的電費，以及帶得動它的整台主機。
+
+3,263 小時對一般玩家的實際意義：
+
+| 使用型態 | 每月時數 | 每月租金 | 買卡回本所需月數 |
+| --- | --- | --- | --- |
+| 週末玩票 | 8 | 3.92 美元（約 NT$127） | 約 408 個月（34 年） |
+| 平日晚上每天 1 小時 | 20 | 9.80 美元（約 NT$318） | 約 163 個月（13.5 年） |
+| 認真的 side project | 60 | 29.40 美元（約 NT$955） | 約 54 個月（4.5 年） |
+| 近全職，每天 8 小時 | 160 | 78.40 美元（約 NT$2,548） | 約 20 個月 |
+
+除非你每天開機超過四小時、連續好幾年，否則那張卡還沒回本就先過時了。而且租用的擴充彈性是買斷比不上的：哪天 32B 蒸餾版不夠用了，同一個平台上 RTX 6000 Ada（48 GB）每小時 0.72 美元、RTX PRO 6000（96 GB）每小時 1.68 美元、H100 每小時 2.96 美元——不必先上拍賣網站出清舊卡。所有費率皆以小時計，可在 [Glows.ai 價格頁](https://glows.ai)查證，實際價格依 GPU 與地區而異。
+
+## 實際操作：約 10 分鐘在租來的 GPU 上跑起 DeepSeek-R1
+
+以下是不用自己買顯卡跑 DeepSeek 的完整流程——顯卡在雲端就好。完整細節可參考站上的教學〈Quick Start Guide: Running DeepSeek-R1 on Glows.ai〉，速覽版如下：
+
+1. **註冊** [Glows.ai](https://glows.ai)，點右上角的 `Create New`（[建立執行個體教學](https://docs.glows.ai/docs/create-new)）。
+2. **選 GPU**——RTX 4090 跑 32B 蒸餾版還留有約 4 GB 餘裕。
+3. **選擇官方 DeepSeek-R1 映像檔。** Glows.ai 預裝兩種規格：32B 適合單張消費級 GPU，完整版對應多 GPU 配置。不用裝 CUDA，也不用跟相依套件搏鬥。
+4. **點 `Complete Checkout`。** 執行個體 30–60 秒內啟動。
+5. **打開端點、開始對模型下提示詞。** Ollama 與 Open WebUI 的用法和本機完全相同——若想讓模型檔跨工作階段保存，站上的〈How to Set Ollama Model Storage Path〉教學會示範如何把 Ollama 指向 Datadrive。
+
+**注意：** 計費以小時為單位。用完關機，一個晚上兩小時的 RTX 4090 只要 0.98 美元（約新台幣 32 元）——比一杯手搖飲還便宜。
+
+## 24 GB 的卡該選哪個 DeepSeek 模型
+
+租 RTX 4090 的甜蜜點是 **DeepSeek-R1-Distill-Qwen-32B 的 4-bit 量化版**：權重約佔 20 GB，留下約 4 GB 給 KV cache。獨立測試顯示它在 4090 上的速度約為每秒 28–45 個 token，依量化與執行環境而異（[SitePoint](https://www.sitepoint.com/deepseek-r1-consumer-gpus-rtx4090-m3max/)、[Groundy](https://groundy.com/articles/running-deepseek-r1-locally-hardware-requirements-quantization-and-real-throughput/)）——是那台 6,000 美元純 CPU 機器的四到八倍，而第一個小時只要 0.49 美元。
+
+需要 70B 蒸餾版？那是 2 Unit Qty 的 RTX 4090，或單張 48 GB 卡的工作。完整 671B 模型則屬於多 GPU 任務——站上的〈How to run DeepSeek-R1 on multiple machines with multiple GPUs using SGLang〉教學示範了在 Glows.ai 上的完整架法。
+
+## 常見問題
+
+### 完全沒有顯卡真的能跑 DeepSeek 嗎？
+
+可以，有三條路：純 CPU 推論（跑得動，但連 6,000 美元的雙 EPYC 機器也只有每秒 5–8 個 token）、託管 API（快，但提示詞離開你的掌控），或按小時租雲端 GPU、每小時 0.49 美元起——唯一一條既快、又完全由你掌控的路。
+
+### DeepSeek-R1 需要多少 VRAM？
+
+依版本從 2.3 GB 到 131 GB 以上不等：1.5B 蒸餾版約 2.3 GB、7B/8B 約 5.5–8 GB、32B 蒸餾版約 20 GB、70B 約 40 GB，完整 671B 即使用 1.58-bit 量化也要 131 GB 以上。
+
+### 跑 DeepSeek，租 RTX 4090 划算還是買划算？
+
+租，除非你連續好幾年每天用超過 4 小時。以每小時 0.49 美元對上 1,599 美元的卡價，損益兩平點約 3,263 小時——平日每天用 1 小時要 13.5 年才回本。
+
+### 在租來的 GPU 上，我的資料隱私嗎？
+
+比 API 更有掌控權。模型權重直接跑在你的執行個體上，提示詞在你租用期間掌控的硬體上處理，而不是送到模型供應商的共用端點。處理敏感資料時，用完把執行個體刪除即可。
+
+## 卡用租的，錢包免失血
+
+筆電 8 GB 的天花板，不該逼你屈就 7B 小模型、或把提示詞交給 API。[到 Glows.ai 註冊](https://glows.ai)，在 RTX 4090 上建立 DeepSeek-R1 執行個體，大約 10 分鐘後你就在跟 32B 模型對話——每小時的花費比一杯手搖飲還低。

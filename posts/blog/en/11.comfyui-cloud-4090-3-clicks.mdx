@@ -1,0 +1,120 @@
+---
+id: comfyui_cloud_4090_3_clicks_en
+title: 'ComfyUI Too Slow? Run It on a Cloud RTX 4090 in 3 Clicks'
+date: '2026-07-10 10:00'
+description: 'ComfyUI slow on your GPU? A cloud RTX 4090 runs SDXL in ~6–8 s per image from $0.49/hr, billed per second. Launch preconfigured ComfyUI in 3 clicks.'
+tags:
+  - Blog
+---
+
+# ComfyUI Too Slow? Run Any Workflow on a Cloud 4090 in 3 Clicks
+
+If ComfyUI is slow on your machine, the cause is almost always VRAM — not your workflow. When a model doesn't fit in GPU memory, ComfyUI offloads weights to system RAM, and a 20-second generation becomes a 3-minute one. Launch flags and caching tricks help at the margins, but they cannot add VRAM to your card. The fix that doesn't cost $1,600 is a ComfyUI cloud instance: on Glows.ai, a preconfigured ComfyUI image on an RTX 4090 (24 GB) starts from $0.49/hour, boots in 30–60 seconds, and takes exactly three clicks to launch — `Create New`, select the image, `Complete Checkout`.
+
+![Server racks powering a ComfyUI cloud GPU instance](https://images.unsplash.com/photo-1587831990711-23ca6441447b?q=80&w=1600&auto=format&fit=crop)
+
+This article covers:
+
+- How to tell whether your slowness is fixable locally (VRAM diagnostic)
+- Free optimizations worth trying before you spend anything
+- Sourced seconds-per-image numbers: RTX 3060 vs. cloud RTX 4090
+- The 3-click launch on Glows.ai, step by step
+- How to bring your own workflows, custom nodes, and models
+- Renting vs. buying a new GPU, with the break-even math
+
+## Why ComfyUI Is Slow on Your GPU
+
+Three causes account for most "ComfyUI slow" complaints, and you can diagnose yours from the console output:
+
+1. **VRAM offloading.** If your card has less memory than the model needs, ComfyUI (or your `--lowvram`/`--medvram` flag) shuffles weights between GPU and system RAM on every step. Flux.1 Dev at FP16 is a ~23 GB download; on a 12 GB card it simply cannot stay resident, and community benchmarks put quantized-and-offloaded Flux generations at 30–60 seconds per image on an RTX 3060 ([FormulaMod's 2026 GPU comparison](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks)).
+2. **Out-of-memory crashes.** When VRAM runs out entirely, the backend dies mid-generation and the browser shows the infamous "Reconnecting…" loop. The [official ComfyUI troubleshooting guide](https://docs.comfy.org/troubleshooting/overview) points to `CUDA out of memory` in the log as the telltale.
+3. **GPU generation gap.** Even when everything fits, raw compute matters: published benchmarks put an RTX 3060 at roughly 22 seconds per SDXL image at 1024×1024, versus 3–8 seconds on an RTX 4090 depending on optimization level ([sdxlturbo.ai's 3060-vs-4090 comparison](https://sdxlturbo.ai/blog-RTX-3060-12GB-vs-4090-Do-You-Really-Need-an-RTX-4090-for-AI-22231), [Prompting Pixels GPU benchmarks](https://www.promptingpixels.com/gpu-benchmarks)).
+
+The diagnostic question: does your workflow's model set fit in your VRAM with room to spare? If yes, local optimization can genuinely help. If no, you are fighting physics, and the sections below on cloud GPUs are your actual answer.
+
+## Free Local Fixes Worth Trying First
+
+Before renting anything, spend 30 minutes on these — they are free, and for cards that *almost* fit their models, they are often enough:
+
+- **Generate at native resolution.** SDXL and Flux are trained at 1024×1024; doubling resolution roughly quadruples processing time. Upscale afterward instead.
+- **Cut steps.** 20–30 steps is the useful range for most samplers; 50–80 steps doubles or triples generation time for little visible gain.
+- **Use FP8 / quantized variants.** Flux.1 Dev in FP8 roughly halves VRAM versus FP16, which is the difference between fitting and offloading on 16 GB cards.
+- **TeaCache.** One published test measured a 3× speedup on Flux and 2.8× on Wan2.1 video with no visible quality loss, by caching attention-block outputs across steps ([Guillaume Bieler, Medium, 2025](https://medium.com/@guillaume.bieler/speed-up-comfyui-image-and-video-generation-with-teacache-4409fac3def9)).
+- **Attention optimizations and flags.** `--use-flash-attention`, SageAttention, and `--preview-method none` all shave real percentages; the [ComfyUI performance discussion](https://github.com/comfyanonymous/ComfyUI/discussions/4457) collects current recommendations.
+
+Now the ceiling, stated plainly: every item above multiplies the speed of the GPU you already own. None of them adds VRAM. If Flux won't fit on your card, TeaCache makes the offloading dance 3× faster — it doesn't remove the dance. That is the point where a ComfyUI cloud GPU stops being a luxury and becomes the cheaper option per finished image.
+
+## What the Same Workflow Does on a Cloud RTX 4090
+
+Here are published seconds-per-image figures for a weak-but-common card against the RTX 4090, with settings and sources attached:
+
+| Model & settings | RTX 3060 (12 GB) | RTX 4090 (24 GB) | Gap | Sources |
+| --- | --- | --- | --- | --- |
+| SDXL 1.0, 20 steps, 1024×1024 | ~22 s | ~6–8 s stock ComfyUI (down to ~3 s optimized) | 3–7× | [sdxlturbo.ai](https://sdxlturbo.ai/blog-RTX-3060-12GB-vs-4090-Do-You-Really-Need-an-RTX-4090-for-AI-22231), [Prompting Pixels](https://www.promptingpixels.com/gpu-benchmarks), [FormulaMod](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks) |
+| Flux.1 Dev FP8, 20 steps, 1024×1024 | 30–60 s (quantized + CPU offload) | ~9–10 s | 3–6× | [FormulaMod](https://www.formulamod.net/blogs/new/best-gpu-for-stable-diffusion-and-flux-in-2026-rtx-4060-ti-vs-3090-vs-4090-vs-5090-benchmarks), [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| Flux.1 Dev FP16, 20 steps, 1024×1024 | does not fit in 12 GB | 15–17 s | — | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| FLUX.1-Kontext (image editing) | not practical in 12 GB | ~23 s, ~18 GB VRAM in use | — | measured in [our own ComfyUI tutorial on Glows.ai](https://glows.ai/article/run_comfyui_on_glowsai) |
+
+Note the last two rows: they are not speedups, they are workflows a 12 GB card cannot run at full precision at all. That FLUX.1-Kontext figure is first-hand — we timed it on a Glows.ai RTX 4090 instance while writing the tutorial, and the generation held ~18 GB of VRAM, comfortably inside the 4090's 24 GB but far beyond any consumer mid-range card.
+
+For broader context, [Tom's Hardware's 45-GPU Stable Diffusion benchmark](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks) puts the RTX 4090 at the top of the consumer chart for diffusion throughput, which is why it is the standard rental pick for image work rather than pricier data-center cards.
+
+## The 3 Clicks: Launch ComfyUI in the Cloud
+
+Here is the entire setup, honestly counted. You need a Glows.ai account (sign-up is free); after that, launching a ComfyUI cloud instance is three clicks, and the [instance creation guide](https://docs.glows.ai/docs/create-new) covers every screen.
+
+### Step 1: Click `Create New`
+
+From the Glows.ai console, click `Create New` and set Workload Type to **Inference GPU — 4090**. Rates start at $0.49/hour with per-second billing (checked July 2026; rates vary by region and availability).
+
+### Step 2: Select the ComfyUI Image
+
+Choose the **ComfyUI FLUX.1-Kontext** preconfigured image. Dependencies, models, and the ComfyUI service on port 8188 are already set up — no CUDA installs, no Python environment debugging, no missing-model errors on the bundled workflows.
+
+### Step 3: Click `Complete Checkout`
+
+The instance boots in 30–60 seconds. On the `My Instances` page, open the **HTTP Port 8188** link and ComfyUI loads in your browser, exactly as it would locally — pick a workflow template, edit the prompt, click `RUN`.
+
+**Reminder:** Stop the instance when you finish a session. Per-second billing only saves you money if the GPU isn't idling overnight. A stopped instance costs nothing to keep in your account.
+
+For a full walkthrough with screenshots — including calling ComfyUI through its API — see [How to Run Custom ComfyUI Workflows on Glows.ai](https://glows.ai/article/run_comfyui_on_glowsai).
+
+## Bring Your Own Workflow, Nodes, and Models
+
+The usual objection to hosted ComfyUI is "but my setup is customized." A cloud instance is a full machine, not a locked demo, so your customizations come with you:
+
+- **Workflows:** drag your workflow JSON (or a PNG with embedded metadata) into the browser window, same as locally. If models are missing, ComfyUI lists exactly which files it needs and where to place them.
+- **Custom nodes:** the bundled ComfyUI Manager installs node packs the same way it does on your desktop, and `Manager → Restart` reloads the backend in place.
+- **Models:** download checkpoints and LoRAs at datacenter bandwidth with `wget` or from Hugging Face — our guide to [downloading Hugging Face models on Glows.ai](https://glows.ai/article/download_huggingface_models) shows the fastest route.
+- **Persistence:** mount Datadrive (Glows.ai's cloud storage) and point `extra_model_paths.yaml` at it, so models survive across instances and you never re-download 20 GB of weights. The 5-minute setup is in [How to Set a Custom Model Storage Path in ComfyUI](https://glows.ai/article/set_comfyui_model_path).
+
+## Cloud 4090 vs. Buying a New GPU
+
+The alternative fix for a slow ComfyUI is a hardware upgrade, so price both routes:
+
+| Route | Upfront cost | Cost per 3-hour session | Notes |
+| --- | --- | --- | --- |
+| Buy an RTX 4090 | ~$1,600–$2,000 (plus a PSU for its 450 W board power) | ~$0 marginal | Retail pricing, mid-2026 |
+| Rent an RTX 4090 on Glows.ai | $0 | ~$1.47 at $0.49/hour | Per-second billing; pay only while generating |
+
+The purchase price of the card buys roughly 3,200–4,000 rental hours at $0.49/hour. Generating three evenings a week, three hours each, that is over six years of sessions before buying breaks even — ignoring electricity, and ignoring that the rental fleet gets newer GPUs while a purchased card only ages. We ran the same math in more depth for LLM rigs in [Local LLM PC vs Cloud GPU Cost](https://glows.ai/article/local_llm_pc_vs_cloud_gpu_cost_en), and for image generation at volume in [I Generated 1,000 AI Images for $2](https://glows.ai/article/generate_1000_ai_images_for_2_dollars_en) — at these rates, 1,000 SDXL images cost about $0.95 in GPU time.
+
+Buying still wins if you generate many hours every day, want the card for gaming too, or need offline work. For everyone else, the utilization math favors renting.
+
+## FAQ
+
+**Why is ComfyUI so slow on my computer?**
+Usually VRAM. When a model exceeds your GPU's memory, ComfyUI offloads weights to system RAM, multiplying generation time — a quantized Flux image takes 30–60 seconds on a 12 GB RTX 3060 versus 9–17 seconds on a 24 GB RTX 4090. Check your console for `lowvram` mode messages or `CUDA out of memory` errors.
+
+**Do custom nodes and my own workflows work on a ComfyUI cloud instance?**
+Yes. A Glows.ai instance is a full machine: drag in your workflow JSON, install node packs through ComfyUI Manager, and download any checkpoint or LoRA you use locally. Mounting Datadrive keeps models persistent between sessions.
+
+**How much does running ComfyUI in the cloud cost?**
+On Glows.ai, RTX 4090 instances start at $0.49/hour with per-second billing (July 2026). A three-hour session costs about $1.47, and a batch of 1,000 SDXL images works out to roughly $0.95 in GPU time.
+
+**Do I have to re-download my models every session?**
+No — if you store them on Datadrive. Point ComfyUI's `extra_model_paths.yaml` at the mounted drive once, and every future instance sees your models immediately. Without it, you would re-download weights on each fresh instance.
+
+## Stop Waiting on Progress Bars
+
+The honest summary: if your models fit in VRAM, try the free optimizations first. If they don't — or if 22-second SDXL images are costing you iteration speed — a cloud RTX 4090 at $0.49/hour is cheaper than any hardware fix by three orders of magnitude upfront. [Sign up at Glows.ai](https://glows.ai), click `Create New`, pick the ComfyUI image, and run your slowest workflow. Your own before/after timing is the only benchmark that matters.

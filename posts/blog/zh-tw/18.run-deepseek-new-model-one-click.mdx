@@ -1,0 +1,134 @@
+---
+id: run_deepseek_new_model_one_click_zh_tw
+title: 'DeepSeek V4 免費開源，但跑得動嗎？VRAM 需求與一鍵雲端部署'
+date: '2026-07-10 10:00'
+description: 'DeepSeek V4 採 MIT 授權免費下載，但 V4 Flash 需要 48–192 GB VRAM。本文算清各量化等級的每小時成本，並示範用雲端 GPU 一鍵啟動。'
+tags:
+  - Blog
+---
+
+# DeepSeek V4 免費開源，但跑得動嗎？VRAM 需求與一鍵雲端部署
+
+想自己執行 DeepSeek V4，最便宜的可行方案是按小時租用雲端 GPU：V4 Flash 最小的實用量化版本需要約 48 GB VRAM——是單張 RTX 4090 的兩倍——而一張 48 GB 顯示卡在 [Glows.ai](https://glows.ai) 的租金從每小時 $0.72 美元起（約 NT$23，價格查核於 2026 年 7 月）。模型權重本身是真免費：MIT 授權、Hugging Face 直接下載、沒有附加條件。但算力不免費，這篇文章就是把這道落差算清楚。
+
+本文涵蓋：
+
+- DeepSeek 2026 年實際發布了什麼（V4 Pro 與 V4 Flash），附來源出處的規格
+- 逐一量化等級的 VRAM 數學——以及「激活參數」這個常見誤區
+- 各等級對應可租用 GPU 組合的每小時成本表
+- 租用 vs 自購的損益兩平點（以小時計）
+- 從註冊到 DeepSeek 實例啟動的一鍵路徑
+
+![執行 DeepSeek V4 所需的 GPU 硬體，可以按小時租用而不必自購](https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop)
+
+## DeepSeek 2026 年發布了什麼：V4 Pro 與 V4 Flash
+
+2026 年 4 月 24 日，DeepSeek 發布了 V3 系列之後的首個旗艦模型 V4，分為兩種規格（[TechCrunch](https://techcrunch.com/2026/04/24/deepseek-previews-new-ai-model-that-closes-the-gap-with-frontier-models/)；[MIT Technology Review](https://www.technologyreview.com/2026/04/24/1136422/why-deepseeks-v4-matters/)）。兩者都是混合專家（MoE）架構，上下文視窗達 100 萬 token——是 V3.2 的 128K 的 8 倍——且皆以 MIT 授權開放權重（[Artificial Analysis](https://artificialanalysis.ai/articles/deepseek-is-back-among-the-leading-open-weights-models-with-v4-pro-and-v4-flash)，2026 年 4 月）。
+
+兩個版本的規格，依 Artificial Analysis：
+
+| | DeepSeek V4 Pro | DeepSeek V4 Flash |
+| --- | --- | --- |
+| 總參數量 | 1.6T | 284B |
+| 每 token 激活參數 | 49B | 13B |
+| 上下文視窗 | 100 萬 token | 100 萬 token |
+| Intelligence Index 分數 | 52（V3.2 為 42） | 47 |
+| API 價格（每百萬 token，輸入/輸出） | $1.74 / $3.48 | $0.14 / $0.28 |
+| 授權 | MIT | MIT |
+
+52 分讓 V4 Pro 成為該指數上排名第二的開放權重推理模型。所以新聞標題沒說錯：一個接近前沿水準的模型，免費下載。標題沒說的是這個下載檔有多大——以及要用什麼裝得下它。
+
+## DeepSeek V4 顯卡需求：為什麼「開放權重」不等於「你的電腦跑得動」
+
+先講誤區。「13B 激活參數」聽起來像 13B 模型，而 13B 模型電競筆電就能跑。實際不是這樣。在 MoE 模型中，激活參數決定每 token 的運算量——也就是推論*速度*——但所有專家都必須載入，所以**完整**權重得放進 VRAM（或溢出到系統記憶體，代價是 2–5 倍的速度損失）。V4 Flash 的官方權重檔為 159.61 GB；V4 Pro 為 864.70 GB（[knightli.com VRAM 分析](https://knightli.com/en/2026/05/01/deepseek-v4-local-vram-quantization-table/)，2026 年 5 月）。
+
+量化可以壓縮體積，代價是部分品質。以下是 V4 Flash 各等級的數據，出處同上：
+
+| 量化等級 | 權重大小 | 最低 VRAM | 建議 VRAM |
+| --- | --- | --- | --- |
+| FP8（完整） | 159.61 GB | 192 GB | 256 GB |
+| Q6 | 120 GB | 160 GB | 192 GB |
+| Q5 | 100 GB | 128 GB | 160 GB |
+| Q4 | 80 GB | 96 GB | 128 GB |
+| Q3 | 60 GB | 80 GB | 96 GB |
+| Q2 | 40 GB | 48 GB | 64 GB |
+
+社群的動態量化能再往下壓一點——[WaveSpeed](https://wavespeed.ai/blog/posts/deepseek-v4-gpu-vram-requirements/) 回報重度量化的 Flash 版本約 33 GB——但就算是這個數字，也比 24 GB 的 RTX 4090 多出 9 GB。*較小*的那個 V4 模型，沒有任何一個等級塞得進單張消費級顯示卡。
+
+V4 Pro 又是另一個量級：Q4 需要 512 GB VRAM，FP8 要整整 1 TB。那是一整個機櫃，不是一台工作站。對個人使用者而言，V4 Pro 就是 API 模型，沒有懸念——而每百萬 token $1.74/$3.48 的 API 定價也反映了這一點。
+
+**注意：** 上述最低值假設的是適中的上下文長度。若逼近 100 萬 token 視窗，KV cache 會在權重之上再吃掉數十 GB。
+
+## 在雲端執行 DeepSeek V4：每小時到底多少錢
+
+這是沒有人整理過的表：V4 Flash 每個可行等級，對應到 Glows.ai 上可按小時租用的 GPU 組合，費率取自[價格頁面](https://glows.ai)（2026 年 7 月查核；實際費率依 GPU 與地區而異）。
+
+| 等級 | 所需 VRAM | 可租用組合 | 每小時費用 |
+| --- | --- | --- | --- |
+| Flash Q2（入門） | 最低 48 GB | 1× RTX 6000 Ada（48 GB） | $0.72 起（約 NT$23） |
+| Flash Q2（替代） | 最低 48 GB | 2× RTX 4090（2×24 GB） | $0.98 起（約 NT$31） |
+| Flash Q3–Q4（甜蜜點） | 80–96 GB | 1× RTX PRO 6000（96 GB） | $1.68 起（約 NT$54） |
+| Flash FP8（完整品質） | 最低 192 GB | 2× RTX PRO 6000（192 GB） | $3.36 起（約 NT$108） |
+| Flash FP8（充裕餘裕） | 240 GB | 3× H100（240 GB） | $8.88 起（約 NT$284） |
+| Pro Q4 | 最低 512 GB | 6× RTX PRO 6000（576 GB） | $10.08 起（約 NT$323） |
+
+（新台幣為以 1 美元 ≈ NT$32 估算的參考值，實際以美元計價。）
+
+把它當決策樹來讀：
+
+- **只想花一個晚上試 V4？** 單張 48 GB 卡跑 Q2。三小時的測試費用 $2.16（約 NT$69）。
+- **要認真拿來工作？** 96 GB 的 RTX PRO 6000 跑 Q4，留 16 GB 給 KV cache，每小時 $1.68。日常使用我們會選這一級。
+- **需要完整精度的輸出品質？** 兩張 96 GB 卡跑 FP8，每小時 $3.36——一整個工作天的費用仍低於多數 AI 程式助手一個月的訂閱費。
+- **V4 Pro？** 理論上約每小時 $10 可以租起來，但除非你有隱私或微調需求，個人使用還是官方 API（每百萬 token $1.74/$3.48）划算。
+
+多卡那幾列並不稀奇。用多張卡服務同一個模型正是 vLLM 和 SGLang 的基本功能，設定方式和我們在 [R1 多卡 SGLang 教學](https://glows.ai/article/deepseek_r1_using_sglang)記錄的相同。
+
+## 租用 vs 自購：96 GB 等級的損益兩平點
+
+假設你想直接買下 Q4 這一級的硬體。消費級湊到 96 GB VRAM 最便宜的路線是四張 RTX 4090，每張建議售價 $1,599 美元（[NVIDIA](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)）——光顯示卡就 $6,396（約 NT$20.5 萬），還不含合計 1,800 W 的板卡功耗、裝得下四張卡的主機板，以及餵得飽它們的電源供應器。
+
+> $6,396 ÷ 每小時 $1.68 ≈ 3,807 小時的租用時數之後，自購才划算。
+
+以每月 20 小時計——平日每晚一小時——大約是 190 個月，將近 16 年。就算重度使用每月 60 小時，也要超過 5 年，到時候顯示卡和模型都已經是古董了。我們在姊妹篇〈不用 GPU 也能跑 DeepSeek：每小時 $0.49 的方法〉算過單張 4090 等級的同一道數學——結論可以外推：除非你每天跑推論好幾個小時，否則租用勝出，而且 VRAM 需求越大，勝得越多。
+
+## 一鍵路徑：在 Glows.ai 上跑 DeepSeek
+
+免費權重讓人卡關的永遠是同三步：湊足 VRAM、搭好 CUDA／驅動／執行環境、設定多卡服務。Glows.ai 把三件事全部收進一份選單：平台提供官方預配置的 DeepSeek 映像檔，以及開箱即用的 vLLM、SGLang、Ollama 環境，「架設」變成「從清單裡挑」。
+
+1. **註冊** [Glows.ai](https://glows.ai)，點右上角的 `Create New`——[建立實例教學](https://docs.glows.ai/docs/create-new)有完整截圖。
+2. **依上表選 GPU 等級**：Q2 選一張 RTX 6000 Ada，Q4 選一張 RTX PRO 6000，FP8 選兩張。
+3. **選映像檔。** 官方 DeepSeek-R1 映像檔零設定即可執行，模型已內建。要跑 V4 Flash，就啟動預配置的 vLLM 或 SGLang 映像檔，再從 Hugging Face 拉取你選定的量化版本；[Hugging Face 模型下載教學](https://glows.ai/article/download_huggingface_models)介紹了最快的下載方式，搭配 Datadrive 可以讓這 40–160 GB 的下載跨工作階段保存，只需抓一次。
+4. **點 `Complete Checkout`。** 實例在 30–60 秒內啟動。
+5. **把你的用戶端指向端點。** vLLM／SGLang 輸出 OpenAI 相容 API，Open WebUI、Continue 或你自己的腳本都不用改。
+
+**提醒：** 計費以小時計，實例可以乾淨關閉。用完就停止實例，一個週末的 Q4 實驗（比如 6 小時）總共約 $10.08（約 NT$323）。
+
+## 如果你的預算只有一張 RTX 4090
+
+老實話：如果預算就是每小時 $0.49（約 NT$16），別硬上 V4。DeepSeek-R1-Distill-Qwen-32B 在 4-bit 下約需 20 GB，單張租來的 RTX 4090 裝得下還留有 KV cache 空間，而且有官方一鍵映像檔——[DeepSeek-R1 快速入門](https://glows.ai/article/deepseek_r1)從註冊到第一個回覆約 10 分鐘。它的推理跑分低於 V4，但仍是一個扎實的模型，每小時成本只有 Q4 Flash 等級的 29%。先從這裡開始，等模型本身——而不是話題熱度——真的不夠用了，再往上表升級。
+
+## 常見問題
+
+### DeepSeek V4 真的免費嗎？
+
+權重是真的免費——MIT 授權、放在 Hugging Face、可商用。算力不免費：V4 Flash 依量化等級需要 48–192 GB VRAM，意味著要嘛砸 $6,000 美元以上買硬體，要嘛從每小時 $0.72 起租雲端 GPU。
+
+### 單張 RTX 4090 跑得動 DeepSeek V4 嗎？
+
+跑不動。最小的標準量化（Q2）需要約 48 GB VRAM，就連社群的激進量化版也落在 33 GB 左右——4090 只有 24 GB。單張 4090 的選項是在雲端跑 DeepSeek-R1-Distill-32B，或走 V4 的 API。
+
+### 自己執行 DeepSeek V4 最便宜的方式是什麼？
+
+在租用的 48 GB GPU 上跑 Q2 量化的 V4 Flash：Glows.ai 上每小時 $0.72 起（2026 年 7 月費率）。若要長期使用，96 GB 卡跑 Q4、每小時 $1.68 的性價比更好。
+
+### 個人有辦法跑 DeepSeek V4 Pro 嗎？
+
+現實上不行。Pro 的權重達 864.70 GB，就算 Q4 量化也需要 512 GB VRAM——六張 96 GB 卡、約每小時 $10。除非你需要私有推論或微調，官方 API（每百萬 token $1.74/$3.48）才是合理路線。
+
+### 為什麼激活參數只有 13B 的模型需要 160 GB VRAM？
+
+因為 MoE 模型每個 token 只激活 13B 參數，但全部 284B 都必須載入記憶體。激活參數決定速度；總參數決定你的記憶體帳單。
+
+## 跑免費的模型，不必買不免費的硬體
+
+DeepSeek 把一個接近前沿的模型免費送出，橫在你和它之間的只剩下按小時計的 VRAM。[註冊 Glows.ai](https://glows.ai)，租下符合你量化等級的 GPU，啟動預配置的 DeepSeek 映像檔，今天就能開始對 V4 Flash 下提示詞——花的是一個便當的錢，不是一台伺服器的錢。

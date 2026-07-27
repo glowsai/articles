@@ -1,0 +1,140 @@
+---
+id: turn_photo_into_video_ai_10_minutes_en
+title: 'Turn One Photo Into a Moving Video with AI in 10 Minutes'
+date: '2026-07-10 10:00'
+description: 'Animate a photo with open-source Wan 2.2 on a rented RTX 4090 from $0.49/hr — about $0.07 per 5-second clip. Follow the 10-minute walkthrough.'
+tags:
+  - Blog
+---
+
+# Turn One Photo Into a Moving Video with AI in 10 Minutes
+
+Yes, you can turn a photo into a video with AI in about 10 minutes, without owning a GPU and without a monthly subscription. The recipe: rent an NVIDIA RTX 4090 on [Glows.ai](https://glows.ai) (from $0.49/hour, billed per second), open the preconfigured ComfyUI image, load the built-in Wan 2.2 image-to-video template, and upload your photo. The Wan team's own benchmark puts a 5-second 720p clip at under 9 minutes of render time on a single RTX 4090 — which works out to roughly $0.07 of compute per clip at Glows.ai rates.
+
+This walkthrough covers:
+
+- What you need before you start (a browser and about $0.50)
+- Why an open model beats free online generators for anything past clip number six
+- The four steps, with an honest minute-by-minute timeline
+- What one clip actually costs, with sources you can check
+
+![You can turn a photo into a video with AI — a still image like this becomes the first frame](https://images.unsplash.com/photo-1748615745871-7172b3d2a7cb?q=80&w=1923&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)
+
+## What You Need Before You Start
+
+- **A photo.** Portrait, landscape, product shot, pet — anything. Higher resolution helps; the model works from your image as the first frame.
+- **A Glows.ai account.** Sign-up takes a minute at [glows.ai](https://glows.ai). Promotional credits are sometimes available for new users — check the site or the [Glows.ai Discord](https://discord.com/invite/glowsai) for current offers.
+- **About $0.50.** One hour of RTX 4090 time costs $0.49 at current Glows.ai pricing (checked July 10, 2026), and billing is per second, so a 15-minute session costs about $0.12.
+- **No GPU, no installs.** Everything runs in the browser on the rented machine.
+
+## Why an Open Model Instead of a Free Online Generator
+
+Hosted image to video AI tools (Canva, Firefly, Vidu, Kling and friends) are genuinely the fastest option for one or two clips. The trade-offs appear at clip three: daily credit caps, watermarks on free tiers, queues, and content filters you can't adjust. Kling's free tier, for example, grants 66 credits per day — roughly six 5-second standard clips ([AI Video Bootcamp's 2026 free-tools guide](https://aivideobootcamp.com/blog/free-ai-video-tools-2026/)) — and typical paid plans across hosted generators run $20–100/month ([imagine.art pricing survey, 2026](https://www.imagine.art/blogs/ai-video-generators-cost)).
+
+The open alternative is [Wan 2.2](https://github.com/Wan-Video/Wan2.2), an Apache 2.0-licensed video model from the Wan team. Its TI2V-5B variant generates 720p video at 24fps and is specifically built to run on a single consumer GPU like the RTX 4090. You keep full control: no watermark, no daily cap, your photo never enters a third-party generator's training pipeline, and the license permits commercial use.
+
+| | Hosted free tier | Hosted subscription | Wan 2.2 on Glows.ai | Buying an RTX 4090 |
+| --- | --- | --- | --- | --- |
+| Upfront cost | $0 | $0 | $0 | ~$1,600+ retail |
+| Per 5-second 720p clip | $0 (capped) | Included in plan credits | ~$0.07 compute | Electricity only |
+| 30 clips per month | Not possible on most free tiers | $20–100/mo typical | ~$2.21 | Hardware amortization |
+| Watermark | Common | No | No | No |
+| Daily limits | Yes (e.g., ~6 clips/day) | Plan credit limits | None | None |
+| Commercial use | Plan-dependent | Plan-dependent | Yes (Apache 2.0) | Yes |
+
+At $0.49/hour, you'd need roughly 3,200 rental hours — about 6 clips a day for a year and a half — before buying the card wins on price.
+
+## Step 1: Create a ComfyUI Instance on Glows.ai (~2 minutes)
+
+Log in to Glows.ai and open the `Create New` page. Set Workload Type to **Inference GPU -- 4090** and select the **ComfyUI** image — it comes with ComfyUI preinstalled and serving on port 8188. For detailed screenshots of this flow, see the [instance creation guide](https://docs.glows.ai/docs/create-new) or our tutorial on [running custom ComfyUI workflows on Glows.ai](https://glows.ai/article/run_comfyui_on_glowsai).
+
+Click `Complete Checkout`. The instance boots in 30–60 seconds, and the `My Instances` page then shows three access links:
+
+- **HTTP Port 8188** — the ComfyUI interface (the one we want)
+- **HTTP Port 8888** — JupyterLab
+- **SSH Port 22** — terminal access
+
+**Note:** Billing runs per second from boot to shutdown. There is no idle fee once you stop the instance, so there's no reason to keep it running between sessions.
+
+## Step 2: Load the Wan 2.2 Image-to-Video Template (~2 minutes, plus one-time downloads)
+
+Click the Open link under HTTP Port 8188. In ComfyUI's template browser, pick the video section and select the official **Wan 2.2 5B** workflow — ComfyUI ships this as a [built-in template](https://docs.comfy.org/tutorials/video/wan/wan2_2).
+
+The first time you load it, ComfyUI lists the model files the workflow needs — the 5B diffusion model, a VAE, and a text encoder, more than 15 GB combined — and offers to download them. Accept and wait. On the datacenter connection this takes minutes; on a home connection it's often the longest part of any local tutorial, which is exactly why we're not running this locally.
+
+**Reminder:** If the template list doesn't show Wan 2.2, your ComfyUI version predates it. Update ComfyUI via the Manager, or drag the workflow JSON from the [official ComfyUI docs](https://docs.comfy.org/tutorials/video/wan/wan2_2) straight into the canvas.
+
+## Step 3: Upload Your Photo and Describe the Motion (~1 minute)
+
+This is the step that actually turns your photo into a video: in the workflow's **Load Image** node, upload the photo — it becomes the first frame. Then write a short motion prompt in the positive prompt box. Describe what should *move*, not what the image contains; the model already sees the image:
+
+```
+gentle breeze, petals drifting, slow push-in camera, soft natural light
+```
+
+Two settings worth knowing before your first run:
+
+- **Length:** the template defaults to 121 frames (about 5 seconds at 24fps). Dropping to 49 frames (~2 seconds) cuts render time roughly proportionally — a good first-run choice.
+- **Resolution:** the default 1280×704 is what the under-9-minute benchmark refers to. Lower it for faster drafts.
+
+## Step 4: Hit Run and Let the GPU Work (~4–9 minutes)
+
+Click `Run`. The progress bar crawls through the diffusion steps, and the finished clip appears in the output node — download it as a standard video file. A short 49-frame draft lands in a few minutes; a full 5-second 720p clip takes under 9 minutes on the RTX 4090, per the [Wan team's published numbers](https://github.com/Wan-Video/Wan2.2).
+
+While it renders, queue variations: same photo, different motion prompts. Each queued job runs back-to-back, so an hour-long session ($0.49) yields around six full-length clips.
+
+## The Honest Timeline
+
+"10 minutes" claims deserve an audit, so here is ours:
+
+| Clock | What's happening | Who's working |
+| --- | --- | --- |
+| 0:00–2:00 | Create instance, checkout | You |
+| 2:00–3:00 | Instance boots (30–60 s) | Glows.ai |
+| 3:00–6:00 | Load template, one-time model download (15+ GB) | Downloads |
+| 6:00–7:00 | Upload photo, write motion prompt | You |
+| 7:00–10:00+ | Render | GPU |
+
+The honest print: a short 49-frame first clip fits inside 10 minutes; a full 5-second 720p clip on a first run lands closer to 12–15 minutes because of the one-time model download. Every clip after that is pure render time — under 9 minutes each — and your own hands-on time totals about 4 minutes. Store the models in Datadrive and even the download disappears from future sessions (see [how to set a persistent ComfyUI model path](https://glows.ai/article/set_comfyui_model_path)).
+
+## What One Clip Actually Costs
+
+Turning a photo into a video with AI this way is checkable from public pricing — no private benchmark required:
+
+| Item | Number | Source |
+| --- | --- | --- |
+| RTX 4090 on Glows.ai | $0.49/hour, per-second billing | glows.ai, July 10, 2026 |
+| 5-second 720p render | Under 9 minutes | Wan2.2 GitHub |
+| Compute per clip | 9/60 × $0.49 ≈ **$0.07** | Math above |
+| 30 clips/month | ~4.5 GPU-hours ≈ **$2.21** | Math above |
+| Hosted AI video generator plans | $20–100/month typical | imagine.art, 2026 |
+
+Even after padding each clip with setup and retries — call it 15 minutes of billed time per keeper — you're at roughly $0.12 per clip, or $3.70 for 30 clips a month. That's about a tenth of the entry-level hosted subscription, with no watermark and no cap.
+
+## Getting Better Motion From a Single Photo
+
+- **Prompt the motion, not the scene.** "Waves rolling in, hair moving in wind, handheld camera drift" beats re-describing the photo.
+- **Add a negative prompt** for the classics: distortion, morphing faces, extra limbs.
+- **Iterate cheap, then commit.** Draft at 49 frames, and only render 121-frame finals for prompts that worked.
+- **Reuse your downloads.** Mount Datadrive and point ComfyUI's model path at it so the 15+ GB download happens exactly once — the [Hugging Face model download guide](https://glows.ai/article/download_huggingface_models) covers the fastest way to pull extra models.
+
+## FAQ
+
+**Do I need my own GPU to turn a photo into a video with AI?**
+No. A rented RTX 4090 at $0.49/hour handles Wan 2.2's 5B image-to-video model comfortably — it has the 24 GB of VRAM the official pipeline targets, and per-second billing means a single session costs cents, not a monthly fee.
+
+**How much does one AI-generated clip cost this way?**
+About $0.07 in compute for a 5-second 720p clip: under 9 minutes of render time (Wan team's number) at $0.49/hour (Glows.ai pricing, July 2026). With generous padding for retries, budget ~$0.12 per finished clip.
+
+**Is Wan 2.2 free for commercial use?**
+Yes — Wan 2.2 is released under the Apache 2.0 license ([GitHub](https://github.com/Wan-Video/Wan2.2)), which permits commercial use. Check the individual licenses of any community LoRAs or checkpoints you add on top.
+
+**Why not just use a free online image to video generator?**
+For one or two clips, do. Free tiers cap out fast — Kling's grants about six standard 5-second clips per day — and usually watermark output. Past that point, ~$0.07/clip on a rented GPU is cheaper than any subscription, and you control resolution, length, and content.
+
+**Does Glows.ai offer free credits?**
+Promotional credits may be available depending on current campaigns — we don't list a number here because offers change. Check [glows.ai](https://glows.ai) or the community Discord for what's live right now.
+
+## Make Your First Photo Move Today
+
+One photo, four steps, about $0.07 of compute. [Create a Glows.ai account](https://glows.ai), launch a ComfyUI instance on an RTX 4090, and your first moving clip can be rendering within 10 minutes — stop the instance when you're done and the meter stops with it.

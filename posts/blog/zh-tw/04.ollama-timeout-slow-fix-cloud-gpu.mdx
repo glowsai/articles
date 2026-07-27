@@ -1,0 +1,164 @@
+---
+id: ollama_timeout_slow_fix_cloud_gpu_zh_tw
+title: 'Ollama 一直 timeout？7 個修法與雲端 GPU 備案（指令完全不變）'
+date: '2026-07-10 10:00'
+description: 'Ollama timeout 或跑很慢？先用 ollama ps 找出原因，套用 7 個快速修法；還是不行，就把同樣的指令搬到時租約 NT$16 的 RTX 4090 上跑。'
+tags:
+  - Blog
+---
+
+# Ollama 一直 timeout？7 個修法與雲端 GPU 備案（指令完全不變）
+
+**Ollama timeout** 的原因幾乎都指向同一件事：模型產出 token 的速度，追不上某個等待期限。不是客戶端（Cline、Open WebUI、你的 Python 腳本）等不下去先斷線，就是 Ollama 伺服器自己撞上模型載入上限（預設 5 分鐘）。有效的處理順序是：先用 `ollama ps` 確認模型真的跑在 GPU 上，再延長等待期限、縮小工作量、讓模型常駐記憶體。如果你的硬體極限只有個位數 token/s，還有一個不用學任何新東西的備案：把一模一樣的 Ollama 指令，搬到 [Glows.ai](https://glows.ai) 租用的 RTX 4090 上執行——時租 $0.49 美元起（約 NT$16），500 token 的回答大約 5 秒完成，而不是 50 秒起跳。
+
+![在 GPU 硬體上診斷 Ollama timeout 問題](https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80)
+
+本文包含以下內容：
+
+- Timeout 為什麼發生：同時在倒數的兩個時鐘
+- 怎麼分辨「Ollama 很慢」和「Ollama 被切斷」
+- 7 個修法，從最快到最麻煩排序
+- 任何環境變數都救不了的吞吐量天花板——附有來源的數據
+- 本機硬體就是瓶頸時，如何用同樣的指令在雲端 GPU 上跑
+
+## Ollama 為什麼 timeout：兩個時鐘同時在倒數
+
+每一個 Ollama 請求都在跟兩個各自獨立的期限賽跑，多數教學把它們混為一談。
+
+**時鐘一：客戶端的請求逾時。** Ollama 本身願意花多久生成都行，但呼叫它的工具通常不肯等。Cline 的 Ollama 整合早期內建 30 秒請求逾時（[後來才開放設定](https://localllm.in/blog/cline-ollama-timeout-fix)），LangChain 和 Python `requests` 預設也有有限期限，許多聊天前端會直接切斷長回應。7B 模型在 CPU 上要 60 秒才答得完，30 秒的客戶端期限就是每次必炸——而且錯誤訊息看起來像 Ollama 的錯。
+
+**時鐘二：伺服器端的模型載入逾時。** Ollama 預設給模型 5 分鐘載入記憶體（`OLLAMA_LOAD_TIMEOUT`）。30B 以上的模型從慢速硬碟載進吃緊的 RAM，可能連第一個 token 都還沒生出來就超時。
+
+兩個時鐘之間還有一個陷阱：`OLLAMA_KEEP_ALIVE` 預設 5 分鐘（[Ollama FAQ](https://docs.ollama.com/faq)），閒置 5 分鐘後模型會被卸載，下一個請求得付出完整的重新載入成本——常常是數十秒——而這正好撞上客戶端的期限。這就是為什麼去泡個咖啡回來，第一句話必失敗、重送就成功。
+
+**注意：** Ollama 並沒有 `OLLAMA_CLIENT_TIMEOUT` 這個環境變數，雖然不少部落格文章這樣寫。客戶端的期限要在客戶端設定，不在 Ollama。
+
+## 第一步：先分辨是「太慢」還是「被切斷」
+
+改任何設定之前，先確認 token 是在哪裡生成的。模型載入時執行：
+
+```bash
+ollama ps
+```
+
+看 `PROCESSOR` 欄位：
+
+- `100% GPU`——模型完整放進 VRAM。Timeout 多半是客戶端期限或冷啟動重載的問題。
+- `100% CPU`——Ollama 根本沒找到可用的 GPU。現代桌機 CPU 大約只有 5–15 token/s。
+- 出現 `41%/59% CPU/GPU` 這種分配——模型比你的 VRAM 大，留在 CPU 的那些層會拖慢每一個 token。
+
+以 Q4 量化的粗略估算：8B 模型約需 5–6 GB VRAM、14B 約 9–10 GB、32B 約 20 GB、70B 超過 40 GB。如果顯示卡只有 8 GB 卻拉了 14B 模型，真正的問題是溢出到 CPU，不是設定。
+
+想再挖深一點，[官方疑難排解文件](https://docs.ollama.com/troubleshooting)列出各平台伺服器日誌的位置，以及如何確認 GPU 驅動有被偵測到。
+
+## 擋掉多數 Ollama timeout 的 7 個修法
+
+由上往下逐一嘗試，每一項各自獨立。
+
+### 修法一：調高客戶端逾時
+
+在發出請求的那一端設定期限。Python 範例：
+
+```python
+import requests
+r = requests.post(
+    "http://localhost:11434/api/generate",
+    json={"model": "llama3.1:8b", "prompt": "..."},
+    timeout=600,  # 秒
+)
+```
+
+Cline、Open WebUI 之類的工具，到 Ollama provider 設定裡找 request timeout 或 keep-alive 選項。實務底線：弱硬體跑 7–8B 模型至少設 300 秒，更大的模型再往上加。
+
+### 修法二：改用串流回應
+
+串流請求（`"stream": true`）會邊生成邊回傳 token，連線立刻有動靜，而不是悶著等完整答案。很多客戶端逾時量的是「沉默時間」而非總時長——串流直接讓它失效。
+
+### 修法三：讓模型保持常駐
+
+```bash
+export OLLAMA_KEEP_ALIVE=30m
+```
+
+這會擋掉 5 分鐘自動卸載，間歇性的請求就不用付重載代價。設 `-1` 可以讓模型常駐到你手動卸載為止。代價是這段期間 RAM／VRAM 一直被占用。
+
+### 修法四：大模型延長載入逾時
+
+```bash
+export OLLAMA_LOAD_TIMEOUT=10m
+```
+
+只有在「一個 token 都還沒出現就失敗」而且模型相對於你的 RAM 和硬碟速度偏大時，才需要這一項。
+
+### 修法五：改拉 Q4_K_M 量化版
+
+```bash
+ollama pull llama3.1:8b-instruct-q4_K_M
+```
+
+精度較低的權重代表每個 token 要搬的位元組更少。在純 CPU 系統上，[Markaicode 的 CPU 基準測試](https://markaicode.com/benchmarks/tool-cpu-benchmark/)量到 Q4_K_M 版本的推論時間只有全精度版的一小部分——這是軟體端能拿到的最大加速。
+
+### 修法六：把 context window 調到剛好
+
+提示詞只有幾百 token，卻開 128K 的 `num_ctx`，是在浪費記憶體和算力。在 Modelfile（或透過 API 逐請求）把 `num_ctx` 設成 4096 可以釋放 VRAM——有時候這就是「完整 GPU offload」和「溢出到 CPU」的差別。
+
+### 修法七：把溢出的層搬回 GPU
+
+關掉吃 VRAM 的程式（遊戲、開硬體加速的瀏覽器），換小一號的模型或更緊的量化，然後重跑 `ollama ps` 直到顯示 `100% GPU`。部分溢出是「Ollama 一夜之間慢了 10 倍」這類回報最常見的原因。
+
+## 任何設定都救不了的天花板：token/s
+
+這是多數教學跳過的部分。調設定在糟糕的環境下大概能救回 2–3 倍，但 CPU 推論和真正的 GPU 之間的差距是這個數字的好幾倍——沒有任何環境變數能補上。
+
+| 硬體 | Llama 3.1 8B Q4_K_M 吞吐量 | 500 token 回答所需時間 | 撐得過 30 秒客戶端逾時嗎？ |
+|---|---|---|---|
+| 現代桌機 CPU（無 GPU offload） | 約 5–15 token/s（[Markaicode 基準](https://markaicode.com/benchmarks/tool-cpu-benchmark/)：12 執行緒 14.2 token/s） | 33–100 秒 | 通常不行 |
+| 8 GB GPU、部分溢出到 CPU | 不一定，常見 15–40 token/s | 12–33 秒 | 有時可以 |
+| NVIDIA RTX 4090，24 GB | 約 95–110 token/s（[Database Mart 基準](https://www.databasemart.com/blog/ollama-gpu-benchmark-rtx4090)） | 約 5 秒 | 一定可以 |
+
+中間那一欄請看兩次。CPU 速度下，每一個像樣的回答都在跟預設期限擦邊；RTX 4090 速度下，期限根本輪不到出場。這就是為什麼「我的 Ollama timeout」和「我的 Ollama 很慢」通常是同一個問題，只是穿著兩種錯誤訊息。
+
+如果你已經有 24 GB 的顯示卡，調一調就能爽用。如果你用的是筆電或舊卡，誠實的答案是：修法一到七只能讓 timeout 變少，不會消失。
+
+## 備案：同樣的 Ollama 指令，跑在租來的 GPU 上
+
+不用買硬體，也不用學新的技術棧。Ollama 的 CLI 和 API 在雲端 GPU 上完全相同——變的只有主機名稱。
+
+在 [Glows.ai](https://glows.ai) 上流程長這樣：
+
+1. [建立執行個體](https://docs.glows.ai/docs/create-new)，選擇預先配置好 Ollama 的映像檔——與 [Llama 3.1 快速上手教學](https://glows.ai/article/llama3.1)、[DeepSeek-R1 教學](https://glows.ai/article/deepseek_r1)用的是同一批映像。啟動時間 30–60 秒。
+2. 打開 JupyterLab 連結（HTTP Port 8888），開一個終端機，執行你在本機跑的那幾行：`ollama pull llama3.1:8b`、`ollama run llama3.1:8b`。
+3. 執行個體會把 Ollama API 開在 HTTP Port 11434。把本機工具（Open WebUI、Cline、你的腳本）指向那個網址，取代 `localhost:11434`——其他什麼都不用改。
+
+**提醒：** 記得[把 Ollama 模型儲存路徑設到 Datadrive](https://glows.ai/article/set_ollama_model_path)，下載過的模型跨工作階段保留，不用每次重拉好幾 GB。
+
+用 Glows.ai 公告費率算給你看（2026 年 7 月查核；費率依 GPU 與地區而異，以美元計價，台幣為約略換算）：
+
+| 使用型態 | 小時數 | RTX 4090，$0.49 美元/時（約 NT$16） |
+|---|---|---|
+| 一個晚上 | 3 | $1.47（約 NT$48） |
+| 每週兩次、跑一個月 | 24 | $11.76（約 NT$385） |
+| 整週全職實驗 | 40 | $19.60（約 NT$640） |
+
+計費以秒為單位，除錯 20 分鐘花的是幾塊台幣，不是整小時起跳。
+
+## 常見問題
+
+**Ollama 的「context deadline exceeded」是什麼意思？**
+某個期限在操作完成前先到期了——不是客戶端的請求逾時，就是伺服器端的模型載入時限。先延長客戶端逾時；如果是大模型在任何 token 出現前就報錯，再調高 `OLLAMA_LOAD_TIMEOUT`。
+
+**怎麼確認 Ollama 有在用 GPU？**
+模型載入時執行 `ollama ps`，看 `PROCESSOR` 欄位。`100% GPU` 代表完整 offload；只要出現任何 CPU 百分比，就代表模型塞不進 VRAM，吞吐量會大幅下滑。
+
+**為什麼休息一陣子後的第一個請求才會 timeout？**
+`OLLAMA_KEEP_ALIVE` 預設 5 分鐘，閒置後模型被卸載，下一個請求得先付完整重載成本才開始生成。設 `OLLAMA_KEEP_ALIVE=30m`（或 `-1`）讓它常駐。
+
+**搬到雲端 GPU，Ollama 指令要改嗎？**
+不用。`ollama pull`、`ollama run`、Port 11434 的 REST API、Modelfile——全部一樣。在 Glows.ai 上你透過 JupyterLab 拿到終端機，API 埠有公開網址，本機工具只是指向不同的主機。
+
+**在雲端跑 Ollama 的 GPU 要多少錢？**
+Glows.ai 的 RTX 4090（24 GB）時租 $0.49 美元起（約 NT$16），以秒計費（2026 年 7 月）。在 CPU 上只有 5–15 token/s 的 8B 模型，這張卡大約能跑 95–110 token/s。
+
+## 別再跟 timeout 纏鬥了
+
+你可以再花一個晚上調 `num_ctx`，也可以把同樣兩行指令丟到一張快 7–20 倍的卡上，讓期限徹底失去意義。[到 Glows.ai 註冊](https://glows.ai)，用 Ollama 就緒的映像建立執行個體，大約一分鐘後你的模型就在 RTX 4090 的速度上回答問題了。

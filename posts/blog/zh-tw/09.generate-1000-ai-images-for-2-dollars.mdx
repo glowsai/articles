@@ -1,0 +1,133 @@
+---
+id: generate_1000_ai_images_for_2_dollars_zh_tw
+title: '用 2 美元生成 1,000 張 AI 圖片：RTX 4090 雲端算圖成本完整拆解'
+date: '2026-07-10 10:00'
+description: 'AI 算圖成本實測公式：公開 SDXL 與 Flux 基準測試 × 租用 RTX 4090 每小時 0.49 美元起，1,000 張圖片只要 0.68 至 2.18 美元（約新台幣 22 至 70 元）。附完整來源，可自行驗證。'
+tags:
+  - Blog
+---
+
+# 用 2 美元生成 1,000 張 AI 圖片：RTX 4090 雲端算圖成本完整拆解
+
+先講結論：在每小時 0.49 美元（約新台幣 16 元）租用的 NVIDIA RTX 4090 上，根據公開的每張圖片生成秒數基準測試，生成 1,000 張 AI 圖片的成本介於 0.68 美元（Flux.1 Schnell）到 2.18 美元（Flux.1 Dev 全精度）之間。這就是全部的秘密。真正的 AI 算圖成本不是圖片 API 每次呼叫的收費，而是「GPU 秒數 × 每小時租金」——算下來每張圖不到一分美元。
+
+開始之前先說清楚：這不是一篇編出來的心得文。以下每個數字都來自公開基準測試或公開價目表，全部附上連結，你可以自己重算一遍，或換成任何一家的 GPU 費率得出自己的數字。
+
+![AI 算圖成本示意：多張 AI 生成的彩色圖片拼貼](https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1200&auto=format&fit=crop)
+
+本文包含以下內容：
+
+- 「2 美元」背後的三輸入公式
+- 附設定細節與來源的 RTX 4090 SDXL / Flux 基準測試數據
+- 五種模型組態下生成 1,000 張圖片的成本表
+- 與圖片 API 的成本對照（同樣 1,000 張要價 8 至 120 美元）
+- 這套算法沒算到的部分，以及如何在 Glows.ai 上重現整個流程
+
+## 公式先講清楚
+
+整篇文章可以濃縮成一條公式：
+
+**1,000 張圖片成本 = 每張秒數 × 1,000 ÷ 3,600 × GPU 每小時費率**
+
+三個輸入，三個來源：
+
+1. **每張秒數** — 來自公開的 RTX 4090 SDXL 與 Flux 基準測試（[Prompting Pixels](https://www.promptingpixels.com/gpu-benchmarks)、[Tom's Hardware](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks)、[ComfyUI GitHub Flux 基準討論串](https://github.com/comfyanonymous/ComfyUI/discussions/4571)、[SaladCloud SDXL 基準測試](https://blog.salad.com/stable-diffusion-xl-sdxl-benchmark/)）。
+2. **GPU 每小時費率** — [Glows.ai](https://glows.ai) 的 RTX 4090（24 GB）機器每小時 0.49 美元起，按秒計費（2026 年 7 月查證；實際費率依地區與供應情況浮動）。
+3. **圖片數量** — 1,000 張，這是 LoRA 訓練資料集、商品圖庫，或「生 50 張挑 5 張」創作流程放大後的實際規模。
+
+以每小時 0.49 美元計，一個 GPU 秒的成本是 0.000136 美元。其餘全是乘法。
+
+## 租一張 RTX 4090 每小時多少錢
+
+在台灣，一張全新 RTX 4090 市價仍落在新台幣五萬到六萬五之間，還沒算能餵飽它 450 W 功耗的電源供應器。租用把這件事反過來：Glows.ai 上的 RTX 4090 雲端 GPU 每小時 0.49 美元起（約新台幣 16 元），按秒計費，預裝好的 ComfyUI 映像檔 30–60 秒內開機完成。照這個費率，一張卡的購入價大約等於 3,200–4,000 小時的租用時數——以個人創作者的用量來說是好幾年。
+
+按秒計費對算圖這種工作特別重要。圖片生成是爆發型負載：排一批任務、跑完、關機。你付的是批次實際跑的那 2–4 小時，不是整個月的租約。
+
+## 每小時能生幾張：RTX 4090 上的 SDXL 與 Flux
+
+吞吐量取決於模型、步數、解析度與精度，所以以下每個數字都附上測試設定。全部為 RTX 4090（24 GB）的數據。
+
+| 模型 | 設定 | 每張秒數 | 來源 |
+| --- | --- | --- | --- |
+| Flux.1 Schnell | 4 步，1024×1024 | 約 4–5.5 秒 | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571)（2024 年 8 月）；[SaladCloud](https://blog.salad.com/flux1-schnell/) 實測平均 5.45 秒（含 API 延遲） |
+| SDXL 1.0 | 20 步，1024×1024，ComfyUI | 約 6.2–8 秒 | [Prompting Pixels GPU 基準測試](https://www.promptingpixels.com/gpu-benchmarks) |
+| Flux.1 Dev（FP8） | 20 步，1024×1024 | 約 9–10 秒 | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| SDXL base + refiner | 20 + 15 步，1216×896 | 平均 15.6 秒 | [SaladCloud SDXL 基準測試](https://blog.salad.com/stable-diffusion-xl-sdxl-benchmark/) |
+| Flux.1 Dev（FP16） | 20 步，1024×1024，Euler | 15–17 秒 | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+
+看這張表有兩個重點。第一，這些是單張（batch size 1）數據；SDXL 一次批 4 張通常還能再提升 20–40% 吞吐量，因為模型載入與文字編碼的開銷被攤平了。第二，[Tom's Hardware 的 45 張 GPU 對比](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks)顯示 RTX 4090 在消費級顯卡的 Stable Diffusion 吞吐量排行居首——這正是算圖首選租 4090 而非 A100 或 H100 的原因：那些卡贏在 VRAM 容量與多卡訓練，不是每張圖的成本。
+
+## 成本總表：各模型生成 1,000 張的價格
+
+接著就是乘法。用上表的保守估計值，套 Glows.ai 每小時 0.49 美元的 RTX 4090 費率：
+
+| 模型／組態 | 每張秒數 | 每小時張數 | 1,000 張所需時數 | 1,000 張成本 |
+| --- | --- | --- | --- | --- |
+| Flux.1 Schnell（4 步） | 5 | 720 | 1.4 | **0.68 美元（約 NT$22）** |
+| SDXL（20 步） | 7 | 514 | 1.9 | **0.95 美元（約 NT$30）** |
+| Flux.1 Dev FP8（20 步） | 10 | 360 | 2.8 | **1.36 美元（約 NT$44）** |
+| SDXL base + refiner | 15.6 | 231 | 4.3 | **2.12 美元（約 NT$68）** |
+| Flux.1 Dev FP16（20 步） | 16 | 225 | 4.4 | **2.18 美元（約 NT$70）** |
+
+所以標題最誠實的版本是：依模型不同，1,000 張圖片的成本在 0.68 到 2.18 美元之間，中間情境集中在 1 到 1.4 美元。「2 美元」是天花板而不是灌水——它涵蓋了表中最慢的組態，也就是全精度 Flux.1 Dev，2026 年大家說「高品質開源權重圖片模型」時指的多半就是它。
+
+換算每張成本是 0.0007 到 0.0022 美元。記住這兩個數字，下一節要用。
+
+## 跟圖片 API 比一比
+
+同樣 1,000 張圖片走託管 API，依 2026 年公開價目表（[Digital Applied 的 12 家供應商比較](https://www.digitalapplied.com/blog/ai-image-generation-api-pricing-comparison-2026)、[TokenMix 的 DALL-E 價格解析](https://tokenmix.ai/blog/dall-e-api-pricing)）：
+
+| 途徑 | 每張 | 每 1,000 張 | 相對租用 4090 |
+| --- | --- | --- | --- |
+| OpenAI 圖片 API（1024²，標準至 HD） | $0.04–$0.12 | $40–$120（約 NT$1,280–3,840） | 貴 18–176 倍 |
+| Stability AI API | $0.01–$0.05 | $10–$50 | 貴 5–74 倍 |
+| 聚合平台（Replicate、fal.ai，開源權重模型） | $0.008–$0.04 | $8–$40 | 貴 4–59 倍 |
+| Midjourney Standard 方案（relax 模式） | 實質約 $0.03 | 約 $30／月（約 NT$960） | 貴 14–44 倍 |
+| 租用 RTX 4090（本文做法） | $0.0007–$0.0022 | $0.68–$2.18 | — |
+
+API 不是坑——你付的是零設定、自動擴展和別人家的工程師。一週只生 20 張，用 API 或訂 Midjourney 才是對的。分水嶺在量：到了 1,000 張以上，租 GPU 便宜 4 到 176 倍，而且每多跑一批差距就更大，因為租金裡沒有內建每張圖的利潤——你買到的是成本價的 GPU 秒數。
+
+## 如何自己重現這套流程
+
+以下是實際操作流程，同時也是驗證程序。我們在 Glows.ai 上按需建立機器，細節可參考[建立實例教學](https://docs.glows.ai/docs/create-new)：
+
+### Step 1: 建立 ComfyUI 實例
+
+在 `Create New` 頁面，Workload Type 選 Inference GPU — 4090，並選擇官方預裝的 **ComfyUI** 映像檔。開機約 30–60 秒，不用裝 CUDA、不用除錯相依套件。
+
+### Step 2: 載入模型與批次工作流
+
+直接在機器內從 Hugging Face 拉 SDXL 或 Flux 權重——可參考[在 Glows.ai 下載 Hugging Face 模型](https://glows.ai/article/download_huggingface_models)，並[設定 ComfyUI 模型路徑](https://glows.ai/article/set_comfyui_model_path)把權重放在 Datadrive，之後就不必重複下載。接著載入批次工作流；想要可重現的自動化流程，可參考[在 Glows.ai 執行自訂 ComfyUI 工作流](https://glows.ai/article/run_comfyui_on_glowsai)。
+
+### Step 3: 排入 1,000 張生成任務並計時
+
+設定 batch count、送出佇列、記下時間戳。實例頁面會顯示精確用量；按秒計費代表帳單本身就是基準測試——用花費除以張數，跟上表對照即可。
+
+**提醒：** 批次跑完請關閉實例。本文的算法假設你只為生成時間付費——按秒計費的前提是 GPU 沒有整晚閒置空轉。
+
+## 這套算法沒算到什麼
+
+誠實聲明區，因為標題數字永遠有沒講的邊角：
+
+- **模型下載與暖機。** 首次下載權重（SDXL 6.9 GB、Flux.1 Dev FP16 約 23 GB）加上首次載入，可能多花 10–25 分鐘，以每小時 0.49 美元計約 0.08–0.20 美元。掛載 Datadrive 儲存空間後，之後每次執行都能省掉這段。
+- **重抽。** 沒有人 1,000 張全留。如果留用率是 30%，每張「留下來的圖」成本就是三倍——API 也一樣，只是同樣的浪費要多付 4–176 倍。
+- **你的設定會不一樣。** 30 步而非 20 步、1536×1536 而非 1024×1024、疊多層 ControlNet——都會拉高每張秒數。公式不變，變的只有第一個輸入。
+- **費率會浮動。** 每小時 0.49 美元是 2026 年 7 月 Glows.ai RTX 4090 的起始費率；地區與供應情況會影響價格。公式吃的是你結帳時實際看到的任何費率。
+
+## 常見問題
+
+**生成 1,000 張 AI 圖片要多少錢？**
+在每小時 0.49 美元租用的 RTX 4090 上是 0.68 至 2.18 美元（約新台幣 22 至 70 元），依模型與設定而定（Flux.1 Schnell 最快、Flux.1 Dev FP16 最慢）。同樣 1,000 張走託管圖片 API，以 2026 年公告費率要 8 至 120 美元。
+
+**RTX 4090 跑 SDXL 和 Flux 夠力嗎？**
+夠。24 GB VRAM 跑 SDXL 綽綽有餘，Flux.1 Dev 的 FP8 與 FP16 都能跑，而且在 Tom's Hardware 的 45 張 GPU 消費級 Stable Diffusion 吞吐量測試中排名第一。更大的卡（A100、H100）買到的主要是訓練用的 VRAM 餘裕，不是更便宜的推論。
+
+**租 GPU 比訂 Midjourney 便宜嗎？**
+量大就便宜：租用生成 1,000 張是 0.68–2.18 美元，Midjourney Standard 方案約每月 30 美元。每月只生幾百張以內，訂閱的方便性通常還是划算。
+
+**不相信這篇文章的數字，能自己驗證嗎？**
+可以——這正是本文的重點。每筆基準測試都附連結與設定，GPU 費率公開在 [glows.ai](https://glows.ai)，而按秒計費代表你自己的帳單除以張數就是最終真相。
+
+## 用你自己的批次跑一次看看
+
+「2 美元」是算術不是行銷話術：有來源的每張秒數，乘上公開的每小時費率。驗證最快的方法就是實際跑一次。[註冊 Glows.ai](https://glows.ai)，用一鍵 ComfyUI 映像檔建立 RTX 4090 實例，排入你的第一批任務，再拿帳單跟上表對照。

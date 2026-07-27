@@ -1,0 +1,133 @@
+---
+id: generate_1000_ai_images_for_2_dollars_en
+title: 'I Generated 1,000 AI Images for $2. Here''s Exactly How.'
+date: '2026-07-10 10:00'
+description: 'Real AI image generation cost: public SDXL and Flux benchmarks on a rented RTX 4090 put 1,000 images at $0.68–$2.18. Check the math yourself.'
+tags:
+  - Blog
+---
+
+# I Generated 1,000 AI Images for $2. Here's Exactly How.
+
+Here is the short answer: on a rented NVIDIA RTX 4090 at $0.49/hour, 1,000 AI images cost between $0.68 (Flux.1 Schnell) and $2.18 (Flux.1 Dev at full precision), based on published seconds-per-image benchmarks. That is the entire trick. The real AI image generation cost is not what image APIs charge per call — it is GPU seconds multiplied by an hourly rental rate, and the arithmetic works out to a fraction of a cent per image.
+
+One thing before we start: this is not a diary post. Every number below comes from a public benchmark or a public price list, all linked, so you can rerun the math yourself — or plug in a different GPU rate and get your own figure.
+
+![AI image generation cost illustrated by a grid of colorful AI-generated artwork](https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1200&auto=format&fit=crop)
+
+This article covers:
+
+- The three-input formula behind the $2 figure
+- Sourced RTX 4090 benchmarks for SDXL and Flux, with the exact settings
+- A cost table for 1,000 images across five model configurations
+- How rented-GPU costs compare with image APIs ($8–$120 per 1,000 images)
+- What the math leaves out, and how to reproduce the setup on Glows.ai
+
+## The Math, Up Front
+
+The whole article reduces to one formula:
+
+**Cost per 1,000 images = seconds per image × 1,000 ÷ 3,600 × hourly GPU rate**
+
+Three inputs, three sources:
+
+1. **Seconds per image** — from published RTX 4090 benchmarks for SDXL and Flux ([Prompting Pixels](https://www.promptingpixels.com/gpu-benchmarks), [Tom's Hardware](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks), the [ComfyUI GitHub Flux benchmark thread](https://github.com/comfyanonymous/ComfyUI/discussions/4571), and [SaladCloud's SDXL benchmark](https://blog.salad.com/stable-diffusion-xl-sdxl-benchmark/)).
+2. **Hourly GPU rate** — [Glows.ai](https://glows.ai) lists RTX 4090 (24 GB) instances from $0.49/hour with per-second billing (price checked July 2026; rates vary by region and availability).
+3. **Image count** — 1,000, because that is a realistic batch for a LoRA dataset, a product-shot library, or a "generate 50, keep 5" creative workflow at scale.
+
+At $0.49/hour, one GPU-second costs $0.000136. Everything else follows.
+
+## What a Rented RTX 4090 Costs Per Hour
+
+A new RTX 4090 still sells for roughly $1,600–$2,000 on the retail market, before you add a PSU that can feed its 450 W board power. Renting inverts that: an RTX 4090 cloud GPU on Glows.ai starts at $0.49/hour, billed per second, and the preconfigured ComfyUI image boots in 30–60 seconds. At that rate, the purchase price of the card buys you roughly 3,200–4,000 hours of rental — years of hobbyist-scale generation.
+
+Per-second billing matters for this specific workload. Image generation is bursty: you queue a batch, it runs, you stop the instance. You pay for the 2–4 hours the batch actually takes, not for a monthly commitment.
+
+## Images Per Hour: SDXL vs. Flux on an RTX 4090
+
+Throughput depends on the model, step count, resolution, and precision — so here are the published numbers with their settings attached. All figures are for an RTX 4090 (24 GB).
+
+| Model | Settings | Seconds/image | Source |
+| --- | --- | --- | --- |
+| Flux.1 Schnell | 4 steps, 1024×1024 | ~4–5.5 s | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) (Aug 2024); [SaladCloud](https://blog.salad.com/flux1-schnell/) measured 5.45 s avg incl. API overhead |
+| SDXL 1.0 | 20 steps, 1024×1024, ComfyUI | ~6.2–8 s | [Prompting Pixels GPU benchmarks](https://www.promptingpixels.com/gpu-benchmarks) |
+| Flux.1 Dev (FP8) | 20 steps, 1024×1024 | ~9–10 s | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+| SDXL base + refiner | 20 + 15 steps, 1216×896 | 15.6 s avg | [SaladCloud SDXL benchmark](https://blog.salad.com/stable-diffusion-xl-sdxl-benchmark/) |
+| Flux.1 Dev (FP16) | 20 steps, 1024×1024, Euler | 15–17 s | [ComfyUI GitHub #4571](https://github.com/comfyanonymous/ComfyUI/discussions/4571) |
+
+Two notes on reading this table. First, these are single-image (batch size 1) figures; batching 4 images per run typically raises throughput another 20–40% on SDXL because model loading and text encoding amortize across the batch. Second, [Tom's Hardware's 45-GPU comparison](https://www.tomshardware.com/pc-components/gpus/stable-diffusion-benchmarks) puts the RTX 4090 at the top of the consumer chart for Stable Diffusion throughput, which is why it is the default rental choice for this workload rather than an A100 or H100 — those cards win on VRAM and multi-GPU training, not on cost per image.
+
+## The Cost Table: 1,000 Images by Model
+
+Now multiply. Using conservative point estimates from the ranges above, at Glows.ai's $0.49/hour RTX 4090 rate:
+
+| Model / config | s per image | Images per hour | Hours for 1,000 | Cost for 1,000 images |
+| --- | --- | --- | --- | --- |
+| Flux.1 Schnell (4 steps) | 5 | 720 | 1.4 | **$0.68** |
+| SDXL (20 steps) | 7 | 514 | 1.9 | **$0.95** |
+| Flux.1 Dev FP8 (20 steps) | 10 | 360 | 2.8 | **$1.36** |
+| SDXL base + refiner | 15.6 | 231 | 4.3 | **$2.12** |
+| Flux.1 Dev FP16 (20 steps) | 16 | 225 | 4.4 | **$2.18** |
+
+So the honest version of the headline: 1,000 images cost $0.68 to $2.18 depending on the model, and the mid-range scenarios cluster around $1–$1.40. "Two dollars" is the ceiling, not a stretch — it covers even the slowest configuration in the table, full-precision Flux.1 Dev, which is the setup most people actually mean when they say "high-quality open-weight image model" in 2026.
+
+Per image, that is $0.0007 to $0.0022. Keep those numbers in mind for the next section.
+
+## How This Compares to Image APIs
+
+The same 1,000 images through hosted APIs, using published 2026 price lists ([Digital Applied's 12-provider comparison](https://www.digitalapplied.com/blog/ai-image-generation-api-pricing-comparison-2026), [TokenMix's DALL-E pricing breakdown](https://tokenmix.ai/blog/dall-e-api-pricing)):
+
+| Route | Per image | Per 1,000 images | vs. rented 4090 |
+| --- | --- | --- | --- |
+| OpenAI image API (1024², standard → HD) | $0.04–$0.12 | $40–$120 | 18–176× more |
+| Stability AI API | $0.01–$0.05 | $10–$50 | 5–74× more |
+| Aggregators (Replicate, fal.ai, open-weight models) | $0.008–$0.04 | $8–$40 | 4–59× more |
+| Midjourney Standard plan (relax mode) | ~$0.03 effective | ~$30/month | 14–44× more |
+| Rented RTX 4090 (this article) | $0.0007–$0.0022 | $0.68–$2.18 | — |
+
+APIs are not a rip-off — you pay for zero setup, autoscaling, and someone else's engineers. For 20 images a week, an API or a Midjourney plan is the right call. The crossover comes with volume: at 1,000+ images, the rented-GPU route costs 4–176× less, and the gap widens with every batch because the rental has no per-image margin baked in. You are buying GPU seconds at cost.
+
+## How to Reproduce This Yourself
+
+Here is the actual workflow, which doubles as the verification procedure. We create an instance on demand on Glows.ai — the [instance creation guide](https://docs.glows.ai/docs/create-new) covers the details:
+
+### Step 1: Create a ComfyUI Instance
+
+On the `Create New` page, select Inference GPU — 4090 for Workload Type and choose the preconfigured **ComfyUI** image. Startup takes 30–60 seconds. No CUDA installs, no dependency debugging.
+
+### Step 2: Load a Model and a Batch Workflow
+
+Pull SDXL or Flux weights from Hugging Face directly inside the instance — our guide to [downloading Hugging Face models on Glows.ai](https://glows.ai/article/download_huggingface_models) covers the fastest route, and you can [set the ComfyUI model path](https://glows.ai/article/set_comfyui_model_path) to keep weights on Datadrive so you never re-download them. Then load a batch workflow; if you want reproducible automation, see [how to run custom ComfyUI workflows on Glows.ai](https://glows.ai/article/run_comfyui_on_glowsai).
+
+### Step 3: Queue 1,000 Generations and Time Them
+
+Set batch count, queue the run, and note the timestamps. Your instance page shows exact usage; per-second billing means the invoice is itself the benchmark. Divide cost by images and compare against the table above.
+
+**Reminder:** Stop the instance when the batch finishes. The math in this article assumes you pay for generation time, not idle time — per-second billing only helps if the GPU is not sitting warm overnight.
+
+## What the Math Leaves Out
+
+Transparency section, because a headline number always hides edges:
+
+- **Model download and warm-up.** First-time weight downloads (6.9 GB for SDXL, ~23 GB for Flux.1 Dev FP16) plus the first compile/load can add 10–25 minutes — roughly $0.08–$0.20 at $0.49/hour. Mounting Datadrive storage removes this on every subsequent run.
+- **Re-rolls.** Nobody keeps 1,000 of 1,000 images. If your keep rate is 30%, your cost per *kept* image triples — true for APIs too, where the same waste costs 4–176× more.
+- **Your settings will differ.** 30 steps instead of 20, 1536×1536 instead of 1024×1024, heavy ControlNet stacks — all push seconds-per-image up. The formula still holds; only the first input changes.
+- **Rates vary.** $0.49/hour is the Glows.ai RTX 4090 starting rate as of July 2026; availability and region shift pricing. The formula accepts any rate you actually see at checkout.
+
+## FAQ
+
+**How much does it cost to generate 1,000 AI images?**
+Between $0.68 and $2.18 on a rented RTX 4090 at $0.49/hour, depending on model and settings (Flux.1 Schnell fastest, Flux.1 Dev FP16 slowest). The same 1,000 images cost $8–$120 through hosted image APIs at 2026 published rates.
+
+**Is an RTX 4090 good enough for SDXL and Flux?**
+Yes. Its 24 GB VRAM fits SDXL comfortably and runs Flux.1 Dev in FP8 or FP16, and it tops Tom's Hardware's 45-GPU consumer benchmark chart for Stable Diffusion throughput. Bigger cards (A100, H100) mostly buy VRAM headroom for training, not cheaper inference.
+
+**Is renting a GPU cheaper than a Midjourney subscription?**
+At volume, yes: 1,000 images cost $0.68–$2.18 rented versus roughly $30/month for Midjourney's Standard plan. Below a few hundred images a month, a subscription's convenience usually wins.
+
+**Can I verify these numbers without trusting this article?**
+Yes — that is the point. Every benchmark is linked with its settings, the GPU rate is public on [glows.ai](https://glows.ai), and per-second billing means your own invoice divided by your image count is the ground truth.
+
+## Run the Numbers on Your Own Batch
+
+The $2 figure is arithmetic, not marketing: sourced seconds-per-image, times a public hourly rate. The fastest way to check it is to run it. [Sign up at Glows.ai](https://glows.ai), create an RTX 4090 instance with the one-click ComfyUI image, queue your first batch, and compare your invoice to the table above.
