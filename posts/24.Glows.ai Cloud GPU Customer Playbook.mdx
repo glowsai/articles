@@ -1,0 +1,345 @@
+---
+id: cloud_gpu_customer_playbook
+title: 'The Glows.ai Cloud GPU Customer Playbook'
+date: '2026-08-20 10:00'
+description: 'A practical path for choosing a GPU, estimating cost, deploying an open model, validating performance, preserving work, and scaling responsibly on Glows.ai.'
+tags:
+  - Tutorial
+---
+
+# The Glows.ai Cloud GPU Customer Playbook
+
+A good cloud GPU decision should leave you with more control and better evidence after the first experiment—not just a running instance. This playbook connects the decisions that matter: selecting hardware, estimating cost, deploying the model, measuring performance, preserving work, and deciding whether to scale.
+
+Glows.ai is a strong fit when you want direct control over the GPU, model, runtime, and persistent assets. It may be more infrastructure than you need for a handful of calls to a managed model. The purpose of this guide is to help you determine that before spending more than necessary.
+
+{/* Editorial: Before publication, add one verified customer journey using a current Glows.ai region, GPU, image, price, model, benchmark, cost result, and recovery test. Remove all private account data. */}
+
+## The outcome you should expect
+
+After completing the journey, you should be able to answer:
+
+1. Why is this GPU appropriate for the model?
+2. What will a successful workload cost?
+3. Is a rented GPU better than a hosted API for this use case?
+4. Can the endpoint be secured and monitored?
+5. Does it meet the latency and quality target?
+6. Which files survive when compute is released?
+7. Can the workload resume after interruption?
+8. Can another operator reproduce the deployment?
+9. What evidence justifies scaling?
+
+If any answer is missing, keep the deployment in experiment status.
+
+## What Glows.ai publicly commits to today
+
+As checked on July 23, 2026, Glows.ai’s public website describes:
+
+- Per-second compute billing with costs shown in real time
+- Pay-as-you-go on-demand GPU instances
+- Snapshot and Datadrive persistence options
+- Ready-to-use AI/ML environments
+- Multiple GPU types and regions, subject to current availability
+- Enterprise support
+- ISO/IEC 27001:2022 certification
+
+These statements help set expectations, but the checkout page, account terms, and selected configuration remain authoritative for a transaction. Save the checkout summary and verify any requirement that is material to security, compliance, availability, or budget.
+
+Public references:
+
+- [Glows.ai homepage](https://glows.ai/)
+- [Glows.ai On-Demand Cloud](https://glows.ai/product/on-demand-cloud)
+- [Glows.ai Datadrive](https://glows.ai/datadrive)
+- [Glows.ai Terms of Service](https://glows.ai/tos)
+
+## The 60-second check before checkout
+
+Before creating an instance, confirm these five items:
+
+1. **GPU fit:** The model, precision, context, and expected concurrency have a credible path to fitting the selected VRAM.
+2. **Persistent storage:** Datadrive is mounted if any model, dataset, checkpoint, or output must survive release.
+3. **Environment:** The selected image or base environment supports the model and inference engine.
+4. **Access:** The instance exposes the connection method and service port the workflow needs.
+5. **Exit plan:** You know what must be copied or snapshotted before the instance is released.
+
+Take a screenshot of the final configuration and current rate before checkout. Product availability and pricing can change, so preserve the assumptions attached to the decision.
+
+## The seven-step customer journey
+
+| Step | Decision | Evidence to retain |
+|---|---|---|
+| 1 | Choose GPU and quantization | VRAM estimate and measured peak |
+| 2 | Estimate workload cost | Dated assumptions and unit cost |
+| 3 | Compare GPU rental with an API | Equivalent quality and cost comparison |
+| 4 | Deploy the endpoint | Tested command, versions, and authenticated response |
+| 5 | Benchmark performance | Raw p50, p95, p99, throughput, and errors |
+| 6 | Protect the work | Checkpoint, Datadrive, Snapshot, and resume test |
+| 7 | Select region and reproduce | Latency results and clean rebuild |
+
+Each step creates an asset used by the next one. This reduces repeated setup and makes the final decision auditable.
+
+## Step 1: Choose the smallest credible GPU
+
+Start with the model, context length, concurrency, and precision. Estimate weight memory, then leave capacity for KV cache and runtime overhead.
+
+Read [How to Choose a GPU and Quantization Level](https://glows.ai/article/choose_gpu_quantization_open_model).
+
+Do not select the largest available GPU by default. Test the smallest configuration that has a reasonable chance of meeting the workload. Scale only when the measurement shows why.
+
+**Keep:** model revision, quantization, runtime version, workload assumptions, and peak VRAM.
+
+## Step 2: Estimate cost per successful result
+
+The hourly price is only one part of cost. Include startup, model loading, execution, retries, persistent storage, and any engineering time relevant to the business decision.
+
+Read [How to Estimate the Real Cost of a GPU Workload](https://glows.ai/article/estimate_gpu_workload_cost).
+
+Use a meaningful unit:
+
+- Successful request
+- Completed batch
+- Generated image
+- Processed video
+- Training run
+- One million tokens
+
+**Keep:** dated rates, phase timings, completion rate, storage cost, and cost per successful unit.
+
+## Step 3: Compare the real alternative
+
+If the alternative is a hosted API, compare equivalent tasks and quality. Do not compare a rented GPU’s hourly rate with an API’s token rate without utilization and throughput.
+
+Read [Rented GPUs vs Hosted APIs](https://glows.ai/article/gpu_rental_vs_api_cost).
+
+Glows.ai is likely to be attractive when the workload is sustained or batchable, model control matters, or reusable weights and environments reduce repeated setup. A hosted API may remain better for tiny, irregular workloads or when managed operations are more valuable than infrastructure control.
+
+**Keep:** equivalent request set, quality result, utilization, latency, failures, and unit-cost comparison.
+
+## Step 4: Build a repeatable endpoint
+
+Deploy the selected model through vLLM when its compatibility and API behavior fit the application.
+
+Read [How to Deploy vLLM as an OpenAI-Compatible API](https://glows.ai/article/deploy_vllm_openai_compatible_api).
+
+A successful endpoint should have:
+
+- An explicit model revision
+- A recorded runtime version
+- Authentication
+- HTTPS and appropriate access controls
+- Health and model checks
+- Metrics
+- Persistent model storage
+- A documented release procedure
+
+**Keep:** deployment manifest, startup command, secret names, health check, and tested client request.
+
+## Step 5: Prove the service target
+
+One successful prompt does not prove production readiness. Test representative prompts at expected concurrency.
+
+Read [How to Benchmark LLM Latency and Throughput](https://glows.ai/article/benchmark_llm_latency_throughput).
+
+Measure:
+
+- Time to first token
+- Inter-token latency
+- End-to-end latency
+- Throughput
+- Error rate
+- Task quality
+
+**Keep:** prompt-set description, raw results, test conditions, percentiles, and acceptance decision.
+
+## Step 6: Preserve value before releasing compute
+
+Use three layers:
+
+- **Datadrive:** models, datasets, checkpoints, logs, and outputs
+- **Snapshot:** installed packages and environment changes
+- **Git or manifest:** code, configuration, commands, and versions
+
+Read [How to Checkpoint and Recover a Long-Running GPU Job](https://glows.ai/article/checkpoint_recover_gpu_job).
+
+Release compute only after required assets are verified outside ephemeral instance storage. Test a restore on a fresh instance before treating the recovery plan as complete.
+
+**Keep:** checkpoint checksum, environment record, Snapshot ID, resume command, recovery point, and recovery time.
+
+## Step 7: Choose the region and prove reproducibility
+
+Measure latency from real client locations. Keep compute near large persistent data when practical, verify GPU availability, and define a fallback.
+
+Read [How to Choose a GPU Region and Reproduce Your Deployment](https://glows.ai/article/choose_gpu_region_reproducible_deployment).
+
+Rebuild from the manifest on a clean instance. Every undocumented manual step is a reproducibility defect.
+
+**Keep:** region measurements, GPU and storage requirements, pinned versions, clean-build result, and fallback procedure.
+
+## What Glows.ai helps you retain
+
+The value of a successful experiment should not disappear when an instance is released.
+
+With the right workflow, you retain:
+
+- Model weights and datasets on Datadrive
+- Checkpoints and outputs
+- A reusable environment Snapshot
+- Versioned code and configuration
+- A cost model
+- A performance baseline
+- A recovery procedure
+- A deployment manifest
+
+That collection is the real operational asset. The GPU is the temporary resource used to create or run it.
+
+## When to scale
+
+Scale only when:
+
+- The workload meets its quality requirement.
+- The current configuration misses a defined capacity or latency target.
+- The expected demand justifies the additional cost.
+- Persistent data and recovery procedures have been tested.
+- Monitoring can detect failure and saturation.
+
+Do not scale to compensate for an unknown bottleneck. If GPU utilization is low, investigate the client, CPU, storage, network, and batching first.
+
+## When to stop or reconsider
+
+Pause additional spend when:
+
+- The model does not meet task quality.
+- Cost per successful workload exceeds the alternative.
+- Latency misses despite reasonable optimization.
+- Required security or governance controls are not ready.
+- The workload cannot recover from interruption.
+- Traffic is too small to use the GPU productively.
+
+Stopping an unsuitable experiment is a successful decision when it prevents larger waste.
+
+## Your first-project record
+
+Create one directory on Datadrive:
+
+```text
+/datadrive/projects/PROJECT_NAME/
+├── models/
+├── checkpoints/
+├── outputs/
+├── logs/
+├── benchmarks/
+├── deployment.yaml
+├── cost-estimate.csv
+├── requirements-lock.txt
+└── recovery-runbook.md
+```
+
+Do not place secrets in this directory.
+
+## Customer questions before and after purchase
+
+### When does GPU compute billing stop?
+
+The existing [Glows.ai SGLang instance guide](https://glows.ai/article/deepseek_r1_using_sglang) states that compute billing stops when the instance is released. A running instance can continue to incur charges even if no useful job is active. Confirm the current status on **My Instances** after release rather than assuming a closed terminal or browser stopped the resource.
+
+### What happens to files on the instance when it is released?
+
+Treat the instance disk as temporary. The [Glows.ai Hugging Face storage guide](https://glows.ai/article/download_huggingface_models) states that instance-based data is deleted after release. Move every file that must survive to Datadrive or another approved persistent destination before releasing the instance.
+
+### Is releasing an instance the same as terminating the account agreement?
+
+No. Releasing an instance is an operational action that stops that compute resource and deletes its instance-based data. Terminating the service agreement is an account-level legal event.
+
+The [Glows.ai Terms of Service](https://glows.ai/tos), checked July 23, 2026, state that users have 15 days to retrieve data stored on Glows.ai after agreement termination, subject to the terms and applicable law, and that Glows.ai may delete the data afterward. Do not treat that period as a backup strategy. Maintain your own approved copies of business-critical data.
+
+### Is Datadrive included automatically?
+
+Do not assume it is mounted. Allocate sufficient regional storage and select **Mount** during instance creation when persistence is required. Confirm the mount from inside the instance before starting an expensive job.
+
+### What is the difference between Datadrive and a Snapshot?
+
+Use Datadrive for changing project assets such as models, datasets, checkpoints, logs, and outputs. Use a Snapshot for worthwhile environment changes such as installed packages and system configuration. The [Glows.ai Ollama storage guide](https://glows.ai/article/set_ollama_model_path) notes that the `/datadrive` directory is not included in the instance Snapshot, so the two layers complement rather than replace each other.
+
+### Does disconnecting SSH or closing JupyterLab stop the job or billing?
+
+No. Closing a client does not release the instance. A process may continue when managed through tools such as `tmux` or `nohup`, and the instance remains active until it is released or another documented platform action occurs. Check the dashboard status.
+
+### Does Glows.ai manage my model endpoint for me?
+
+A standard GPU instance gives you control of the environment; it does not remove responsibility for model compatibility, endpoint authentication, updates, logs, monitoring, and capacity. Auto Deploy can automate instance creation and idle release for supported workflows, but the application still needs security and performance validation.
+
+### Will an OpenAI-compatible endpoint behave exactly like every hosted API?
+
+No. Compatibility reduces client changes, but models and serving engines can support different endpoints, parameters, tool behavior, chat templates, and defaults. Test every feature the application depends on.
+
+### Is the cheapest hourly GPU always the cheapest option?
+
+No. Compare cost per successful result. A faster GPU can cost less per job, while an inexpensive GPU can cost more if it runs longer, fails, or remains idle.
+
+### Can I expect a refund if I choose the wrong configuration?
+
+Do not build the experiment around that assumption. The [Glows.ai Terms of Service](https://glows.ai/tos), checked July 23, 2026, state that payments are generally final and non-refundable, except where applicable consumer-protection law requires otherwise. The terms also state that applicable taxes may be the user’s responsibility and that additional fees for specialized tools must be disclosed in advance.
+
+Review the current checkout summary and terms before purchase. Start with a small validation run when the configuration is uncertain.
+
+### Are beta features covered by the same expectations as established services?
+
+Not necessarily. The current Terms of Service state that identified Beta Services may be unsupported, may change without notice, and may be less reliable or available. Do not place a critical production dependency on a beta feature without a fallback and written clarification appropriate to the project.
+
+### Who owns my models, applications, and uploaded data?
+
+The current Terms of Service state that, as between the parties, users retain intellectual-property rights in their User Data and User Applications, while Glows.ai retains rights in its Services and Software. Model licenses, third-party datasets, and software dependencies still carry their own terms.
+
+### Can I change the GPU or region later?
+
+The reproducible-deployment workflow is designed to make that possible, but availability, storage location, model fit, and latency must be revalidated. Preserve model assets, environment details, and the deployment manifest so migration is an engineering procedure rather than a reconstruction exercise.
+
+### What should I do before asking support for help?
+
+Collect:
+
+- Instance and image identifiers
+- Region and GPU
+- Timestamp and exact error
+- Command with secrets removed
+- Relevant logs
+- Expected and observed behavior
+- Whether required data is already preserved
+
+Do not send passwords, API keys, access tokens, or sensitive prompts through a support channel.
+
+## Commercial and responsibility checklist
+
+Before committing business-critical work:
+
+- [ ] I reviewed the current checkout rate, currency, billing unit, and taxes.
+- [ ] I understand the general non-refund rule and any rights that apply to my jurisdiction.
+- [ ] I know whether any required feature is labeled beta.
+- [ ] I reviewed third-party model, dataset, and software licenses.
+- [ ] I have the required notices and consents for data processed by my application.
+- [ ] I maintain an independent copy of business-critical data.
+- [ ] I understand that service-agreement termination is different from releasing an instance.
+- [ ] I know which support channel applies to the account or deployment.
+
+This checklist summarizes operational reading of the public terms; it is not legal advice. The current agreement and applicable law control.
+
+## Final customer checklist
+
+- [ ] I can explain why this GPU was selected.
+- [ ] I know the cost per successful result.
+- [ ] I compared the relevant hosted alternative.
+- [ ] My endpoint is authenticated and monitored.
+- [ ] The workload meets a measured performance target.
+- [ ] Important files survive instance release.
+- [ ] Recovery was tested.
+- [ ] Another operator can reproduce the deployment.
+- [ ] I know what would justify scaling.
+- [ ] I know when to stop spending.
+
+## Contact Us
+
+If you want help validating a configuration before scaling, contact Glows.ai:
+
+- **Email:** [support@glows.ai](mailto:support@glows.ai)
+- **Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+- **Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

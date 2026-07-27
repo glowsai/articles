@@ -1,0 +1,315 @@
+---
+id: deploy_vllm_openai_compatible_api
+title: 'How to Deploy vLLM as an OpenAI-Compatible API on Glows.ai'
+date: '2026-08-06 10:00'
+description: 'Create a GPU instance, serve an open model with vLLM, expose an authenticated OpenAI-compatible API, and verify the endpoint.'
+tags:
+  - Tutorial
+---
+
+# How to Deploy vLLM as an OpenAI-Compatible API on Glows.ai
+
+vLLM can serve supported models through endpoints compatible with common OpenAI API clients. On Glows.ai, the workflow is to create a suitable GPU instance, mount persistent model storage, start `vllm serve`, expose the configured port, and test the model and chat-completion endpoints.
+
+This guide uses placeholders so you can select a model that fits your GPU. Verify every command against the image and vLLM version installed on your instance.
+
+{/* Editorial: Run this guide from a fresh Glows.ai instance before publication. Replace placeholders with a tested model, image ID, GPU, region, vLLM version, CUDA version, startup time, and screenshots. */}
+
+## What you will deploy
+
+The current [vLLM OpenAI-compatible server documentation](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/) lists endpoints for models, completions, chat completions, responses, embeddings, and other model-dependent tasks. Not every endpoint works with every model.
+
+This tutorial focuses on:
+
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+- `GET /health`
+- `GET /metrics`
+
+## What you control—and what remains your responsibility
+
+Glows.ai provides the GPU instance, storage options, environment choices, and network access needed to run the service. You retain control over the model, runtime flags, API behavior, and release schedule.
+
+That control also means you are responsible for:
+
+- Confirming the model license permits the intended use
+- Selecting enough GPU memory
+- Protecting public endpoints
+- Managing API keys and sensitive data
+- Monitoring latency, errors, and capacity
+- Preserving required files before release
+
+The benefit is a deployment you can inspect and reproduce. The tradeoff is that it must be operated deliberately.
+
+## Prerequisites
+
+You need:
+
+- A Glows.ai account with sufficient credit
+- A model compatible with vLLM
+- A GPU with enough VRAM
+- A Glows.ai image containing vLLM or a compatible Python environment
+- A mounted Datadrive if model weights must persist
+- A port available for the API server
+
+Read [How to Choose a GPU and Quantization Level](https://glows.ai/article/choose_gpu_quantization_open_model) before selecting the instance.
+
+## Step 1: Choose a model and GPU
+
+Open the model card and record:
+
+- Repository name
+- Revision or commit
+- License and access requirements
+- Weight format
+- Supported context length
+- Chat-template availability
+- Approximate memory requirement
+
+Do not deploy an instruction model without confirming its chat template. vLLM’s chat-completion endpoint requires a compatible template.
+
+## Step 2: Create the instance
+
+On the Glows.ai **Create New** page:
+
+1. Select a region.
+2. Select the GPU.
+3. Choose a vLLM-compatible image.
+4. Mount Datadrive if you will reuse weights.
+5. Confirm that the required HTTP port can be exposed.
+6. Create the instance.
+
+After the instance reaches `Running`, connect through SSH or JupyterLab. See the [VS Code connection guide](https://glows.ai/article/vscode) if you prefer a remote IDE.
+
+## Step 3: Verify the environment
+
+Check the GPU:
+
+```bash
+nvidia-smi
+```
+
+Check vLLM:
+
+```bash
+vllm --version
+```
+
+Record the output. If vLLM is missing, use a supported Glows.ai image or install a version compatible with the image’s CUDA and PyTorch stack. Avoid an unpinned upgrade in a production environment.
+
+## Step 4: Prepare persistent model storage
+
+Create a directory:
+
+```bash
+mkdir -p /datadrive/models
+```
+
+You can load a model by Hugging Face repository name or from a local path. Persistent local weights reduce repeat downloads. The [Hugging Face model guide](https://glows.ai/article/download_huggingface_models) explains both approaches.
+
+For gated models, authenticate using the current Hugging Face CLI process. Do not expose access tokens in screenshots, shell history, or source control.
+
+## Step 5: Set the API key safely
+
+Create a strong secret in your password manager. Export it for the current shell:
+
+```bash
+export VLLM_API_KEY='replace-with-a-strong-secret'
+```
+
+For production, inject the secret through a protected environment or secret-management workflow. Do not hard-code it into the article’s command, a public repository, or a Snapshot shared with others.
+
+## Step 6: Start the vLLM server
+
+Replace the model path and context length:
+
+```bash
+vllm serve /datadrive/models/MODEL_NAME \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype auto \
+  --max-model-len 8192 \
+  --api-key "$VLLM_API_KEY"
+```
+
+The official documentation notes that vLLM applies a model repository’s `generation_config.json` by default when it exists. If you want vLLM defaults instead, review the current `--generation-config vllm` option before adding it.
+
+For a model that requires multiple GPUs:
+
+```bash
+vllm serve /datadrive/models/MODEL_NAME \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype auto \
+  --tensor-parallel-size 2 \
+  --api-key "$VLLM_API_KEY"
+```
+
+Use the actual GPU count. Multi-GPU support depends on the model, hardware, and environment.
+
+For a pre-quantized model, read its model card and the current [vLLM quantization documentation](https://docs.vllm.ai/en/stable/features/quantization/) before setting `--quantization`. Do not assume a format is supported on every GPU.
+
+## Step 7: Confirm server health
+
+From inside the instance:
+
+```bash
+curl -s http://127.0.0.1:8000/health
+```
+
+List models:
+
+```bash
+curl -s http://127.0.0.1:8000/v1/models \
+  -H "Authorization: Bearer $VLLM_API_KEY"
+```
+
+Use the returned model ID in requests.
+
+## Step 8: Test chat completions
+
+```bash
+curl http://127.0.0.1:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $VLLM_API_KEY" \
+  -d '{
+    "model": "MODEL_ID_FROM_V1_MODELS",
+    "messages": [
+      {"role": "user", "content": "Explain GPU memory in two sentences."}
+    ],
+    "temperature": 0.2,
+    "max_tokens": 120
+  }'
+```
+
+If the server reports a chat-template error, verify that the model supports chat and that the expected template is available.
+
+## Step 9: Connect with the OpenAI Python client
+
+Install the client in a separate environment:
+
+```bash
+pip install openai
+```
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://YOUR-GLows-ENDPOINT/v1",
+    api_key=os.environ["VLLM_API_KEY"],
+)
+
+models = client.models.list()
+model_id = models.data[0].id
+
+response = client.chat.completions.create(
+    model=model_id,
+    messages=[
+        {"role": "user", "content": "What is tensor parallelism?"}
+    ],
+    temperature=0.2,
+    max_tokens=150,
+)
+
+print(response.choices[0].message.content)
+```
+
+The endpoint URL depends on the port-access link shown for your instance. Verify whether the URL already contains a path before appending `/v1`.
+
+## Step 10: Protect the endpoint
+
+An API key is necessary but not a complete security design. Before production:
+
+- Use HTTPS
+- Restrict network exposure where possible
+- Rotate secrets
+- Add request limits
+- Avoid logging secrets or sensitive prompts
+- Monitor authentication failures
+- Review model licenses and data requirements
+- Put a gateway or proxy in front of the model when stronger controls are required
+
+Do not publish a raw unauthenticated inference port.
+
+## Step 11: Monitor the deployment
+
+vLLM exposes Prometheus-compatible metrics at `/metrics`. Current documented metrics include time to first token, inter-token latency, end-to-end request latency, queue time, running requests, and KV-cache use.
+
+```bash
+curl -s http://127.0.0.1:8000/metrics | head
+```
+
+Monitor GPU memory in another terminal:
+
+```bash
+watch -n 1 nvidia-smi
+```
+
+## Step 12: Preserve and release
+
+Keep model weights and reusable data on Datadrive. After confirming the environment:
+
+1. Save startup commands and version information.
+2. Create a Snapshot if packages or system configuration changed.
+3. Confirm required files exist on persistent storage.
+4. Release the instance when it is no longer needed.
+
+## Troubleshooting
+
+### CUDA out of memory
+
+Reduce maximum context, concurrency, or model size. Use a supported quantized checkpoint or a larger/multi-GPU configuration.
+
+### Model not found
+
+Verify the local path, repository access, and mounted Datadrive.
+
+### Chat endpoint fails
+
+Confirm that the model has a usable chat template. Test `/v1/completions` only if that interface matches your model and application.
+
+### Remote endpoint cannot be reached
+
+Confirm that vLLM is listening on `0.0.0.0`, the correct port is exposed, and the public URL maps to that port.
+
+### Responses differ from expected defaults
+
+Review the model’s `generation_config.json` and explicit request parameters.
+
+## Deployment checklist
+
+- [ ] Model license and revision recorded
+- [ ] GPU and quantization validated
+- [ ] Datadrive mounted
+- [ ] vLLM and CUDA versions recorded
+- [ ] API key configured securely
+- [ ] Health and model endpoints tested
+- [ ] Chat request tested
+- [ ] HTTPS and access controls reviewed
+- [ ] Metrics available
+- [ ] Environment preserved
+- [ ] Idle instance released
+
+## What a successful first deployment should prove
+
+Do not judge success only by whether one prompt returns a response. A good first deployment proves that:
+
+- The chosen model fits the selected GPU with headroom.
+- The endpoint works with the client your application already uses.
+- Authentication is enabled before external access.
+- Metrics and logs are available for troubleshooting.
+- Model weights survive instance release on Datadrive.
+- The environment can be recreated from a Snapshot or documented setup.
+- The instance can be released without losing necessary work.
+
+When these conditions are met, the deployment is an owned, repeatable asset rather than a one-time demo.
+
+Continue with [the Glows.ai Cloud GPU Customer Playbook](https://glows.ai/article/cloud_gpu_customer_playbook), or contact [support@glows.ai](mailto:support@glows.ai) if the selected image, port, or GPU configuration is unclear.
+
+## Sources
+
+- [vLLM OpenAI-compatible server](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/)
+- [vLLM quantization](https://docs.vllm.ai/en/stable/features/quantization/)
+- [vLLM production metrics](https://docs.vllm.ai/en/stable/usage/metrics/)

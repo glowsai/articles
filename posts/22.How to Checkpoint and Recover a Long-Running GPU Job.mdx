@@ -1,0 +1,278 @@
+---
+id: checkpoint_recover_gpu_job
+title: 'How to Checkpoint and Recover a Long-Running GPU Job'
+date: '2026-08-13 10:00'
+description: 'Save checkpoints, environments, logs, and outputs so an interrupted cloud GPU job can resume without starting over.'
+tags:
+  - Tutorial
+---
+
+# How to Checkpoint and Recover a Long-Running GPU Job
+
+`tmux` or `nohup` protects a process from a disconnected terminal, but neither protects a job from instance interruption. Reliable recovery needs application checkpoints on persistent storage, a reproducible environment, retained logs, and a tested resume command.
+
+On Glows.ai, store changing job state on Datadrive. Use Snapshots for environment changes, and keep source code plus configuration in version control or a deployment manifest.
+
+{/* Editorial: Before publication, interrupt and resume a real job. Add screenshots, exact commands, checkpoint sizes, recovery time, recovery point, framework version, and proof that training resumed from the saved step. */}
+
+## Three persistence layers
+
+| Layer | What belongs there |
+|---|---|
+| Datadrive | Weights, datasets, checkpoints, logs, and outputs |
+| Snapshot | Installed packages and operating-environment changes |
+| Git or manifest | Source code, configuration, commands, and versions |
+
+Do not rely on the instance’s ephemeral disk for the only copy of a checkpoint.
+
+## Why this separation matters on Glows.ai
+
+The ability to release GPU compute without abandoning the project is one of the clearest customer protections in a rented-compute workflow.
+
+- Datadrive keeps changing project assets available across instances.
+- Snapshots preserve worthwhile environment changes.
+- A manifest records what neither storage layer can explain by itself.
+
+Used together, these layers let you stop paying for active compute after a run, recover from interruption, and move to another suitable instance without rebuilding from memory.
+
+## What a training checkpoint should contain
+
+For a typical PyTorch training run:
+
+- Model state
+- Optimizer state
+- Learning-rate scheduler state
+- Current epoch and global step
+- Latest loss and best metric
+- Random-number-generator states when exact continuation matters
+- Mixed-precision scaler state, if used
+- Dataset or sampler position when available
+- Configuration and code revision
+
+PyTorch’s [saving and loading models guide](https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html) recommends saving a dictionary containing the model and optimizer state dictionaries plus the epoch, loss, and other state needed to resume.
+
+## Step 1: Mount persistent storage
+
+When creating the instance, mount Datadrive. Confirm it exists:
+
+```bash
+df -h /datadrive
+mkdir -p /datadrive/checkpoints/my-run
+mkdir -p /datadrive/logs/my-run
+```
+
+Write a small test file and confirm it appears in the expected persistent location.
+
+## Step 2: Save a general checkpoint
+
+Example:
+
+```python
+from pathlib import Path
+import os
+import random
+import torch
+
+checkpoint_dir = Path("/datadrive/checkpoints/my-run")
+checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+
+def save_checkpoint(model, optimizer, scheduler, scaler, epoch, step, loss):
+    checkpoint = {
+        "epoch": epoch,
+        "global_step": step,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
+        "scaler_state_dict": scaler.state_dict() if scaler else None,
+        "loss": float(loss),
+        "torch_rng_state": torch.get_rng_state(),
+        "cuda_rng_state_all": torch.cuda.get_rng_state_all(),
+        "python_rng_state": random.getstate(),
+    }
+
+    tmp_path = checkpoint_dir / f"step-{step}.tmp"
+    final_path = checkpoint_dir / f"step-{step}.pt"
+
+    torch.save(checkpoint, tmp_path)
+    os.replace(tmp_path, final_path)
+    return final_path
+```
+
+The temporary-file pattern helps avoid treating a partially written file as valid. It does not replace storage-level durability checks.
+
+## Step 3: Choose a checkpoint interval
+
+Balance:
+
+- Time lost after interruption
+- Time needed to write the checkpoint
+- Storage consumed
+- Training slowdown
+
+If a job checkpoints every hour, its recovery-point objective is roughly up to one hour of repeated work. If checkpoint creation takes ten minutes, hourly saves may impose significant overhead.
+
+Define:
+
+- **Recovery point objective (RPO):** how much recent work can be lost
+- **Recovery time objective (RTO):** how long service or training can remain unavailable
+
+## Step 4: Keep several generations
+
+The newest checkpoint can be corrupt or contain a degraded model. Keep:
+
+- Latest checkpoint
+- Previous checkpoint
+- Periodic milestone checkpoints
+- Best checkpoint by validation metric
+
+Apply a retention policy to avoid unlimited storage growth.
+
+## Step 5: Record run metadata
+
+Store a manifest beside the checkpoints:
+
+```yaml
+run_id: my-run
+git_commit: replace-me
+image_id: replace-me
+python_version: replace-me
+pytorch_version: replace-me
+cuda_version: replace-me
+gpu: replace-me
+dataset_revision: replace-me
+checkpoint_pattern: /datadrive/checkpoints/my-run/step-*.pt
+resume_command: python train.py --resume CHECKPOINT_PATH
+```
+
+Also save the resolved configuration and package lock file.
+
+## Step 6: Find and load the latest valid checkpoint
+
+```python
+from pathlib import Path
+import torch
+
+
+def latest_checkpoint(directory):
+    candidates = sorted(
+        Path(directory).glob("step-*.pt"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError("No checkpoint found")
+    return candidates[0]
+
+
+path = latest_checkpoint("/datadrive/checkpoints/my-run")
+checkpoint = torch.load(path, weights_only=True)
+
+model.load_state_dict(checkpoint["model_state_dict"])
+optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+if scheduler and checkpoint["scheduler_state_dict"]:
+    scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+if scaler and checkpoint["scaler_state_dict"]:
+    scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
+start_epoch = checkpoint["epoch"]
+global_step = checkpoint["global_step"]
+```
+
+Set the model to `train()` before continuing training. For inference, use `eval()`.
+
+## Step 7: Validate checkpoints
+
+After saving:
+
+1. Confirm the file exists.
+2. Record its size and checksum.
+3. Load it in a separate process.
+4. Verify the expected keys.
+5. Run a short continuation test.
+
+Example checksum:
+
+```bash
+sha256sum /datadrive/checkpoints/my-run/step-1000.pt \
+  > /datadrive/checkpoints/my-run/step-1000.pt.sha256
+```
+
+## Step 8: Test interruption recovery
+
+Do not wait for a real incident.
+
+1. Start a short training run.
+2. Save at least two checkpoints.
+3. Stop the process or release the test instance after verifying persistence.
+4. Create a fresh instance.
+5. Mount the same Datadrive.
+6. Restore the environment or Snapshot.
+7. Run the documented resume command.
+8. Confirm the global step advances from the checkpoint.
+
+Record actual RPO and RTO.
+
+## Step 9: Preserve the environment
+
+A checkpoint cannot restore a missing package, custom CUDA extension, or incompatible model class.
+
+Record:
+
+```bash
+python --version
+pip freeze > /datadrive/checkpoints/my-run/requirements-lock.txt
+nvidia-smi > /datadrive/checkpoints/my-run/nvidia-smi.txt
+```
+
+Create a Snapshot after environment changes are stable. Keep large datasets and model weights on Datadrive, as described in the [Ollama model-storage guide](https://glows.ai/article/set_ollama_model_path).
+
+## Safe shutdown checklist
+
+- [ ] Latest checkpoint completed
+- [ ] Checkpoint reloaded successfully
+- [ ] Logs copied to Datadrive
+- [ ] Outputs copied to Datadrive
+- [ ] Code revision recorded
+- [ ] Configuration saved
+- [ ] Environment recorded or Snapshot created
+- [ ] Resume command tested
+- [ ] Instance released
+
+## Common recovery failures
+
+### Only model weights were saved
+
+Training resumes with a fresh optimizer and scheduler state, changing behavior.
+
+### Checkpoints are on ephemeral disk
+
+They disappear when the instance is released.
+
+### The latest file is partial
+
+Write to a temporary name and rename after serialization, then validate.
+
+### Code changed
+
+Record the source revision used for the checkpoint.
+
+### Dataset order changed
+
+Save sampler or data-position state when deterministic continuation matters.
+
+## Final takeaway
+
+Recovery is a tested workflow, not the existence of a `.pt` file. Separate persistent job data from the environment, record every dependency, retain multiple checkpoints, and prove that a clean instance can resume.
+
+A successful recovery test is also evidence that your Glows.ai investment is portable within the platform: the value is in the saved state and reproducible process, not in keeping one instance running forever.
+
+Continue with [the Glows.ai Cloud GPU Customer Playbook](https://glows.ai/article/cloud_gpu_customer_playbook), or contact [support@glows.ai](mailto:support@glows.ai) before releasing an instance when persistence is uncertain.
+
+## Sources
+
+- [PyTorch: Saving and loading models](https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html)
+- [Glows.ai: Set Ollama model storage path](https://glows.ai/article/set_ollama_model_path)
+- [Glows.ai: Download Hugging Face models](https://glows.ai/article/download_huggingface_models)

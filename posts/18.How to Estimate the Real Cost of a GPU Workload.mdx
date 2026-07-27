@@ -1,0 +1,263 @@
+---
+id: estimate_gpu_workload_cost
+title: 'How to Estimate the Real Cost of a GPU Workload'
+date: '2026-07-30 10:00'
+description: 'Calculate GPU runtime, storage, retries, setup time, and engineering overhead to estimate cost per completed AI workload.'
+tags:
+  - Tutorial
+---
+
+# How to Estimate the Real Cost of a GPU Workload
+
+The real cost of a GPU workload is the cost of completing useful work—not just the hourly GPU price. A useful estimate includes startup time, model downloads, execution, failed attempts, persistent storage, and any engineering time you decide to allocate.
+
+Once those costs are known, divide the total by successful jobs, requests, images, or tokens. That produces a unit cost you can compare across GPUs and deployment approaches.
+
+{/* Editorial: Public rates were checked July 23, 2026. Before publication, add an account checkout capture and real dashboard example. State the currency, region, billing unit, storage plan, and whether taxes or transfer fees are included. */}
+
+## Start with the unit of completed work
+
+Choose the unit that reflects value:
+
+- One completed training run
+- One processed video
+- One generated image
+- One successful inference request
+- One million input or output tokens
+- One batch of documents
+
+Avoid using “cost per hour” as the only result. Two GPUs can have different hourly rates but finish the same job at different speeds.
+
+```text
+cost per completed workload =
+total workload cost / successful workloads
+```
+
+## The complete cost model
+
+For a first estimate:
+
+```text
+total workload cost =
+compute
++ persistent storage
++ data transfer
++ retry allowance
++ allocated engineering time
+```
+
+Not every term is billed by the platform. Engineering time, for example, is an internal business cost. Keep billed infrastructure and internal cost in separate rows so readers can compare both.
+
+## Current public Glows.ai rate snapshot
+
+As checked on July 23, 2026, the [Glows.ai homepage](https://glows.ai/) publicly lists the following starting hourly GPU rates:
+
+| GPU | Publicly listed rate |
+|---|---:|
+| NVIDIA B200 | $5.00/hour |
+| NVIDIA H200 | $3.15/hour |
+| NVIDIA H100 | $2.96/hour |
+| NVIDIA RTX PRO 6000 | $1.78/hour |
+| NVIDIA A100 | $1.20/hour |
+| NVIDIA L40S | $0.83/hour |
+| NVIDIA RTX 5090 | $0.69/hour |
+| NVIDIA RTX 4090 | $0.49/hour |
+
+The same public page describes Glows.ai compute as per-second billing with costs shown in real time. Treat this table as a dated public reference—not a checkout quote. Region, configuration, availability, currency, credits, storage, taxes, promotions, or product changes may affect the final amount. Preserve the rate and checkout summary shown to your account when running the experiment.
+
+### Review the commercial terms before purchasing
+
+The [Glows.ai Terms of Service](https://glows.ai/tos), checked July 23, 2026, state that:
+
+- Payments are generally final and non-refundable, except where applicable consumer-protection law requires otherwise.
+- Users are responsible for applicable taxes and governmental charges described by the terms.
+- Specialized tools or advanced features may have additional fees disclosed in advance.
+- Fees are payable in the currency specified at purchase.
+
+This makes the small first experiment especially important. Validate the configuration and persistence workflow before committing a larger budget.
+
+## Calculate compute cost
+
+Compute cost should include all billable runtime:
+
+```text
+compute cost =
+hourly GPU rate × billable hours
+```
+
+Billable time may include:
+
+1. Instance startup
+2. Package installation
+3. Model and dataset downloads
+4. Model loading and warm-up
+5. The actual workload
+6. Validation and output transfer
+7. Idle time before release
+
+Measure these phases separately. A 20-minute job can consume much more than 20 minutes of compute if setup is repeated on every instance.
+
+## Separate compute and persistent storage
+
+Ephemeral instance storage normally exists only while the instance exists. Persistent storage remains available for reuse and is billed separately according to the active plan.
+
+| Cost | Typical driver | Control |
+|---|---|---|
+| Compute | GPU type and billable runtime | Release idle instances |
+| Datadrive | Stored model, dataset, and output size | Remove unused data |
+| Snapshot | Environment size and retention | Keep weights outside snapshots |
+| Transfer | Direction and data volume, if billed | Reuse regional storage |
+
+On Glows.ai, use Datadrive for models, datasets, checkpoints, and outputs that must survive release. Use Snapshots for environment changes. The [Ollama storage guide](https://glows.ai/article/set_ollama_model_path) explains why keeping large weights outside the environment snapshot can reduce repeated setup.
+
+## Account for retries
+
+Experiments fail. Packages conflict, a model revision changes, prompts produce invalid outputs, and jobs can be interrupted.
+
+A simple planning allowance is:
+
+```text
+retry-adjusted runtime =
+planned runtime × (1 + expected retry rate)
+```
+
+If a job takes three hours and historical data suggests a 20% retry allowance:
+
+```text
+3 × 1.20 = 3.6 estimated billable hours
+```
+
+This is a planning value, not a guarantee. After several runs, replace the assumption with your observed success rate.
+
+## Include engineering time when it affects the decision
+
+Hosted APIs and managed images can cost more per request while saving setup time. Self-hosted models can reduce marginal inference cost while creating engineering work.
+
+Track:
+
+- Environment setup
+- Model conversion or quantization
+- Endpoint security
+- Monitoring
+- Failure investigation
+- Version upgrades
+- Benchmarking
+
+```text
+allocated engineering cost =
+hours spent × internal hourly cost × allocation percentage
+```
+
+Use two totals:
+
+- **Infrastructure-only cost** for platform comparison
+- **Fully loaded cost** for business decisions
+
+## Worked example template
+
+Replace these placeholders with current, verified values:
+
+| Item | Quantity | Rate | Cost |
+|---|---:|---:|---:|
+| GPU startup and setup | `[hours]` | `[rate/hour]` | `[cost]` |
+| Model warm-up | `[hours]` | `[rate/hour]` | `[cost]` |
+| Workload execution | `[hours]` | `[rate/hour]` | `[cost]` |
+| Retry allowance | `[hours]` | `[rate/hour]` | `[cost]` |
+| Datadrive | `[GB-month]` | `[rate]` | `[cost]` |
+| Snapshot | `[GB-month]` | `[rate]` | `[cost]` |
+| Engineering | `[hours]` | `[internal rate]` | `[cost]` |
+
+Then calculate:
+
+```text
+infrastructure total = compute + storage + transfer
+fully loaded total = infrastructure total + engineering
+```
+
+If 950 of 1,000 requests succeed:
+
+```text
+cost per 1,000 successful requests =
+total deployment cost / 950 × 1,000
+```
+
+Use successful requests in the denominator. Otherwise, a high failure rate can make the workload look artificially cheap.
+
+## Estimate the first experiment
+
+For a first run, collect:
+
+- GPU and region
+- Hourly rate
+- Model download size
+- Expected download time
+- Environment setup time
+- Model load time
+- Execution time
+- Output-copy time
+- Storage retained after release
+- Retry allowance
+
+If the model will be reused, place it on Datadrive before repeated experiments. The [Hugging Face download guide](https://glows.ai/article/download_huggingface_models) compares persistent and instance-based storage.
+
+## Reduce cost without hiding risk
+
+### Reuse model weights
+
+Avoid downloading the same weights for every instance.
+
+### Build a reusable environment
+
+Once dependencies are verified, create a Snapshot rather than reinstalling packages each time.
+
+### Release idle compute
+
+Save required state first, then release the instance. An instance left running continues to consume compute budget.
+
+### Start with a representative sample
+
+Run a small batch that includes real edge cases. A tiny but unrealistic sample can produce a misleading estimate.
+
+### Track success rate
+
+Cost optimization that increases failures may raise cost per completed workload.
+
+## How Glows.ai helps you keep control of spend
+
+The most useful cost controls are operational, not promotional. Glows.ai separates active compute from persistent assets, which gives you a clear shutdown workflow:
+
+1. Move models, outputs, and checkpoints that must survive to Datadrive.
+2. Create a Snapshot only when environment changes are worth preserving.
+3. Confirm that required files are available outside the instance.
+4. Release the GPU so compute billing stops.
+
+For intermittent inference, Auto Deploy can reduce the need to keep an instance running between requests. It trades idle savings for cold-start time, so benchmark both cost and user-facing latency before relying on it.
+
+This model is a good fit for customers who want to see and control the infrastructure behind their workload. It is not a promise that every rented GPU will cost less than every API. The worksheet in this guide exists so you can verify the economics for your own workload before scaling.
+
+## Cost-estimation checklist
+
+- [ ] Unit of useful work defined
+- [ ] Current price and billing unit verified
+- [ ] Startup and setup included
+- [ ] Model load and warm-up included
+- [ ] Compute and storage separated
+- [ ] Retry allowance included
+- [ ] Successful completion rate measured
+- [ ] Engineering cost shown separately
+- [ ] Assumptions dated
+- [ ] Instance release included in the runbook
+
+## Final takeaway
+
+An hourly rate is an input, not the answer. The decision metric is the cost of a successful result under stated assumptions. Keep those assumptions visible, update prices before making a purchase decision, and replace estimates with observed timing after the first experiment.
+
+A customer should leave the first experiment with more than an invoice: a measured unit cost, reusable model assets, a documented setup, and a clear decision about whether to continue, optimize, or stop.
+
+Continue with [the Glows.ai Cloud GPU Customer Playbook](https://glows.ai/article/cloud_gpu_customer_playbook), or ask [support@glows.ai](mailto:support@glows.ai) for help validating platform assumptions before scaling.
+
+## Sources
+
+- [Glows.ai homepage and public GPU rate comparison](https://glows.ai/)
+- [Glows.ai On-Demand Cloud](https://glows.ai/product/on-demand-cloud)
+- [Glows.ai Terms of Service](https://glows.ai/tos)
