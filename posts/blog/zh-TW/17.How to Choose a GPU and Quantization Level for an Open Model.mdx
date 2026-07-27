@@ -1,0 +1,29 @@
+---
+id: choose_gpu_quantization_open_model_zh_tw
+title: '如何為開放模型選擇 GPU 與量化方式'
+date: '2026-07-28 10:00'
+description: '從模型權重、KV cache 與併發量出發，選擇適合開放模型的 GPU 與量化方式。'
+tags:
+  - Tutorial
+---
+
+# 如何為開放模型選擇 GPU 與量化方式
+
+選 GPU 不只看參數量。模型權重、KV cache、推論引擎額外開銷、暫存張量與併發請求都會佔用 VRAM；應以代表性提示詞實測確認。
+
+## 選擇流程
+
+1. 查看模型卡的參數量、支援精度與建議 runtime。
+2. 估算權重記憶體：FP16 約為每個參數 2 bytes、INT8 約 1 byte、INT4 約 0.5 byte，僅作為起點。
+3. 加上 KV cache、runtime 與安全餘裕，依目標 context length 與併發量重新估算。
+4. 固定 GPU、量化、模型 revision 後，以真實工作負載記錄尖峰 VRAM 與品質結果。
+
+## 量化不是萬靈丹
+
+量化可縮小權重，但不會自動解決品質、速度、支援的算子或 KV cache。請用相同評測集比較正確率、延遲與失敗率，選擇仍能達到需求的最小配置。
+
+## 上線前要留下的證據
+
+記錄 GPU、VRAM、地區、模型 revision、推論引擎、context length、batch/併發、量化格式、尖峰 VRAM 與錯誤。發生 OOM 時，除了換大卡，也要檢查 context 與併發設定。
+
+接著閱讀 [Glows.ai Cloud GPU 顧客實戰手冊](https://glows.ai/article/cloud_gpu_customer_playbook_zh_tw)，把選型連到成本與驗證。

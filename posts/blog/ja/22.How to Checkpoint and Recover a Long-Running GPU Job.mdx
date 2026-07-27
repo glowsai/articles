@@ -1,0 +1,23 @@
+---
+id: checkpoint_recover_gpu_job_ja
+title: '長時間 GPU ジョブを checkpoint し復旧する方法'
+date: '2026-08-13 10:00'
+description: '中断しても再開できるように checkpoint、環境、ログ、出力を保存する実践手順。'
+tags:
+  - Tutorial
+---
+
+# 長時間 GPU ジョブを checkpoint し復旧する方法
+
+インスタンスのローカルディスクは一時的なものとして扱います。失ってはいけない重み、データセット、checkpoint、出力、設定、ログは Datadrive などの永続ストレージへ保存します。
+
+## 復旧可能なジョブの条件
+
+1. checkpoint の保存間隔と保存先を開始前に決める。
+2. モデル revision、コード commit、依存関係、seed、コマンド、GPU/リージョンを記録する。
+3. 環境変更は Snapshot、変化するデータは Datadrive に分ける。
+4. 実際に中断し、別のインスタンスで checkpoint から再開するテストを行う。
+
+復旧手順には、最後の正常 checkpoint の確認、永続ストレージの mount、環境の再作成、resume コマンド、結果の整合性確認を含めます。復旧を一度も試していない checkpoint は、復旧策ではありません。
+
+秘密情報を checkpoint やログに残さず、リリース前に必要なファイルが永続領域にあることを確認してください。

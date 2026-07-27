@@ -1,0 +1,24 @@
+---
+id: deploy_vllm_openai_compatible_api_zh_tw
+title: '如何在 Glows.ai 將 vLLM 部署為 OpenAI 相容 API'
+date: '2026-08-06 10:00'
+description: '在 GPU 執行個體啟動 vLLM，並驗證具有認證保護的 OpenAI 相容 API。'
+tags:
+  - Tutorial
+---
+
+# 如何在 Glows.ai 將 vLLM 部署為 OpenAI 相容 API
+
+vLLM 可用 OpenAI 相容端點提供支援的模型。選擇 GPU、持久化儲存、模型與公開連接埠後，先以已認證的真實請求驗證，再交付使用。
+
+## 部署流程
+
+1. 依模型、context 與併發需求選擇 GPU、地區與映像檔。
+2. 將權重與設定放在 Datadrive，記錄模型 revision、vLLM 與 CUDA 版本。
+3. 使用所需模型、host、port 與認證設定啟動 `vllm serve`。
+4. 以認證請求測試 `/v1/models` 與 chat completion，保存日誌、啟動時間、VRAM 與錯誤。
+5. 上線前審查網路曝露面、秘密資訊、rate limit、監控與復原流程。
+
+OpenAI 相容不代表每個 endpoint、chat template、tool 呼叫與參數都相同；它們取決於模型與 vLLM 版本。請測試應用程式實際使用的功能。
+
+量產前請完成 [LLM 延遲與吞吐量基準測試](https://glows.ai/article/benchmark_llm_latency_throughput_zh_tw)。
