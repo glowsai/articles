@@ -1,0 +1,320 @@
+---
+id: openwebui_knowledge_base
+title: "Glows.ai と Open WebUI でナレッジベースを構築する方法"
+date: "2026-08-28 12:00"
+description: "Glows.ai 上で Open WebUI を使って RAG ナレッジベースを構築し、API 経由での呼び出し、外部モデルプロバイダーとの連携、Skills や Sub-agents などの高度な機能を設定します。"
+tags:
+  - Tutorial
+---
+
+本チュートリアルでは、Glows.ai で GPU をレンタルして Open WebUI を実行し、ローカルモデルと外部モデルを接続し、基本設定と高度な設定を理解したうえで、API を使って自分のコードから呼び出す方法までを解説します。データを外部に流出させることなく、プログラムから利用できるデプロイ方法を実現します。
+
+本チュートリアルの内容は以下のとおりです。
+
+- Glows.ai でインスタンスを作成し、Open WebUI を起動する
+- 基本操作：モデル設定、ナレッジベース Q&A（RAG）
+- API 経由で Open WebUI をプログラムから呼び出す方法
+- 外部モデルプロバイダー（OpenAI、Anthropic など）との連携
+- 高度な機能：Skills（技能）と Sub-agents（子エージェント）
+
+Open WebUI は、自前でホストできるオープンソースの AI チャットプラットフォームです。Ollama のような推論エンジンを通じてローカルのオープンソースモデル（Llama や Qwen など）を実行できるほか、OpenAI や Anthropic などの外部クラウドサービスにも同時に接続でき、異なるソースのモデルを同一のインターフェースで使い分けられます。単なるチャット UI にとどまらず、ナレッジベース Q&A（RAG）、カスタムアシスタント、API 互換レイヤーなども備えており、アプリケーションの背後にある AI インフラとして利用できます。
+
+それでは、Glows.ai 上で Open WebUI の機能を実際に手を動かしながら体験していきましょう。
+
+## Open WebUI にログインする
+
+### インスタンスを起動する
+
+まず、Glows.ai でインスタンスを作成します。作成方法は[こちらのチュートリアル](https://docs.glows.ai/docs/create-new)も参考にしてください。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/001.png)
+
+- `Create New` をクリックし、GPU に **`NVIDIA GeForce RTX 4090`** を選択します。**Open WebUI** バージョン 0.11.0 が入ったイメージを選択します。今回は **`img-9vl776l1 - Open WebUI 0.11.0`** イメージを使用します。`Complete Checkout` をクリックしてインスタンスを起動します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/002.png)
+
+- マシンの起動が完了したら `Port 8080` をクリックし、続けて `Open` をクリックして Open WebUI の画面を開きます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/003.png)
+
+- Open WebUI のウィンドウでログインします。初回起動時は管理者アカウントの登録が必要です。
+
+## RAG ナレッジベースを設定する
+
+### RAG とは
+
+**RAG**（Retrieval-Augmented Generation、検索拡張生成）とは、社内データ（製品ドキュメント、SOP、社内規定など）をあらかじめベクトル化（Embedding）してナレッジベースに長期保存しておき、質問された際に AI がアップロード済みの文書から関連箇所を検索し、それを参照情報として回答に利用する仕組みです。
+
+通常の AI との対話では、AI はその会話中に記憶した内容だけを頼りに回答します。すべての資料を毎回チャットに貼り付けて質問する方法もありますが、貼り付けの手間が毎回発生するうえ、会話が終わればその内容は保持されず、知識を長期的に蓄積できません。RAG はこの課題を解決します。
+
+### RAG ナレッジベースを作成する
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/004.png)
+
+- 左側の `Workspace` をクリックし、`Knowledge` をクリックしたあと `Create` をクリックしてナレッジベースの作成を開始します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/005.png)
+
+- ナレッジベースの基本情報を入力し、`Create Knowledge` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/006.png)
+
+- 作成に成功すると、ナレッジベース名とその ID が表示されます。この ID は後ほど使用します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/007.png)
+
+- 続けて `＋` をクリックし、`Upload files` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/008.jpeg)
+
+- ナレッジベースのデータとして使用するファイルを選択します。今回はフィクションのストーリーをテキストとして使用します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/009.png)
+
+- アップロードが完了すると一覧にデータが表示され、ナレッジベースへの埋め込みが成功したことが確認できます。
+
+### ナレッジベースをモデルに紐づける
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/010.png)
+
+- AI がこのナレッジベースのデータを参照できるようにするには、新しいモデルを作成してこのナレッジベースを紐づける必要があります。まず `Model` をクリックし、`Create` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/011.png)
+
+- モデルの基本情報と System prompt を入力します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/012.png)
+
+- 下部の `Select Knowledge` から、指定したいナレッジベースを選択します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/013.png)
+
+- 完了したら `Save & Create` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/014.png)
+
+- 作成に成功すると、モデル一覧にそのモデルが表示されます。
+
+### AI にナレッジベースのデータを使って回答させる
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/015.png)
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/016.png)
+
+- チャット画面の右側で先ほど作成したモデルを選択し、テスト用の質問を入力して、AI がナレッジベースのデータを取得できることを確認します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/017.png)
+
+- テスト成功。AI がナレッジベースのデータを正しく取得して回答しました。
+
+## API 経由でナレッジベースを呼び出す
+
+### なぜ API を使うのか
+
+Web インターフェースで設定したナレッジベースは、チャット画面での利用にとどまらず、外部プログラムから API 経由で直接呼び出すこともできます。これにより、ナレッジベースを参照した AI の回答機能を自分のアプリケーションに組み込むことができ、手動でブラウザを操作する必要がなくなります。ナレッジベースを呼び出せる AI はコードからトリガーでき、スケジュール実行やワークフローへの組み込みも可能になり、毎回ブラウザを手動で開く必要がなくなります。
+
+### API キーを取得する
+
+API 経由で Open WebUI を呼び出すには、まず認証用の API キーを取得する必要があります。これにより、システムはそのリクエストが権限を持っているかを判断できます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/018.png)
+
+- まず左下の `Settings` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/019.png)
+
+- `Authorization` をクリックし、`API Keys` を有効化してから `Save` をクリックすると、API キー機能が有効になります。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/020.png)
+
+- `Account` をクリックすると API Key を取得できます。
+
+### ナレッジベース ID を取得する
+
+API を呼び出す際には、API キーに加えてナレッジベースの ID も必要です。これにより、どのドキュメントデータソースを使用するかをシステムに明確に伝えられます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/021.png)
+
+- まず `Workspace` → `Knowledge` → 対象のナレッジベースをクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/022.png)
+
+- 右側にナレッジベースの ID が表示されます。この ID を API リクエストのパラメータとして渡します。
+
+### API リクエストを送信する
+
+API キーとナレッジベース ID を取得したら、いよいよ API を使用します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/023.png)
+
+- まず Glows.ai の画面から SSH 接続情報を取得します。例：`ssh -p <あなたのSSHポート> root@tw-06.access.glows.ai`。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/024.png)
+
+- ターミナルから SSH でそのマシンに接続し、パスワードを入力してログインします。
+
+- 続けて以下の API リクエストを実行します。
+
+```Plain Text
+curl -X POST http://localhost:8080/api/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen2.5:7b",
+    "messages": [
+      {
+        "role": "user",
+        "content": "According to the knowledge base, what is the maximum number of string students the Aldrew Conservatory accepts per year? Cite the exact passage."
+      }
+    ],
+    "files": [
+      {
+        "type": "collection",
+        "id": "YOUR_KNOWLEDGE_ID"
+      }
+    ]
+  }'
+```
+
+> **`YOUR_API_KEY`**: Setting > Account > API Key から取得します。
+>
+> **`model`**: すでにインストール済みのモデル名です。WorkSpace > Model の一覧でインストール済みのモデル（例：qwen2.5:7b、llama3.1:8b）を確認できます。
+>
+> **`content`**: 質問内容です。
+>
+> **`type`**: 常に `collection` を指定します。この ID が単一ファイルではなくナレッジベース全体を指すことを Open WebUI に伝えるためのものです。
+>
+> **`YOUR_KNOWLEDGE_ID`**: WorkSpace > Knowledge から対象のナレッジベースを開くと、URL または詳細画面にこの ID が表示されます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/025.png)
+
+- AI が本当にナレッジベースのデータを参照しているかを検証するため、ナレッジベースに含まれるフィクションのストーリーについて質問します。たとえば「物語に登場する音楽学校が年間に受け入れる弦楽器専攻の学生数の上限は？」という質問とともに、原文の引用も要求します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/026.png)
+
+- AI は正しく「12 名」と回答し、ナレッジベース内の該当箇所を正確に引用しました。これにより、回答が推測ではなく実際の検索結果に基づいていることが確認できます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/027.png)
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/028.png)
+
+- もう一つの質問として、物語に登場する灯台の高さについても同様に原文の引用を求めたところ、AI は正しく「46 メートル」と回答しました。
+
+## Sub-agents
+
+### Sub-agents とは
+
+Sub-agents は、AI がタスクを複数に分割し、それぞれを独立した分身に割り当てて並行して処理させ、最後に結果を統合する機能です。互いに関係のない複数のサブタスクを、順番に処理する必要がないケースに適しています。
+
+続けて、この機能を有効にする方法を見ていきましょう。
+
+### Sub-agents を設定して使用する
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/029.png)
+
+- 左下のプロフィールアイコンをクリックし、`Setting` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/030.png)
+
+- `Enable sub-agents` を有効にし、`Save` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/031.png)
+
+- 会話を開始してテストします。Sub-agents によるタスクの委任が正常にトリガーされたことを確認したうえで、さらに計算問題でその精度をテストし、サブエージェントの処理が正しく機能していることを確認します。結果から、Sub-agents が並行タスク処理の仕組みを正常にトリガーできていることが確認できます。
+
+## Skills
+
+### Skills とは
+
+Skills は、固定のルールやスタイルを再利用可能な技能として登録できる機能で、毎回の会話で同じ指示を繰り返す必要がなくなります。Open WebUI のチャット入力欄で `$` を入力すると既存の Skills 一覧が表示され、任意に呼び出せるほか、カスタムモデルに紐づけて AI 自身に適用の要否を判断させることもできます。
+
+### Skills を作成する
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/032.png)
+
+- `Workspace` → `Skill` → `Create` の順にクリックして設定を開始します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/033.png)
+
+この画面では、以下を入力できます。
+
+- **Skill Name**: 技能の名称。
+- **Skill ID**: 技能を識別するための ID。チャット入力欄で `$` を入力して技能一覧を呼び出す際、内部でこの ID と照合されます。
+- **Skill Description**: どのような場面でこの技能を使うべきかを一文で説明するもので、正しくトリガーされるかどうかを左右します。
+- **本文**: 具体的なルールを、実行可能な行動要件として箇条書きで記載します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/034.png)
+
+- この例では「メール文面添削アシスタント」という Skill を作成し、AI が 4 つの固定ルール（トーン、長さ、構成、結びの言葉）に従ってメールの文言を調整し、返信の冒頭に固定のマークを付与するようにします。これにより、Skill が実際に適用されたかどうかを確認できます。入力が完了したら `Save & Create` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/035.png)
+
+- 作成が完了すると、Skills 一覧に作成した Skill が表示されます。
+
+### Skills を使用する
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/036.png)
+
+- `Models` をクリックし、Skill を適用したいモデルを選択して、右側の `Edit` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/037.png)
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/038.png)
+
+- `Select Skill` をクリックし、先ほど作成した Skill を選択します。選択が完了したら、メニュー下部の `Save & Update` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/039.png)
+
+- チャット入力欄で質問をテストすると、Skill が自動的にトリガーされます（`view_skill` が実行されます）。AI は今回の質問（顧客に送るメッセージの添削）がこの Skill のトリガー条件に合致すると判断し、自動的に view_skill を呼び出してルールを読み込み、適用します。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/040.png)
+
+- 入力欄で `$` を入力して既存の Skills 一覧を表示し、自分で指定して使用することもできます。
+
+## 外部モデルプロバイダーとの連携
+
+自前でホストするローカルモデル（Ollama）だけでなく、Open WebUI は OpenAI などの他のクラウドモデルにも接続でき、両者を同一のインターフェース内で併用できます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/041.png)
+
+- 左下のプロフィールアイコンをクリックし、`Setting` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/042.png)
+
+- 左側のリストから `Connections` を選択し、OpenAI API を有効にしたあと `＋` をクリックします。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/043.png)
+
+- 外部プロバイダーのモデル情報を入力していきます。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/044.png)
+
+- `URL` をクリックすると、さまざまなモデルプロバイダーを選択できます。API Key を入力し、完了したら `Save` をクリックします。
+
+  この項目は「OpenAI API」という名称ですが、実際には OpenAI 公式に限定されません。ドロップダウンにはあらかじめ複数のプロバイダーが用意されています。
+
+  - `api.openai.com` — OpenAI
+  - `api.anthropic.com` — Anthropic（Claude）
+  - `generativelanguage.googleapis.com` — Google Gemini
+  - `api.mistral.ai` — Mistral AI
+  - `api.groq.com` — Groq
+  - `openrouter.ai` — OpenRouter
+  - `api.x.ai` — xAI（Grok）
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/045.png)
+
+- Models 画面で、先ほど設定した外部プロバイダーのモデルを選択できるようになります。
+
+![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/046.png)
+
+- チャット画面の右側から、直接使用したい外部プロバイダーのモデルを指定することもできます。
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、email、Discord、Line からお問い合わせください。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

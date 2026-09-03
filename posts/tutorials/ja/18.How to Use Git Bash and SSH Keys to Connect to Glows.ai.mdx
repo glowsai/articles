@@ -1,0 +1,127 @@
+---
+id: git_bash_ssh_connect
+title: "Git Bash と SSH キーで Glows.ai に接続する方法"
+date: "2026-09-02 15:00"
+description: "Windows に Git Bash をインストールし、SSH キーを作成して Glows.ai にアップロードすることで、パスワード入力なしで GPU インスタンスに接続します。"
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、Windows 環境に Git Bash をインストールし、SSH キーを使って Glows.ai 上の GPU インスタンスに接続する方法を解説します。
+
+このチュートリアルの内容は以下のとおりです。
+
+- Git Bash のインストール
+- SSH キーの作成
+- 公開鍵の取得と Glows.ai へのアップロード
+- SSH キーを使った Glows.ai インスタンスへの接続
+
+**Git Bash** は Windows 用のターミナルツールで、Git のバージョン管理ツールと SSH クライアントを内蔵しています。Linux/Mac のコマンドライン操作に慣れたユーザーも、Windows 上で同じように使い慣れたコマンドでバージョン管理や SSH 接続を行えます。
+
+Glows.ai では、インスタンスが標準で提供する **SSH Command** はパスワードでのログイン方式のため、接続するたびにパスワードを手動で入力する必要があります。本チュートリアルの手順で SSH キーを設定すると、鍵によって自動的に認証されるようになり、以後パスワード入力は不要になるうえ、セキュリティも向上します。
+
+それでは、Glows.ai 上で実際に手順を進めていきましょう。
+
+## Git Bash をインストールする
+
+1. Git の公式ダウンロードページ [`git-scm.com/install/windows`](https://git-scm.com/install/windows) にアクセスし、Git for Windows のインストーラーをダウンロードします。ダウンロードが完了したらインストーラーを実行します。インストール後、スタートメニューで **Git Bash** を検索して開きます。
+
+![](./img/tutorials-images/18.GitBashSSH/01.png)
+
+- あるいは、デスクトップ上で右クリックして **Git Bash** を選択し、アプリを開くこともできます。
+
+![](./img/tutorials-images/18.GitBashSSH/02.png)
+
+## SSH キーを作成する
+
+1. Git Bash を開き、以下のコマンドを実行して SSH キーペアを作成します（`-C` の後には自分のメールアドレスを入力し、鍵の識別に使います）。
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+![](./img/tutorials-images/18.GitBashSSH/03.png)
+
+2. 鍵の保存先を尋ねられますが、Enter を押してデフォルトのパス（`~/.ssh/id_ed25519`）を使用します。
+
+![](./img/tutorials-images/18.GitBashSSH/04.png)
+
+3. パスフレーズを設定するかどうか尋ねられますが、Enter を押してスキップしてかまいません。
+
+4. パスフレーズの確認を求められます。前の手順で設定しなかった場合はここでも Enter を押すだけで構いません。独自のパスフレーズを設定した場合は、ここで再入力して確認します。
+
+![](./img/tutorials-images/18.GitBashSSH/05.png)
+
+5. 完了すると、鍵が保存されたパス（`id_ed25519` が秘密鍵、`id_ed25519.pub` が公開鍵）と鍵のフィンガープリントが表示され、SSH キーペアの作成に成功したことが分かります。次に、公開鍵を取得して Glows.ai にアップロードします。
+
+![](./img/tutorials-images/18.GitBashSSH/06.png)
+
+### SSH キー作成時によくある問題
+
+**Windows のユーザー名が中国語や特殊文字の場合のパスエラー：**
+
+`ssh-keygen -t ed25519 -C "your_email@example.com"` を実行して鍵を作成した後、保存先を尋ねられ、Enter でデフォルトパスを使用しようとすると失敗することがあります。
+
+![](./img/tutorials-images/18.GitBashSSH/07.png)
+
+このとき、`Could not create directory '/c/Users/xxx/.ssh'` や `Saving key ... failed: No such file or directory` といったエラーが表示されます。これは、Git Bash が `~/.ssh` パスにアクセスする際にエンコーディングの問題で失敗することがあるためで、Git Bash が非 ASCII パスを扱う際の既知の制限です。
+
+![](./img/tutorials-images/18.GitBashSSH/08.png)
+
+**解決方法：** `ssh-keygen` 実行後、`Enter file in which to save the key` と表示されたら、そのまま Enter を押さずに、次のように半角英数字のみのパスを手動で入力してください。
+
+`/c/ssh/id_ed25519`
+
+## 公開鍵を取得して Glows.ai にアップロードする
+
+1. **Git Bash で以下を実行します。**
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+実行すると公開鍵の内容が出力されます。出力全体をコピーしてください。
+
+![](./img/tutorials-images/18.GitBashSSH/09.png)
+
+2. [Glows.ai](http://glows.ai) の画面左側にあるメニューから `Profile` をクリックし、`SSH keys`、続けて `New SSH Key` をクリックします。
+
+![](./img/tutorials-images/18.GitBashSSH/10.png)
+
+3. コピーした公開鍵をフィールドに貼り付け、**`Update key`** をクリックして保存します。反映まで数分かかることがあります。
+
+![](./img/tutorials-images/18.GitBashSSH/11.png)
+
+## Git Bash と SSH キーでインスタンスに接続する
+
+1. 前の手順が完了したら、インスタンスを起動し `SSH port22` をクリックします。SSH Key の項目が `Active` に変わります（設定後、`Inactive` から `Active` になるまで数分かかることがあります）。`Active` になったらログインできます。
+
+![](./img/tutorials-images/18.GitBashSSH/12.png)
+
+2. **Git Bash** を開き、以下の接続コマンドを実行します。
+
+```bash
+ssh -p <Service Port> -i <秘密鍵のパス> root@<Access URL>
+```
+
+本チュートリアルの手順でデフォルトのパスに鍵を作成した場合、`<秘密鍵のパス>` は `~/.ssh/id_ed25519` です。
+
+![](./img/tutorials-images/18.GitBashSSH/13.png)
+
+3. このホストに**初めて**接続する場合、Git Bash はホストの鍵のフィンガープリントを信頼するかどうかを尋ねるプロンプトを表示します（これは、なりすましサーバーへの接続を防ぐための SSH の仕組みです）。`yes` と入力して Enter を押すと接続が続行されます。このホスト情報は記録されるため、同じインスタンスに再度接続する際にはこのプロンプトは表示されません。
+
+![](./img/tutorials-images/18.GitBashSSH/14.png)
+
+4. 接続に成功しました。
+
+![](./img/tutorials-images/18.GitBashSSH/15.png)
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、email、Discord、Line からお問い合わせください。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)
