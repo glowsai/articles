@@ -15,7 +15,7 @@ The project data for OpenWebUI is stored in the `open_webui/data` directory insi
 /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 ```
 
-![image-20250819105656605](./img/tutorials-images/13_migrate_openwebui/01.png)
+![image-20250819105656605](../../img/tutorials-images/13_migrate_openwebui/01.png)
 
 You can first copy the data to Glows.ai's /datadrive, for example `/datadrive/open_webui`. Please enter the following commands to copy the files:
 
@@ -33,7 +33,7 @@ scp -P [Service Port] -r root@[Service Host] /root/miniconda3/envs/workenv/lib/p
 scp -P 26608 -r root@tw-06.access.glows.ai /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data ./
 ```
 
-![image-20250825103447671](./img/tutorials-images/13_migrate_openwebui/02.png)
+![image-20250825103447671](../../img/tutorials-images/13_migrate_openwebui/02.png)
 
 ## Importing the OpenWebUI Database to Another Instance
 
@@ -54,7 +54,7 @@ ls /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 cache  readme.txt  uploads  vector_db  webui.db
 ```
 
-![image-20250819111108445](./img/tutorials-images/13_migrate_openwebui/03.png)
+![image-20250819111108445](../../img/tutorials-images/13_migrate_openwebui/03.png)
 
 After setting the OpenWebUI database path, you need to restart the OpenWebUI service for the changes to take effect. Please execute the following commands to restart OpenWebUI:
 
@@ -65,7 +65,7 @@ nohup /root/miniconda3/envs/workenv/bin/open-webui serve > open_webui.log 2>&1 &
 
 Then, reconnect to port 8080 of the new instance, and you can log in with your original account!
 
-![image-20250819112828928](./img/tutorials-images/13_migrate_openwebui/04.png)
+![image-20250819112828928](../../img/tutorials-images/13_migrate_openwebui/04.png)
 
 ---
 

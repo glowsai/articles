@@ -22,7 +22,7 @@ tags:
 - PyCharm 由 JetBrains 開發，Glows.ai 僅提供服務連線教學。IDE 相關問題請洽 PyCharm 官方支援。
 
 - 本教學使用 PyCharm 2024.2.4（Professional Edition）。
-  ![PyCharm Edition](./img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
+  ![PyCharm Edition](../../img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
 
 請先在 Glows.ai [租用 GPU](https://platform.glows.ai/create)，再設定 PyCharm 環境以使用該 GPU。
 
@@ -34,15 +34,15 @@ tags:
 
 2. 點選 `Create to start` 建立專案。
 
-   ![Create to Start](./img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
+   ![Create to Start](../../img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
 
 3. 在專案資料夾上按滑鼠右鍵，建立新的 Python 檔案。
 
-   ![Create New File](./img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
+   ![Create New File](../../img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
 
 4. 為 Python 檔案命名，例如「Test」。
 
-   ![NametheFile](./img/tutorials-images/02.PyCharm/04.NametheFile.png)
+   ![NametheFile](../../img/tutorials-images/02.PyCharm/04.NametheFile.png)
 
 5. 在檔案中輸入簡單的程式碼。
 
@@ -50,7 +50,7 @@ tags:
    print("Hello world!")
    ```
 
-   ![SimpleCommand](./img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
+   ![SimpleCommand](../../img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
 
 ## **步驟二：設定遠端連線**
 
@@ -58,17 +58,17 @@ tags:
 
 - Windows 使用者請點選左上角的 File - Settings。
 
-  ![Windows User](./img/tutorials-images/02.PyCharm/06.WindowsUser.png)
+  ![Windows User](../../img/tutorials-images/02.PyCharm/06.WindowsUser.png)
 
 - Mac 使用者請點選 **PyCharm - Preferences**。
 
-  ![Mac User](./img/tutorials-images/02.PyCharm/07.MacUser.png)
+  ![Mac User](../../img/tutorials-images/02.PyCharm/07.MacUser.png)
 
 **PyCharm 2024**
 
 2. 如果使用 PyCharm 2024 或更新版本，請依序點選 **Project:pythonProject - Python Interpreter**，再點選 `Add Interpreter` -> `On SSH`，新增遠端直譯器。
 
-![New Remote Interpreter](./img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
+![New Remote Interpreter](../../img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
 
 3. 輸入租用機器的 Host、Port、Username 和 password。
 
@@ -76,9 +76,9 @@ tags:
 - Port：Glows.ai SSH 連線資訊中 `-p` 後方的數字。本例為 `23470`，通常是五位數。
 - Username：`root`
 
-  ![Detail](./img/tutorials-images/02.PyCharm/09.Detail1.png)
+  ![Detail](../../img/tutorials-images/02.PyCharm/09.Detail1.png)
 
-  ![Detail2](./img/tutorials-images/02.PyCharm/10.Detail2.png)
+  ![Detail2](../../img/tutorials-images/02.PyCharm/10.Detail2.png)
 
 4. 在接下來的步驟中點選 `Next`。進入直譯器選擇頁面後，選擇 `System Interpreter`，並輸入租用機器的 Python 直譯器路徑。預設路徑為：
    `/root/miniconda3/envs/workenv/bin/python`
@@ -89,21 +89,21 @@ tags:
 
 5. 點選 `Create`，完成新增遠端直譯器。
 
-![AddRemoteInterpreter](./img/tutorials-images/02.PyCharm/11.AddRemoteInterpreter.png)
+![AddRemoteInterpreter](../../img/tutorials-images/02.PyCharm/11.AddRemoteInterpreter.png)
 
 6. 點選 `Apply` 開始同步。
 
-![Start Synchronization](./img/tutorials-images/02.PyCharm/12.StartSynchronization.png)
+![Start Synchronization](../../img/tutorials-images/02.PyCharm/12.StartSynchronization.png)
 
 ## **步驟三：執行程式碼**
 
 同步完成後，在檔名上按滑鼠右鍵，點選 `Run` 執行檔案。
 
-![ExcuteFile](./img/tutorials-images/02.PyCharm/13.ExcuteFile.png)
+![ExcuteFile](../../img/tutorials-images/02.PyCharm/13.ExcuteFile.png)
 
 執行結果如下。
 
-![Results](./img/tutorials-images/02.PyCharm/14.Results.png)
+![Results](../../img/tutorials-images/02.PyCharm/14.Results.png)
 
 ## **步驟四：安裝其他 Python 套件**
 
@@ -119,32 +119,32 @@ tags:
 
    若未自動建立，請點選 **Tools -> Deployment -> Configuration** 進行設定。
 
-   ![Configuration](./img/tutorials-images/02.PyCharm/15.Configuration.png)
+   ![Configuration](../../img/tutorials-images/02.PyCharm/15.Configuration.png)
 
 2. 將 **Host** 與 **Port** 改成租用機器的主機名稱與連接埠號碼。
 
    **Root Path** 請保持空白，不要使用自動填入的內容，否則可能發生同步錯誤。
 
-   ![Root Path](./img/tutorials-images/02.PyCharm/16.Root%20Path.png)
-   ![HostandPort](./img/tutorials-images/02.PyCharm/17.HostandPort.png)
+   ![Root Path](../../img/tutorials-images/02.PyCharm/16.Root%20Path.png)
+   ![HostandPort](../../img/tutorials-images/02.PyCharm/17.HostandPort.png)
 
 3. 為方便辨識，可以將此連線重新命名為 Glows.ai。
 
    在左側清單的名稱上按滑鼠右鍵，選擇 `Rename`，再改成 Glows.ai。
 
-   ![Rename](./img/tutorials-images/02.PyCharm/18.Rename.png)
+   ![Rename](../../img/tutorials-images/02.PyCharm/18.Rename.png)
 
 ## **步驟六：上傳與下載檔案**
 
 PyCharm 預設會自動將本機專案中的所有檔案同步至遠端伺服器。下方的 `File Transfer` 會顯示傳輸狀態，並標示檔案已同步到伺服器目錄。
 
-![File Transfer](./img/tutorials-images/02.PyCharm/19.FileTransfer.png)
+![File Transfer](../../img/tutorials-images/02.PyCharm/19.FileTransfer.png)
 
 如果沒有自動同步，也可以手動同步檔案。
 
 選取要同步的檔案，按滑鼠右鍵，再選擇 **Deployment -> Upload to xxx**。遠端檔案有修改，或產生新檔案與結果時，選取資料夾並按滑鼠右鍵，再選擇 **Deployment -> Download from xxx**，即可將遠端檔案同步到本機環境。
 
-![Sync Manually](./img/tutorials-images/02.PyCharm/20.SyncManually.png)
+![Sync Manually](../../img/tutorials-images/02.PyCharm/20.SyncManually.png)
 
 ## **使用遠端終端機**
 
@@ -152,12 +152,12 @@ PyCharm 預設會自動將本機專案中的所有檔案同步至遠端伺服器
 
 1. 終端機預設連線至本機。請點選 **Tools -> Start SSH Session** 連線到遠端伺服器。
 
-   ![Connect to Remote Server](./img/tutorials-images/02.PyCharm/21.Connect2RemoteServer.png)
+   ![Connect to Remote Server](../../img/tutorials-images/02.PyCharm/21.Connect2RemoteServer.png)
 
 2. 選擇 Glows.ai 主機並連線。
 
-   ![Connect](./img/tutorials-images/02.PyCharm/22.Connect.png)
+   ![Connect](../../img/tutorials-images/02.PyCharm/22.Connect.png)
 
 3. 選取主機後，PyCharm 會在下方開啟新的 `Terminal`，並連線到你在 Glows.ai 租用的機器。你可以在其中執行 bash 命令。
 
-   ![New Terminal](./img/tutorials-images/02.PyCharm/23.NewTerminal.png)
+   ![New Terminal](../../img/tutorials-images/02.PyCharm/23.NewTerminal.png)

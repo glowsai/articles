@@ -24,7 +24,7 @@ ComfyUI 是專為 Stable Diffusion（SD）等 AI 擴散模型設計的圖形使�
 
 在 **Create New** 頁面將 Workload Type 設為 **Inference GPU -- 4090**，再選擇 **ComfyUI FLUX.1-Kontext** 映像檔。此映像檔已安裝所有相依套件，並會啟動監聽連接埠 8188 的 ComfyUI 服務。
 
-![image-20250822161348968](./img/tutorials-images/14_comfyui/01.png)
+![image-20250822161348968](../../img/tutorials-images/14_comfyui/01.png)
 
 **Datadrive** 是 Glows.ai 的雲端儲存服務。你可以在建立執行個體前，先將資料、模型或程式碼上傳至 Datadrive。建立執行個體時點選 `Mount`，即可掛載 Datadrive 並直接讀寫其中的資料。
 
@@ -32,7 +32,7 @@ ComfyUI 是專為 Stable Diffusion（SD）等 AI 擴散模型設計的圖形使�
 
 設定完成後，點選右下角的 `Complete Checkout` 建立執行個體。
 
-![image-20250822161748705](./img/tutorials-images/14_comfyui/02.png)
+![image-20250822161748705](../../img/tutorials-images/14_comfyui/02.png)
 
 ComfyUI FLUX.1-Kontext 映像檔約需 30–60 秒啟動。啟動後，可在 `My Instances` 頁面查看執行個體狀態與詳細資料：
 
@@ -40,47 +40,47 @@ ComfyUI FLUX.1-Kontext 映像檔約需 30–60 秒啟動。啟動後，可在 `M
 - **HTTP Port 8888**：JupyterLab 介面
 - **HTTP Port 8188**：ComfyUI 介面
 
-![image-20250822162042439](./img/tutorials-images/14_comfyui/03.png)
+![image-20250822162042439](../../img/tutorials-images/14_comfyui/03.png)
 
 ## 使用 ComfyUI FLUX.1-Kontext
 
 點選 HTTP Port 8188 下方的 Open 連結，開啟 ComfyUI。在彈出視窗中選擇需要的 Workflow 範本。若要執行 FLUX.1-Kontext，請選擇 Flux 與對應的 Workflow，例如 Flux Knotext Dev(Basic)。
 
-![image-20250730155555643](./img/tutorials-images/14_comfyui/04.png)
+![image-20250730155555643](../../img/tutorials-images/14_comfyui/04.png)
 
 選擇 Workflow 後，系統會檢查所需模型是否齊全。若缺少模型，ComfyUI 會顯示錯誤訊息，指出缺少的模型與存放位置。
 
-![image-20250730160248722](./img/tutorials-images/14_comfyui/05.png)
+![image-20250730160248722](../../img/tutorials-images/14_comfyui/05.png)
 
 ComfyUI FLUX.1-Kontext 映像檔已安裝必要模型，因此不會出現模型缺失錯誤。Workflow 載入後，畫面會顯示所有節點與連線。
 
-![image-20250730165117815](./img/tutorials-images/14_comfyui/06.png)
+![image-20250730165117815](../../img/tutorials-images/14_comfyui/06.png)
 
 直接執行 Workflow 時可能出現錯誤，例如要求將圖片放入 /ComfyUI/output 資料夾。
 
-![image-20250730174321087](./img/tutorials-images/14_comfyui/07.png)
+![image-20250730174321087](../../img/tutorials-images/14_comfyui/07.png)
 
 你也可以在介面的 `Load Image` 節點下點選 `choose file to upload`，從本機上傳圖片。
 
-![image-20250822164751801](./img/tutorials-images/14_comfyui/08.png)
+![image-20250822164751801](../../img/tutorials-images/14_comfyui/08.png)
 
 接著修改提示詞，點選 `RUN` 生成圖片。運算期間 GPU 約使用 18GB 記憶體，記憶體使用率為 100%。
 
-![image-20250730170653378](./img/tutorials-images/14_comfyui/09.png)
+![image-20250730170653378](../../img/tutorials-images/14_comfyui/09.png)
 
 在 4090 上使用 FLUX.1-Kontext 生成一張圖片約需 23 秒。
 
-![image-20250730174225069](./img/tutorials-images/14_comfyui/10.png)
+![image-20250730174225069](../../img/tutorials-images/14_comfyui/10.png)
 
 生成的圖片會儲存在 Glows.ai 執行個體的 /ComfyUI/output 資料夾。你可以從該資料夾或 ComfyUI 介面下載圖片。
 
-![image-20250730180046094](./img/tutorials-images/14_comfyui/11.png)
+![image-20250730180046094](../../img/tutorials-images/14_comfyui/11.png)
 
 ## 如何透過程式碼呼叫 ComfyUI
 
 ComfyUI 為進階使用者提供 API 模式。先點選介面左上角的 `Workflow` -- Export(API)，匯出 API 格式的 Workflow。
 
-![image-20250825152848035](./img/tutorials-images/14_comfyui/12.png)
+![image-20250825152848035](../../img/tutorials-images/14_comfyui/12.png)
 
 範例程式碼請參閱官方 [script_examples](https://github.com/comfyanonymous/ComfyUI/tree/master/script_examples)，並依需求替換 prompt 區段。
 
@@ -90,21 +90,21 @@ ComfyUI 為進階使用者提供 API 模式。先點選介面左上角的 `Workf
 
 部分操作需要重新啟動 ComfyUI。點選右上角的 `Manager`，再於彈出視窗中點選 `Restart`。ComfyUI Manager 外掛也提供其他功能，可依需求使用。
 
-![image-20250825173959663](./img/tutorials-images/14_comfyui/13.png)
+![image-20250825173959663](../../img/tutorials-images/14_comfyui/13.png)
 
 ### 如何設定預設載入的 Workflow？
 
 點選左上角的 Workflow，再於彈出視窗中選擇 `Browse Templates`，查看所有官方 Workflow。
 
-![image-20250825174202352](./img/tutorials-images/14_comfyui/14.png)
+![image-20250825174202352](../../img/tutorials-images/14_comfyui/14.png)
 
 選擇要執行的 Workflow。
 
-![image-20250825174359845](./img/tutorials-images/14_comfyui/15.png)
+![image-20250825174359845](../../img/tutorials-images/14_comfyui/15.png)
 
 若缺少模型，系統會顯示提示。點選 `Copy URL`，將模型下載到執行個體內的正確資料夾，完成後關閉彈出視窗。
 
-![image-20250825174729730](./img/tutorials-images/14_comfyui/16.png)
+![image-20250825174729730](../../img/tutorials-images/14_comfyui/16.png)
 
 ComfyUI 專案預設路徑為 /ComfyUI，有時也可能是 /root/ComfyUI。模型檔案位於專案路徑下的 models 資料夾，請依實際路徑下載模型。
 
@@ -116,15 +116,15 @@ wget -O loras/MoXinV1.safetensors "https://civitai.com/api/download/models/14856
 wget -O loras/blindbox_v1_mix.safetensors "https://civitai.com/api/download/models/32988?type=Model&format=SafeTensor&size=full&fp=fp16"
 ```
 
-![image-20250825175748049](./img/tutorials-images/14_comfyui/17.png)
+![image-20250825175748049](../../img/tutorials-images/14_comfyui/17.png)
 
 下載後檢查模型檔案。
 
-![image-20250825180416687](./img/tutorials-images/14_comfyui/18.png)
+![image-20250825180416687](../../img/tutorials-images/14_comfyui/18.png)
 
 模型下載完成後，重新整理介面即可執行相關 Workflow。
 
-![image-20250825180700837](./img/tutorials-images/14_comfyui/19.png)
+![image-20250825180700837](../../img/tutorials-images/14_comfyui/19.png)
 
 ### 新增模型後，ComfyUI 介面無法正常顯示？
 
@@ -132,7 +132,7 @@ wget -O loras/blindbox_v1_mix.safetensors "https://civitai.com/api/download/mode
 
 例如工作目錄為 /ComfyUI，模型路徑就是 /ComfyUI/models。
 
-![image-20250825180810018](./img/tutorials-images/14_comfyui/20.png)
+![image-20250825180810018](../../img/tutorials-images/14_comfyui/20.png)
 
 ---
 

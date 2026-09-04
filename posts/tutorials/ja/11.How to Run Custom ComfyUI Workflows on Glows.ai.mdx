@@ -24,7 +24,7 @@ ComfyUI は Stable Diffusion（SD）などの AI 拡散モデル向けに設計�
 
 **Create New** ページで Workload Type を **Inference GPU -- 4090** に設定し、**ComfyUI FLUX.1-Kontext** イメージを選びます。このイメージには依存関係がインストール済みで、ポート 8188 で ComfyUI サービスが起動します。
 
-![image-20250822161348968](./img/tutorials-images/14_comfyui/01.png)
+![image-20250822161348968](../../img/tutorials-images/14_comfyui/01.png)
 
 **Datadrive** は Glows.ai のクラウドストレージサービスです。インスタンスを作成する前に、データ、モデル、コードを Datadrive へアップロードできます。作成時に `Mount` をクリックすると Datadrive がマウントされ、直接読み書きできます。
 
@@ -32,7 +32,7 @@ ComfyUI は Stable Diffusion（SD）などの AI 拡散モデル向けに設計�
 
 設定後、右下の `Complete Checkout` をクリックしてインスタンスを作成します。
 
-![image-20250822161748705](./img/tutorials-images/14_comfyui/02.png)
+![image-20250822161748705](../../img/tutorials-images/14_comfyui/02.png)
 
 ComfyUI FLUX.1-Kontext イメージの起動には約 30～60 秒かかります。起動後、`My Instances` ページでインスタンスの状態と詳細を確認できます。
 
@@ -40,47 +40,47 @@ ComfyUI FLUX.1-Kontext イメージの起動には約 30～60 秒かかります
 - **HTTP Port 8888**：JupyterLab
 - **HTTP Port 8188**：ComfyUI
 
-![image-20250822162042439](./img/tutorials-images/14_comfyui/03.png)
+![image-20250822162042439](../../img/tutorials-images/14_comfyui/03.png)
 
 ## ComfyUI FLUX.1-Kontext を使う
 
 HTTP Port 8188 の Open リンクをクリックして ComfyUI を起動します。ポップアップで利用する Workflow テンプレートを選択します。FLUX.1-Kontext モデルを実行する場合は Flux を選び、Flux Knotext Dev(Basic) などの Workflow を指定します。
 
-![image-20250730155555643](./img/tutorials-images/14_comfyui/04.png)
+![image-20250730155555643](../../img/tutorials-images/14_comfyui/04.png)
 
 Workflow を選択すると、必要なモデルが揃っているか確認されます。不足している場合は、ComfyUI にモデル名と配置先を示すエラーが表示されます。
 
-![image-20250730160248722](./img/tutorials-images/14_comfyui/05.png)
+![image-20250730160248722](../../img/tutorials-images/14_comfyui/05.png)
 
 ComfyUI FLUX.1-Kontext イメージには必要なモデルがインストール済みのため、モデル不足のエラーは発生しません。Workflow が読み込まれると、すべてのノードと接続が表示されます。
 
-![image-20250730165117815](./img/tutorials-images/14_comfyui/06.png)
+![image-20250730165117815](../../img/tutorials-images/14_comfyui/06.png)
 
 Workflow をそのまま実行すると、画像を /ComfyUI/output フォルダーへ置くよう求めるエラーなどが表示される場合があります。
 
-![image-20250730174321087](./img/tutorials-images/14_comfyui/07.png)
+![image-20250730174321087](../../img/tutorials-images/14_comfyui/07.png)
 
 画面の `Load Image` ノードにある `choose file to upload` をクリックし、ローカルから画像をアップロードすることもできます。
 
-![image-20250822164751801](./img/tutorials-images/14_comfyui/08.png)
+![image-20250822164751801](../../img/tutorials-images/14_comfyui/08.png)
 
 プロンプトを変更し、`RUN` をクリックして画像を生成します。計算中の GPU メモリー使用量は約 18GB で、使用率は 100% です。
 
-![image-20250730170653378](./img/tutorials-images/14_comfyui/09.png)
+![image-20250730170653378](../../img/tutorials-images/14_comfyui/09.png)
 
 4090 で FLUX.1-Kontext モデルを使う場合、画像 1 枚の生成には約 23 秒かかります。
 
-![image-20250730174225069](./img/tutorials-images/14_comfyui/10.png)
+![image-20250730174225069](../../img/tutorials-images/14_comfyui/10.png)
 
 生成した画像は Glows.ai インスタンスの /ComfyUI/output フォルダーへ保存されます。このフォルダーまたは ComfyUI の画面からダウンロードできます。
 
-![image-20250730180046094](./img/tutorials-images/14_comfyui/11.png)
+![image-20250730180046094](../../img/tutorials-images/14_comfyui/11.png)
 
 ## コードから ComfyUI を呼び出す
 
 ComfyUI には高度なユーザー向けの API モードがあります。画面左上の `Workflow` -- Export(API) をクリックし、Workflow を API 形式でエクスポートします。
 
-![image-20250825152848035](./img/tutorials-images/14_comfyui/12.png)
+![image-20250825152848035](../../img/tutorials-images/14_comfyui/12.png)
 
 サンプルコードは公式の [script_examples](https://github.com/comfyanonymous/ComfyUI/tree/master/script_examples) を参照し、必要に応じて prompt 部分を置き換えてください。
 
@@ -90,21 +90,21 @@ ComfyUI には高度なユーザー向けの API モードがあります。画�
 
 操作によっては ComfyUI の再起動が必要です。右上の `Manager` をクリックし、ポップアップで `Restart` をクリックします。ComfyUI Manager プラグインにはほかの機能もあります。
 
-![image-20250825173959663](./img/tutorials-images/14_comfyui/13.png)
+![image-20250825173959663](../../img/tutorials-images/14_comfyui/13.png)
 
 ### 起動時に読み込む Workflow を設定する方法
 
 左上の Workflow ボタンをクリックし、ポップアップで `Browse Templates` を選択すると、公式 Workflow の一覧を確認できます。
 
-![image-20250825174202352](./img/tutorials-images/14_comfyui/14.png)
+![image-20250825174202352](../../img/tutorials-images/14_comfyui/14.png)
 
 実行する Workflow を選択します。
 
-![image-20250825174359845](./img/tutorials-images/14_comfyui/15.png)
+![image-20250825174359845](../../img/tutorials-images/14_comfyui/15.png)
 
 不足しているモデルがある場合は案内が表示されます。`Copy URL` をクリックし、モデルをインスタンス内の正しいフォルダーへダウンロードしてからポップアップを閉じます。
 
-![image-20250825174729730](./img/tutorials-images/14_comfyui/16.png)
+![image-20250825174729730](../../img/tutorials-images/14_comfyui/16.png)
 
 ComfyUI プロジェクトの既定パスは /ComfyUI ですが、/root/ComfyUI の場合もあります。モデルファイルはプロジェクトパス内の models フォルダーに保存します。実際のパスを確認してダウンロードしてください。
 
@@ -116,15 +116,15 @@ wget -O loras/MoXinV1.safetensors "https://civitai.com/api/download/models/14856
 wget -O loras/blindbox_v1_mix.safetensors "https://civitai.com/api/download/models/32988?type=Model&format=SafeTensor&size=full&fp=fp16"
 ```
 
-![image-20250825175748049](./img/tutorials-images/14_comfyui/17.png)
+![image-20250825175748049](../../img/tutorials-images/14_comfyui/17.png)
 
 ダウンロード後、モデルファイルを確認します。
 
-![image-20250825180416687](./img/tutorials-images/14_comfyui/18.png)
+![image-20250825180416687](../../img/tutorials-images/14_comfyui/18.png)
 
 モデルのダウンロードが終わったら画面を更新し、該当する Workflow を実行します。
 
-![image-20250825180700837](./img/tutorials-images/14_comfyui/19.png)
+![image-20250825180700837](../../img/tutorials-images/14_comfyui/19.png)
 
 ### モデル追加後に ComfyUI の画面が正しく表示されない場合
 
@@ -132,7 +132,7 @@ wget -O loras/blindbox_v1_mix.safetensors "https://civitai.com/api/download/mode
 
 たとえば作業ディレクトリが /ComfyUI なら、モデルパスは /ComfyUI/models です。
 
-![image-20250825180810018](./img/tutorials-images/14_comfyui/20.png)
+![image-20250825180810018](../../img/tutorials-images/14_comfyui/20.png)
 
 ---
 

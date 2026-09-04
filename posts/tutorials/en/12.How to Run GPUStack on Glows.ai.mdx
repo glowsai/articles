@@ -49,7 +49,7 @@ Compared to similar tools, GPUStack offers:
    - **Workload Type**: select **Inference GPU -- 4090**
    - **Image**: choose the official **GPUStack (img-rgqwxrpy)** image (preconfigured with GPUStack service listening on port 80)
 
-![image-20250908104737276](./img/tutorials-images/GPUStack/01.png)
+![image-20250908104737276](../../img/tutorials-images/GPUStack/01.png)
 
 ### Using Datadrive (Optional)
 
@@ -59,7 +59,7 @@ Since this tutorial only demonstrates inference services, Datadrive mounting is 
 
 After completing the setup, click **Complete Checkout** to create the instance.
 
-![image-20250908172833649](./img/tutorials-images/GPUStack/02.png)
+![image-20250908172833649](../../img/tutorials-images/GPUStack/02.png)
 
 > **Note**: GPUStack images take about 30–60 seconds to start.  
 > You can check the status on the **My Instances** page. Once running, the following ports will be available:
@@ -79,11 +79,11 @@ After completing the setup, click **Complete Checkout** to create the instance.
 
 1. Click **HTTP Port 8888 → Open** to access JupyterLab
 
-![image-20250821162610764](./img/tutorials-images/GPUStack/03.png)
+![image-20250821162610764](../../img/tutorials-images/GPUStack/03.png)
 
 2. Open a new **Terminal**
 
-![image-20250821162648937](./img/tutorials-images/GPUStack/04.png)
+![image-20250821162648937](../../img/tutorials-images/GPUStack/04.png)
 
 3. Run the following command to get the GPUStack WebUI password:
 
@@ -91,55 +91,55 @@ After completing the setup, click **Complete Checkout** to create the instance.
    cat /var/lib/gpustack/initial_admin_password
    ```
 
-![image-20250821162729721](./img/tutorials-images/GPUStack/05.png)
+![image-20250821162729721](../../img/tutorials-images/GPUStack/05.png)
 
 ### 2. Log in to WebUI
 
 - From the instance interface, click **HTTP Port 80 → Open**
-  ![image-20250821162755137](./img/tutorials-images/GPUStack/06.png)
+  ![image-20250821162755137](../../img/tutorials-images/GPUStack/06.png)
 
 - Enter the username and password you obtained, then click `Log in`.
 
-![image-20250821162818233](./img/tutorials-images/GPUStack/07.png)
+![image-20250821162818233](../../img/tutorials-images/GPUStack/07.png)
 
 - After logging in, you will be prompted to change the password.
 
-![image-20250821162841553](./img/tutorials-images/GPUStack/08.png)
+![image-20250821162841553](../../img/tutorials-images/GPUStack/08.png)
 
 ### 3. Using GPUStack WebUI
 
 - **Dashboards**: Display statistics of current workers, GPUs, deployed models, and resource monitoring (GPU/CPU usage).
-  ![image-20250821162859700](./img/tutorials-images/GPUStack/09.png)
+  ![image-20250821162859700](../../img/tutorials-images/GPUStack/09.png)
 
 - **Catalog**: Deploy models directly from sources like Ollama and HuggingFace.
-  ![image-20250821171409795](./img/tutorials-images/GPUStack/10.png)
+  ![image-20250821171409795](../../img/tutorials-images/GPUStack/10.png)
 
 Once configured, the system moves to the **Deployments** page and begins downloading the model.
 
-![image-20250821171445281](./img/tutorials-images/GPUStack/11.png)
+![image-20250821171445281](../../img/tutorials-images/GPUStack/11.png)
 
 When the model finishes downloading and starts successfully, the status will show **Running**.
 
-![image-20250821171944239](./img/tutorials-images/GPUStack/12.png)
+![image-20250821171944239](../../img/tutorials-images/GPUStack/12.png)
 
 You can then switch to the **Chat** page to interact with the model directly.
 
-![image-20250821173105073](./img/tutorials-images/GPUStack/13.png)
+![image-20250821173105073](../../img/tutorials-images/GPUStack/13.png)
 
 Models deployed on GPUStack can also be called via **API**. Simply click **View Code** in the interface to see official code samples for quick integration.
 
-![image-20250821172308362](./img/tutorials-images/GPUStack/14.png)
+![image-20250821172308362](../../img/tutorials-images/GPUStack/14.png)
 
 ---
 
 ## Obtaining an API Key
 
 1. Click the user avatar at the bottom left → **API Keys**
-   ![image-20250821172135022](./img/tutorials-images/GPUStack/15.png)
+   ![image-20250821172135022](../../img/tutorials-images/GPUStack/15.png)
 2. Click **New API Key** and fill in the details
-   ![image-20250821172216747](./img/tutorials-images/GPUStack/16.png)
+   ![image-20250821172216747](../../img/tutorials-images/GPUStack/16.png)
 3. Use the generated API Key to call GPUStack model APIs
-   ![image-20250821173253057](./img/tutorials-images/GPUStack/17.png)
+   ![image-20250821173253057](../../img/tutorials-images/GPUStack/17.png)
 
 ---
 

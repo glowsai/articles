@@ -19,7 +19,7 @@ tags:
 
 **GPT-OSS-20B** 是 OpenAI 於 2025 年 8 月發布的開放原始碼大型語言模型，約有 210 億個參數。它採用 **Mixture-of-Experts（MoE）**架構，每個 token 只會啟用約 36 億個參數，因此能降低推論所需資源。此模型支援本機部署，針對 MoE 層進行效能最佳化，僅需 16GB GPU 記憶體即可執行。官方基準測試顯示，它在數項常見測試中的效能接近 **OpenAI o3-mini**。
 
-![image-20250811161540192](./img/tutorials-images/12_gpt_oss/01.png)
+![image-20250811161540192](../../img/tutorials-images/12_gpt_oss/01.png)
 
 ## 建立執行個體
 
@@ -27,7 +27,7 @@ tags:
 
 在 **Create New** 頁面，將 `Workload Type` 設為 **Inference GPU -- 4090**，並選擇 **GPT OSS 20B** 映像檔。此映像檔包含必要的執行環境，並已啟動 Ollama（監聽連接埠 11434）與 OpenWebUI（監聽連接埠 8080）。
 
-![image-20250811142101261](./img/tutorials-images/12_gpt_oss/02.png)
+![image-20250811142101261](../../img/tutorials-images/12_gpt_oss/02.png)
 
 **Datadrive** 是 Glows.ai 的雲端儲存服務，可在建立執行個體前上傳資料、模型與程式碼。建立執行個體時點選 `Mount`，即可掛載 Datadrive 並直接存取。
 
@@ -35,7 +35,7 @@ tags:
 
 完成設定後，點選右下角的 `Complete Checkout` 建立執行個體。
 
-![image-20250811142313589](./img/tutorials-images/12_gpt_oss/03.png)
+![image-20250811142313589](../../img/tutorials-images/12_gpt_oss/03.png)
 
 **GPT OSS 20B** 執行個體約需 30–60 秒啟動。啟動後，可在 `My Instances` 查看狀態與存取連結：
 
@@ -44,39 +44,39 @@ tags:
 - **HTTP Port 11434**：Ollama API
 - **HTTP Port 8080**：OpenWebUI
 
-![image-20250811142452011](./img/tutorials-images/12_gpt_oss/04.png)
+![image-20250811142452011](../../img/tutorials-images/12_gpt_oss/04.png)
 
 ## 使用 GPT OSS 20B
 
 前往 `My Instances` 頁面，點選 **HTTP Port 8080** 下方的 `Open`，開啟 **Open WebUI** 服務。第一次使用時，需要建立管理員帳號。
 
-![image-20250811142719474](./img/tutorials-images/12_gpt_oss/05.png)
+![image-20250811142719474](../../img/tutorials-images/12_gpt_oss/05.png)
 
 建立帳號後即可進入聊天介面，直接與 **gpt-oss-20b** 模型互動。
 
-![image-20250811143014826](./img/tutorials-images/12_gpt_oss/06.png)
+![image-20250811143014826](../../img/tutorials-images/12_gpt_oss/06.png)
 
 **Open WebUI** 也會根據目前對話提供後續問題建議。
 
-![image-20250811150602422](./img/tutorials-images/12_gpt_oss/07.png)
+![image-20250811150602422](../../img/tutorials-images/12_gpt_oss/07.png)
 
 ## 與其他人共用
 
 OpenWebUI 內建帳號管理系統，可分隔不同使用者的對話。依序點選左上角選單 → 左下角頭像 → **`Admin Panel`**。
 
-![image-20250811143426787](./img/tutorials-images/12_gpt_oss/08.png)
+![image-20250811143426787](../../img/tutorials-images/12_gpt_oss/08.png)
 
 點選 `Settings`，將 **Default User Role** 設為 `user`，啟用 **New Sign Ups**，再點選 `Save`。
 
-![image-20250811144203704](./img/tutorials-images/12_gpt_oss/09.png)
+![image-20250811144203704](../../img/tutorials-images/12_gpt_oss/09.png)
 
 將 `My Instances` 中的 **HTTP Port 8080** 連結分享給其他人。他們可以在瀏覽器開啟連結，點選 `Sign up` 建立帳號。
 
-![image-20250811144249486](./img/tutorials-images/12_gpt_oss/10.png)
+![image-20250811144249486](../../img/tutorials-images/12_gpt_oss/10.png)
 
 使用者註冊後，管理員可以在 **`Admin Panel`** 查看帳號與問題紀錄。
 
-![image-20250811144448371](./img/tutorials-images/12_gpt_oss/11.png)
+![image-20250811144448371](../../img/tutorials-images/12_gpt_oss/11.png)
 
 ## 透過 API 呼叫 GPT OSS 20B
 
@@ -84,12 +84,12 @@ OpenWebUI 內建帳號管理系統，可分隔不同使用者的對話。依序�
 
 在 **`Admin Panel` → `Settings`** 中向下捲動，啟用 **Enable API Key**，再點選 **Save**。
 
-![image-20250811144752670](./img/tutorials-images/12_gpt_oss/12.png)
+![image-20250811144752670](../../img/tutorials-images/12_gpt_oss/12.png)
 
 在個人帳號中前往 `Settings` → `Account`，查看或建立 API key。請妥善保存此金鑰，後續 **Auto Deploy** 範例會使用它。
 
-![image-20250811144841124](./img/tutorials-images/12_gpt_oss/13.png)
-![image-20250811144912480](./img/tutorials-images/12_gpt_oss/14.png)
+![image-20250811144841124](../../img/tutorials-images/12_gpt_oss/13.png)
+![image-20250811144912480](../../img/tutorials-images/12_gpt_oss/14.png)
 
 取得 **API key** 後，即可依下列方式傳送請求。API endpoint 格式：
 
@@ -118,7 +118,7 @@ curl -X POST https:/tw-05.access.glows.ai:25947/api/chat/completions \
 
 模型會在推論完成後回傳結果。
 
-![image-20250811150332264](./img/tutorials-images/12_gpt_oss/15.png)
+![image-20250811150332264](../../img/tutorials-images/12_gpt_oss/15.png)
 
 也可以使用 OpenAI 的 Python SDK：
 
@@ -139,7 +139,7 @@ response = client.chat.completions.create(
 print(response)
 ```
 
-![image-20250811170502665](./img/tutorials-images/12_gpt_oss/16.png)
+![image-20250811170502665](../../img/tutorials-images/12_gpt_oss/16.png)
 
 ## 進階用法：**Auto Deploy**
 
@@ -151,25 +151,25 @@ print(response)
 
 若要保留 API key 與環境設定，請在 Glows.ai 點選 **`Take Snapshot`** 建立快照。
 
-![image-20250811170732162](./img/tutorials-images/12_gpt_oss/17.png)
+![image-20250811170732162](../../img/tutorials-images/12_gpt_oss/17.png)
 
 輸入快照名稱，並選擇 **`automatically released`**，讓系統在快照建立後釋放執行個體。
 
-![image-20250811170845190](./img/tutorials-images/12_gpt_oss/18.png)
+![image-20250811170845190](../../img/tutorials-images/12_gpt_oss/18.png)
 
 如果尚未購買儲存空間，Glows.ai 會將快照存放在 **Snapshots → Restorable**。本教學的快照很小，你可以在 [Storage Space](https://platform.glows.ai/space) 以每月 \$0.5 購買 5GB 儲存方案，並分配 1GB 給快照。接著在 [Snapshots](https://platform.glows.ai/snapshots) 中將快照移至 **Available**。
 
-![image-20250811171559043](./img/tutorials-images/12_gpt_oss/19.png)
+![image-20250811171559043](../../img/tutorials-images/12_gpt_oss/19.png)
 
 ### 設定 Auto Deploy
 
 前往 [Auto Deploy](https:/platform.glows.ai/deploy) → `New Deploy`，建立設定並輸入方便辨識的名稱。
 
-![image-20250811171843622](./img/tutorials-images/12_gpt_oss/20.png)
+![image-20250811171843622](../../img/tutorials-images/12_gpt_oss/20.png)
 
 選擇 GPU 與環境。你可以使用快照或系統映像檔；此處選擇剛才建立的快照。
 
-![image-20250811171948063](./img/tutorials-images/12_gpt_oss/21.png)
+![image-20250811171948063](../../img/tutorials-images/12_gpt_oss/21.png)
 
 設定服務連接埠與啟動命令。本例中的 Open WebUI 會在連接埠 8080 自動啟動，因此只需設定連接埠。
 
@@ -177,14 +177,14 @@ print(response)
 Port: 8080
 ```
 
-![image-20250811172106189](./img/tutorials-images/12_gpt_oss/22.png)
+![image-20250811172106189](../../img/tutorials-images/12_gpt_oss/22.png)
 點選 `Confirm` 完成設定。
 
 ### 查看設定
 
 設定完成後，頁面會顯示固定連結與設定詳細資料。
 
-![image-20250811172148517](./img/tutorials-images/12_gpt_oss/23.png)
+![image-20250811172148517](../../img/tutorials-images/12_gpt_oss/23.png)
 
 ### 呼叫 Auto Deploy 連結
 
@@ -206,7 +206,7 @@ curl -X POST https:/tw-05.sgw.glxxxxxx224w/api/chat/completions \
       }'
 ```
 
-![image-20250811173542494](./img/tutorials-images/12_gpt_oss/24.png)
+![image-20250811173542494](../../img/tutorials-images/12_gpt_oss/24.png)
 
 5 分鐘內沒有新請求時，系統會自動釋放執行個體。**Auto Deploy** 也會顯示總費用與 **Instance Status**：
 

@@ -25,7 +25,7 @@ OpenClaw はオープンソースの AI Agent フレームワークです。大�
 
 `Create New` ページで Workload Type に Inference GPU -- 4090 を指定し、**OpenClaw** イメージを選択します。このイメージには必要な環境が設定済みです。
 
-![ ](./img/tutorials-images/16.OpenClaw/001.png)
+![ ](../../img/tutorials-images/16.OpenClaw/001.png)
 
 **Datadrive** は Glows.ai のクラウドストレージサービスです。インスタンス作成前に、データ、モデル、コードを Datadrive へアップロードできます。作成時に `Mount` をクリックすると Datadrive がマウントされ、インスタンスから直接読み書きできます。
 
@@ -33,7 +33,7 @@ OpenClaw はオープンソースの AI Agent フレームワークです。大�
 
 設定後、右下の `Complete Checkout` をクリックしてインスタンスを作成します。
 
-![ ](./img/tutorials-images/16.OpenClaw/002.png)
+![ ](../../img/tutorials-images/16.OpenClaw/002.png)
 
 **OpenClaw** イメージのインスタンスは約 30～60 秒で起動します。`My Instances` 画面で状態と情報を確認できます。起動後は次の情報が表示されます。
 
@@ -41,13 +41,13 @@ OpenClaw はオープンソースの AI Agent フレームワークです。大�
 - **HTTP Port 8888**：JupyterLab 接続
 - **HTTP Port 11434**：Ollama API 接続
 
-![ ](./img/tutorials-images/16.OpenClaw/003.png)
+![ ](../../img/tutorials-images/16.OpenClaw/003.png)
 
 ## インスタンスへ接続する
 
 インスタンスページで `HTTP Port 8888` のリンクを開き、JupyterLab を起動します。図に沿って新しい Terminal を作成してください。
 
-![ ](./img/tutorials-images/16.OpenClaw/004.png)
+![ ](../../img/tutorials-images/16.OpenClaw/004.png)
 
 ## OpenClaw をアップグレードする
 
@@ -60,7 +60,7 @@ openclaw --version
 openclaw update status
 ```
 
-![ ](./img/tutorials-images/16.OpenClaw/005.png)
+![ ](../../img/tutorials-images/16.OpenClaw/005.png)
 
 次のコマンドで更新します。
 
@@ -68,7 +68,7 @@ openclaw update status
 openclaw update
 ```
 
-![ ](./img/tutorials-images/16.OpenClaw/006.png)
+![ ](../../img/tutorials-images/16.OpenClaw/006.png)
 
 **注意：** 最後に表示される `systemctl` コマンドのエラーは無視できます。Docker コンテナ内では `systemctl` を利用できません。後の手順で OpenClaw サービスを手動起動します。
 
@@ -80,11 +80,11 @@ openclaw update
 openclaw onboard
 ```
 
-![ ](./img/tutorials-images/16.OpenClaw/007.png)
+![ ](../../img/tutorials-images/16.OpenClaw/007.png)
 
 既定の選択肢を使います。モデル設定は空欄のままでかまいません。後でローカルの Ollama モデルを設定します。必要に応じてサードパーティーのモデル API も設定できます。
 
-![ ](./img/tutorials-images/16.OpenClaw/008.png)
+![ ](../../img/tutorials-images/16.OpenClaw/008.png)
 
 使用するチャットアプリは自由に選べます。このチュートリアルでは Telegram を使います。Telegram で `@BotFather` に次のコマンドを送信し、新しい Bot を作成して Bot API Token を取得します。
 
@@ -92,15 +92,15 @@ openclaw onboard
 /newbot
 ```
 
-![ ](./img/tutorials-images/16.OpenClaw/009.png)
+![ ](../../img/tutorials-images/16.OpenClaw/009.png)
 
 OpenClaw の設定画面で Telegram Bot API Token を入力します。
 
-![ ](./img/tutorials-images/16.OpenClaw/010.png)
+![ ](../../img/tutorials-images/16.OpenClaw/010.png)
 
 `Onboarding complete` と表示されたら設定完了です。
 
-![ ](./img/tutorials-images/16.OpenClaw/011.png)
+![ ](../../img/tutorials-images/16.OpenClaw/011.png)
 
 ## OpenClaw にローカルモデルを設定する
 
@@ -110,7 +110,7 @@ Ollama では 1 つのコマンドで OpenClaw 用のモデルをダウンロー
 ollama launch openclaw --model qwen3.5:4b
 ```
 
-![ ](./img/tutorials-images/16.OpenClaw/012.png)
+![ ](../../img/tutorials-images/16.OpenClaw/012.png)
 
 モデルのダウンロード後、OpenClaw サービスが自動起動し、利用できるようになります。
 
@@ -122,21 +122,21 @@ ollama launch openclaw --model qwen3.5:4b
 
 前のコマンドが完了すると、その画面で OpenClaw と対話できます。ここでは Python ファイルを作成し、Fibonacci アルゴリズムを書き込むよう依頼します。
 
-![ ](./img/tutorials-images/16.OpenClaw/013.png)
+![ ](../../img/tutorials-images/16.OpenClaw/013.png)
 
 ### Telegram でチャットする
 
 先ほど作成した Telegram Bot にメッセージを送ります。少し待つと認証コマンドが届きます。
 
-![ ](./img/tutorials-images/16.OpenClaw/014.png)
+![ ](../../img/tutorials-images/16.OpenClaw/014.png)
 
 認証コマンドをコピーし、インスタンスの Terminal で実行します。完了後、Telegram から OpenClaw を使えます。
 
-![ ](./img/tutorials-images/16.OpenClaw/015.png)
+![ ](../../img/tutorials-images/16.OpenClaw/015.png)
 
 記憶機能を試すには、先ほど作成を依頼した Fibonacci アルゴリズムのファイルパスを尋ねます。図のように Bot がパスとソースコードを返します。
 
-![ ](./img/tutorials-images/16.OpenClaw/016.png)
+![ ](../../img/tutorials-images/16.OpenClaw/016.png)
 
 ### Web ブラウザーでチャットする
 
@@ -144,7 +144,7 @@ ollama launch openclaw --model qwen3.5:4b
 
 Glows.ai の My Instance ページで SSH 情報を確認し、SSH Command をポートフォワーディング用に変更します。
 
-![ ](./img/tutorials-images/16.OpenClaw/017.png)
+![ ](../../img/tutorials-images/16.OpenClaw/017.png)
 
 変更後のコマンドは次のとおりです。以下の値だけを置き換えます。
 
@@ -158,13 +158,13 @@ ssh -p 2xxx7 -NL 18888:localhost:18789 root@tw-05.access.glows.ai
 
 ローカルの Terminal/CMD で変更後の SSH ポートフォワーディングコマンドを実行します。Enter キーを押して SSH Password を貼り付けます。貼り付けても文字が表示されないのは正常です。もう一度 Enter キーを押し、エラーが出なければ転送できています。
 
-![ ](./img/tutorials-images/16.OpenClaw/018.png)
+![ ](../../img/tutorials-images/16.OpenClaw/018.png)
 
 **注意：** Windows ユーザーは、ローカルへ [Windows Git](https://git-scm.com/install/windows) をインストールすることを推奨します。
 
 転送後、ローカルで `http://localhost:18888/#token=xxxxxxxx` を開きます。token は [OpenClaw にローカルモデルを設定する](#openclaw-local-model-configuration)手順でサービス起動時に表示された値へ置き換えてください。
 
-![ ](./img/tutorials-images/16.OpenClaw/019.png)
+![ ](../../img/tutorials-images/16.OpenClaw/019.png)
 
 ---
 

@@ -20,11 +20,11 @@ To achieve smoother performance, it’s recommended to store **models, data, and
 
 Before proceeding, make sure you checked **Mount** when creating the instance to attach your `Datadrive`.
 
-![image-20250906115435105](./img/tutorials-images/Ollama/01.png)
+![image-20250906115435105](../../img/tutorials-images/Ollama/01.png)
 
 Once the instance is created, go to the instance interface and open **HTTP 8888 Port (JupyterLab service)**. Create a new **Terminal** as shown below:
 
-![image-20250906110026201](./img/tutorials-images/Ollama/02.png)
+![image-20250906110026201](../../img/tutorials-images/Ollama/02.png)
 
 In the Terminal, run the following commands step by step:
 
@@ -39,12 +39,12 @@ export OLLAMA_MODELS=/datadrive/ollama
 nohup ollama serve > ollama.log 2>&1 &
 ```
 
-![image-20250906110430019](./img/tutorials-images/Ollama/03.png)
+![image-20250906110430019](../../img/tutorials-images/Ollama/03.png)
 
 After completing the configuration and restarting, any models downloaded with `ollama pull` will automatically be stored under `/datadrive/ollama`.
 This way, even without creating a Snapshot, you can simply re-mount the Datadrive next time and continue using the previously downloaded models.
 
-![image-20250906110704574](./img/tutorials-images/Ollama/04.png)
+![image-20250906110704574](../../img/tutorials-images/Ollama/04.png)
 
 ---
 
@@ -68,12 +68,12 @@ export OLLAMA_MODELS=/datadrive/ollama
 
 Don’t forget to save the file with **Ctrl + S**.
 
-![image-20250906114655391](./img/tutorials-images/Ollama/05.png)
+![image-20250906114655391](../../img/tutorials-images/Ollama/05.png)
 
 Once the setup is complete, you can create a Snapshot.
 Click **Take Snapshot** in the instance interface, enter a Snapshot name, and optionally check **Release instance after Snapshot completes** if the current instance is no longer needed.
 
-![image-20250908180754775](./img/tutorials-images/Ollama/06.png)
+![image-20250908180754775](../../img/tutorials-images/Ollama/06.png)
 
 From then on, any new instance launched from this Snapshot will automatically store Ollama models under `/datadrive/ollama`, eliminating the need to reconfigure.
 

@@ -15,7 +15,7 @@ OpenWebUI のプロジェクトデータは、Python のサードパーティー
 /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 ```
 
-![image-20250819105656605](./img/tutorials-images/13_migrate_openwebui/01.png)
+![image-20250819105656605](../../img/tutorials-images/13_migrate_openwebui/01.png)
 
 最初に、データを Glows.ai の /datadrive へコピーします。ここでは `/datadrive/open_webui` を使います。次のコマンドを実行してください。
 
@@ -33,7 +33,7 @@ scp -P [Service Port] -r root@[Service Host] /root/miniconda3/envs/workenv/lib/p
 scp -P 26608 -r root@tw-06.access.glows.ai /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data ./
 ```
 
-![image-20250825103447671](./img/tutorials-images/13_migrate_openwebui/02.png)
+![image-20250825103447671](../../img/tutorials-images/13_migrate_openwebui/02.png)
 
 ## OpenWebUI データベースを別のインスタンスへインポートする
 
@@ -54,7 +54,7 @@ ls /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 cache  readme.txt  uploads  vector_db  webui.db
 ```
 
-![image-20250819111108445](./img/tutorials-images/13_migrate_openwebui/03.png)
+![image-20250819111108445](../../img/tutorials-images/13_migrate_openwebui/03.png)
 
 OpenWebUI データベースのパスを設定したら、変更を反映するために OpenWebUI サービスを再起動します。
 
@@ -65,7 +65,7 @@ nohup /root/miniconda3/envs/workenv/bin/open-webui serve > open_webui.log 2>&1 &
 
 新しいインスタンスのポート 8080 へ接続し直すと、元のアカウントでログインできます。
 
-![image-20250819112828928](./img/tutorials-images/13_migrate_openwebui/04.png)
+![image-20250819112828928](../../img/tutorials-images/13_migrate_openwebui/04.png)
 
 ---
 

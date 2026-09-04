@@ -49,7 +49,7 @@ GPUStack 可搭配不同 GPU、模型與推論後端，也能在異質 GPU 之�
    - **Workload Type**：選擇 **Inference GPU -- 4090**
    - **Image**：選擇官方 **GPUStack (img-rgqwxrpy)** 映像檔。該映像檔已設定 GPUStack 服務，並監聽連接埠 80。
 
-![image-20250908104737276](./img/tutorials-images/GPUStack/01.png)
+![image-20250908104737276](../../img/tutorials-images/GPUStack/01.png)
 
 ### 使用 Datadrive（選用）
 
@@ -59,7 +59,7 @@ GPUStack 可搭配不同 GPU、模型與推論後端，也能在異質 GPU 之�
 
 設定完成後，點選 **Complete Checkout** 建立執行個體。
 
-![image-20250908172833649](./img/tutorials-images/GPUStack/02.png)
+![image-20250908172833649](../../img/tutorials-images/GPUStack/02.png)
 
 > **注意**：GPUStack 映像檔約需 30–60 秒啟動。
 > 你可以在 **My Instances** 頁面查看狀態。啟動後可使用以下連接埠：
@@ -79,11 +79,11 @@ GPUStack 可搭配不同 GPU、模型與推論後端，也能在異質 GPU 之�
 
 1. 點選 **HTTP Port 8888 → Open**，開啟 JupyterLab。
 
-![image-20250821162610764](./img/tutorials-images/GPUStack/03.png)
+![image-20250821162610764](../../img/tutorials-images/GPUStack/03.png)
 
 2. 開啟新的 **Terminal**。
 
-![image-20250821162648937](./img/tutorials-images/GPUStack/04.png)
+![image-20250821162648937](../../img/tutorials-images/GPUStack/04.png)
 
 3. 執行以下命令取得 GPUStack WebUI 密碼：
 
@@ -91,55 +91,55 @@ GPUStack 可搭配不同 GPU、模型與推論後端，也能在異質 GPU 之�
    cat /var/lib/gpustack/initial_admin_password
    ```
 
-![image-20250821162729721](./img/tutorials-images/GPUStack/05.png)
+![image-20250821162729721](../../img/tutorials-images/GPUStack/05.png)
 
 ### 2. 登入 WebUI
 
 - 在執行個體介面點選 **HTTP Port 80 → Open**。
-  ![image-20250821162755137](./img/tutorials-images/GPUStack/06.png)
+  ![image-20250821162755137](../../img/tutorials-images/GPUStack/06.png)
 
 - 輸入取得的使用者名稱與密碼，再點選 `Log in`。
 
-![image-20250821162818233](./img/tutorials-images/GPUStack/07.png)
+![image-20250821162818233](../../img/tutorials-images/GPUStack/07.png)
 
 - 登入後，系統會要求你變更密碼。
 
-![image-20250821162841553](./img/tutorials-images/GPUStack/08.png)
+![image-20250821162841553](../../img/tutorials-images/GPUStack/08.png)
 
 ### 3. 使用 GPUStack WebUI
 
 - **Dashboards**：顯示目前的 worker、GPU、已部署模型和資源監控資料，包括 GPU/CPU 使用率。
-  ![image-20250821162859700](./img/tutorials-images/GPUStack/09.png)
+  ![image-20250821162859700](../../img/tutorials-images/GPUStack/09.png)
 
 - **Catalog**：直接部署 Ollama、HuggingFace 等來源的模型。
-  ![image-20250821171409795](./img/tutorials-images/GPUStack/10.png)
+  ![image-20250821171409795](../../img/tutorials-images/GPUStack/10.png)
 
 完成設定後，系統會前往 **Deployments** 頁面並開始下載模型。
 
-![image-20250821171445281](./img/tutorials-images/GPUStack/11.png)
+![image-20250821171445281](../../img/tutorials-images/GPUStack/11.png)
 
 模型下載並啟動成功後，狀態會顯示 **Running**。
 
-![image-20250821171944239](./img/tutorials-images/GPUStack/12.png)
+![image-20250821171944239](../../img/tutorials-images/GPUStack/12.png)
 
 切換到 **Chat** 頁面，即可直接與模型互動。
 
-![image-20250821173105073](./img/tutorials-images/GPUStack/13.png)
+![image-20250821173105073](../../img/tutorials-images/GPUStack/13.png)
 
 GPUStack 部署的模型也能透過 **API** 呼叫。點選介面中的 **View Code**，即可查看官方範例程式碼。
 
-![image-20250821172308362](./img/tutorials-images/GPUStack/14.png)
+![image-20250821172308362](../../img/tutorials-images/GPUStack/14.png)
 
 ---
 
 ## 取得 API Key
 
 1. 點選左下角的使用者頭像 → **API Keys**。
-   ![image-20250821172135022](./img/tutorials-images/GPUStack/15.png)
+   ![image-20250821172135022](../../img/tutorials-images/GPUStack/15.png)
 2. 點選 **New API Key** 並填寫資料。
-   ![image-20250821172216747](./img/tutorials-images/GPUStack/16.png)
+   ![image-20250821172216747](../../img/tutorials-images/GPUStack/16.png)
 3. 使用產生的 API Key 呼叫 GPUStack 模型 API。
-   ![image-20250821173253057](./img/tutorials-images/GPUStack/17.png)
+   ![image-20250821173253057](../../img/tutorials-images/GPUStack/17.png)
 
 ---
 

@@ -15,7 +15,7 @@ OpenWebUI 的專案資料儲存在 Python 第三方套件資料夾下的 `open_w
 /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 ```
 
-![image-20250819105656605](./img/tutorials-images/13_migrate_openwebui/01.png)
+![image-20250819105656605](../../img/tutorials-images/13_migrate_openwebui/01.png)
 
 先將資料複製到 Glows.ai 的 /datadrive，例如 `/datadrive/open_webui`。執行以下命令複製檔案：
 
@@ -33,7 +33,7 @@ scp -P [Service Port] -r root@[Service Host] /root/miniconda3/envs/workenv/lib/p
 scp -P 26608 -r root@tw-06.access.glows.ai /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data ./
 ```
 
-![image-20250825103447671](./img/tutorials-images/13_migrate_openwebui/02.png)
+![image-20250825103447671](../../img/tutorials-images/13_migrate_openwebui/02.png)
 
 ## 將 OpenWebUI 資料庫匯入另一個執行個體
 
@@ -54,7 +54,7 @@ ls /root/miniconda3/envs/workenv/lib/python3.11/site-packages/open_webui/data
 cache  readme.txt  uploads  vector_db  webui.db
 ```
 
-![image-20250819111108445](./img/tutorials-images/13_migrate_openwebui/03.png)
+![image-20250819111108445](../../img/tutorials-images/13_migrate_openwebui/03.png)
 
 設定 OpenWebUI 資料庫路徑後，需要重新啟動 OpenWebUI 服務才能套用變更。執行以下命令：
 
@@ -65,7 +65,7 @@ nohup /root/miniconda3/envs/workenv/bin/open-webui serve > open_webui.log 2>&1 &
 
 重新連線到新執行個體的連接埠 8080，即可使用原本的帳號登入。
 
-![image-20250819112828928](./img/tutorials-images/13_migrate_openwebui/04.png)
+![image-20250819112828928](../../img/tutorials-images/13_migrate_openwebui/04.png)
 
 ---
 

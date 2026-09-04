@@ -20,11 +20,11 @@ tags:
 
 開始前，請確認建立執行個體時已勾選 **Mount**，掛載你的 `Datadrive`。
 
-![image-20250906115435105](./img/tutorials-images/Ollama/01.png)
+![image-20250906115435105](../../img/tutorials-images/Ollama/01.png)
 
 建立執行個體後，前往執行個體介面並開啟 **HTTP 8888 Port（JupyterLab 服務）**。如下圖建立新的 **Terminal**：
 
-![image-20250906110026201](./img/tutorials-images/Ollama/02.png)
+![image-20250906110026201](../../img/tutorials-images/Ollama/02.png)
 
 在 Terminal 中依序完成以下操作：
 
@@ -39,12 +39,12 @@ export OLLAMA_MODELS=/datadrive/ollama
 nohup ollama serve > ollama.log 2>&1 &
 ```
 
-![image-20250906110430019](./img/tutorials-images/Ollama/03.png)
+![image-20250906110430019](../../img/tutorials-images/Ollama/03.png)
 
 設定並重新啟動後，使用 `ollama pull` 下載的模型都會儲存在 `/datadrive/ollama`。
 下次不需建立 Snapshot，只要重新掛載 Datadrive，即可繼續使用先前下載的模型。
 
-![image-20250906110704574](./img/tutorials-images/Ollama/04.png)
+![image-20250906110704574](../../img/tutorials-images/Ollama/04.png)
 
 ---
 
@@ -66,11 +66,11 @@ export OLLAMA_MODELS=/datadrive/ollama
 
 按下 **Ctrl + S** 儲存檔案。
 
-![image-20250906114655391](./img/tutorials-images/Ollama/05.png)
+![image-20250906114655391](../../img/tutorials-images/Ollama/05.png)
 
 設定完成後即可建立 Snapshot。在執行個體介面點選 **Take Snapshot**，輸入快照名稱。如果不再需要目前的執行個體，可勾選 **Release instance after Snapshot completes**。
 
-![image-20250908180754775](./img/tutorials-images/Ollama/06.png)
+![image-20250908180754775](../../img/tutorials-images/Ollama/06.png)
 
 之後從此 Snapshot 建立的新執行個體，都會將 Ollama 模型儲存在 `/datadrive/ollama`，不必再次設定。
 

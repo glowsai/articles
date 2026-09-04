@@ -22,11 +22,11 @@ tags:
 
 **65GB** のモデルをダウンロードし、**TW-03 リージョン**で **NVIDIA GeForce RTX 4090** GPU を使う例です。[Storage Space](https://platform.glows.ai/space) を開き、**100GB** のストレージパッケージを購入します。
 
-![image-20251125180753151](./img/tutorials-images/15.HuggingFace/01.png)
+![image-20251125180753151](../../img/tutorials-images/15.HuggingFace/01.png)
 
 **Storage Space** 画面で `Modify` をクリックし、**TW-03 リージョンの Datadrive** に **70GB** を割り当てます。
 
-![image-20251125181002653](./img/tutorials-images/15.HuggingFace/02.png)
+![image-20251125181002653](../../img/tutorials-images/15.HuggingFace/02.png)
 
 ### Datadrive クライアントでダウンロードする
 
@@ -44,17 +44,17 @@ tags:
 
 この方法では **Glows.ai** にインスタンスを作成します。ここでは **TW-03 リージョン**で **NVIDIA GeForce RTX 4090 GPU** を使用し、環境に **CUDA 12.8 Torch 2.8.0 Base** を指定します。
 
-![image-20251125120458313](./img/tutorials-images/15.HuggingFace/03.png)
+![image-20251125120458313](../../img/tutorials-images/15.HuggingFace/03.png)
 
 インスタンス作成後、**SSH** または **HTTP Port 8888（JupyterLab）**で接続できます。
 
-![image-20251125121244598](./img/tutorials-images/15.HuggingFace/04.png)
+![image-20251125121244598](../../img/tutorials-images/15.HuggingFace/04.png)
 
 ### コマンドでモデルをダウンロードする
 
 以下では JupyterLab での操作を示します。新しい **Terminal** を開きます。
 
-![image-20251125121423526](./img/tutorials-images/15.HuggingFace/05.png)
+![image-20251125121423526](../../img/tutorials-images/15.HuggingFace/05.png)
 
 次のコマンドで HuggingFace 公式のモデル管理ツール **huggingface_hub** をインストールします。
 
@@ -62,7 +62,7 @@ tags:
 pip install -U huggingface_hub
 ```
 
-![image-20251125121510970](./img/tutorials-images/15.HuggingFace/06.png)
+![image-20251125121510970](../../img/tutorials-images/15.HuggingFace/06.png)
 
 インストール後、`hf` コマンドでモデルファイルをインスタンスへ直接ダウンロードできます。
 たとえば `openai/gpt-oss-20b` を `/gpt-oss-20b` ディレクトリへダウンロードするには、次のコマンドを使います。
@@ -71,7 +71,7 @@ pip install -U huggingface_hub
 hf download openai/gpt-oss-20b --local-dir /gpt-oss-20b
 ```
 
-![image-20251125122005123](./img/tutorials-images/15.HuggingFace/07.png)
+![image-20251125122005123](../../img/tutorials-images/15.HuggingFace/07.png)
 
 ------
 
@@ -86,7 +86,7 @@ hf download openai/gpt-oss-20b --local-dir /gpt-oss-20b
 HuggingFace の公式サイトにも使用例があります。
 Glows.ai での実装中に質問やご意見がある場合は、[お問い合わせ](../c/692cf77a-1754-8326-82ef-a2ec6beb1010#contact-us)に記載した窓口をご利用ください。
 
-![image-20251126140029352](./img/tutorials-images/15.HuggingFace/08.png)
+![image-20251126140029352](../../img/tutorials-images/15.HuggingFace/08.png)
 
 ------
 

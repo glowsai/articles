@@ -22,11 +22,11 @@ tags:
 
 假設要下載 **65GB** 的模型，並在 **TW-03 區域**使用 **NVIDIA GeForce RTX 4090** GPU。請先前往 [Storage Space](https://platform.glows.ai/space) 購買 **100GB** 儲存方案。
 
-![image-20251125180753151](./img/tutorials-images/15.HuggingFace/01.png)
+![image-20251125180753151](../../img/tutorials-images/15.HuggingFace/01.png)
 
 接著在 **Storage Space** 介面點選 `Modify`，將 **70GB** 空間分配給 **TW-03 區域的 Datadrive**。
 
-![image-20251125181002653](./img/tutorials-images/15.HuggingFace/02.png)
+![image-20251125181002653](../../img/tutorials-images/15.HuggingFace/02.png)
 
 ### 使用 Datadrive 用戶端下載
 
@@ -44,17 +44,17 @@ tags:
 
 此方法需要在 **Glows.ai** 建立執行個體。以下假設在 **TW-03 區域**使用 **NVIDIA GeForce RTX 4090 GPU**，環境為 **CUDA 12.8 Torch 2.8.0 Base**。
 
-![image-20251125120458313](./img/tutorials-images/15.HuggingFace/03.png)
+![image-20251125120458313](../../img/tutorials-images/15.HuggingFace/03.png)
 
 建立執行個體後，可透過 **SSH** 或 **HTTP Port 8888（JupyterLab）**連線。
 
-![image-20251125121244598](./img/tutorials-images/15.HuggingFace/04.png)
+![image-20251125121244598](../../img/tutorials-images/15.HuggingFace/04.png)
 
 ### 使用命令下載模型
 
 以下示範在 JupyterLab 中操作。先開啟新的 **Terminal**。
 
-![image-20251125121423526](./img/tutorials-images/15.HuggingFace/05.png)
+![image-20251125121423526](../../img/tutorials-images/15.HuggingFace/05.png)
 
 輸入以下命令，安裝 HuggingFace 官方模型管理工具 **huggingface_hub**：
 
@@ -62,7 +62,7 @@ tags:
 pip install -U huggingface_hub
 ```
 
-![image-20251125121510970](./img/tutorials-images/15.HuggingFace/06.png)
+![image-20251125121510970](../../img/tutorials-images/15.HuggingFace/06.png)
 
 安裝後，可使用 `hf` 命令將模型檔案直接下載到執行個體。
 例如將 `openai/gpt-oss-20b` 下載至 `/gpt-oss-20b` 目錄：
@@ -71,7 +71,7 @@ pip install -U huggingface_hub
 hf download openai/gpt-oss-20b --local-dir /gpt-oss-20b
 ```
 
-![image-20251125122005123](./img/tutorials-images/15.HuggingFace/07.png)
+![image-20251125122005123](../../img/tutorials-images/15.HuggingFace/07.png)
 
 ------
 
@@ -86,7 +86,7 @@ hf download openai/gpt-oss-20b --local-dir /gpt-oss-20b
 HuggingFace 官網也提供使用範例。
 在 Glows.ai 實作時若有問題或建議，請使用[聯絡我們](../c/692cf77a-1754-8326-82ef-a2ec6beb1010#contact-us)列出的管道。
 
-![image-20251126140029352](./img/tutorials-images/15.HuggingFace/08.png)
+![image-20251126140029352](../../img/tutorials-images/15.HuggingFace/08.png)
 
 ------
 
