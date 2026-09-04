@@ -26,11 +26,11 @@ Let's walk through the setup on Glows.ai step by step.
 
 1. Go to the official Git download page at [`git-scm.com/install/windows`](https://git-scm.com/install/windows) and download the Git for Windows installer. Run the installer once it finishes downloading. After installation, search for **Git Bash** in the Start menu and open it.
 
-![](./img/tutorials-images/18.GitBashSSH/01.png)
+![](../../img/tutorials-images/18.GitBashSSH/01.png)
 
 - Alternatively, right-click on the desktop and select **Git Bash** to open the app.
 
-![](./img/tutorials-images/18.GitBashSSH/02.png)
+![](../../img/tutorials-images/18.GitBashSSH/02.png)
 
 ## Create an SSH Key
 
@@ -40,21 +40,21 @@ Let's walk through the setup on Glows.ai step by step.
 ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
 
-![](./img/tutorials-images/18.GitBashSSH/03.png)
+![](../../img/tutorials-images/18.GitBashSSH/03.png)
 
 2. You'll be asked where to save the key. Press Enter to use the default path (`~/.ssh/id_ed25519`).
 
-![](./img/tutorials-images/18.GitBashSSH/04.png)
+![](../../img/tutorials-images/18.GitBashSSH/04.png)
 
 3. You'll be asked whether to set a passphrase. Press Enter to skip it.
 
 4. You'll be asked to confirm the passphrase. Since we didn't set one in the previous step, press Enter again to continue. If you did enter a custom passphrase, confirm it here.
 
-![](./img/tutorials-images/18.GitBashSSH/05.png)
+![](../../img/tutorials-images/18.GitBashSSH/05.png)
 
 5. Once finished, you'll see the paths where the keys were saved (`id_ed25519` is the private key, `id_ed25519.pub` is the public key) along with the key's fingerprint — confirming the SSH key pair was created successfully. Next, we'll grab the public key and upload it to Glows.ai.
 
-![](./img/tutorials-images/18.GitBashSSH/06.png)
+![](../../img/tutorials-images/18.GitBashSSH/06.png)
 
 ### Common Issue When Creating an SSH Key
 
@@ -62,11 +62,11 @@ ssh-keygen -t ed25519 -C "your_email@example.com"
 
 After running `ssh-keygen -t ed25519 -C "your_email@example.com"` to generate the key, the system asks where to save it, and pressing Enter to accept the default path can fail.
 
-![](./img/tutorials-images/18.GitBashSSH/07.png)
+![](../../img/tutorials-images/18.GitBashSSH/07.png)
 
 You'll see an error like `Could not create directory '/c/Users/xxx/.ssh'` or `Saving key ... failed: No such file or directory`. This happens because Git Bash can fail to resolve the `~/.ssh` path due to encoding issues — a known limitation when Git Bash handles non-ASCII paths.
 
-![](./img/tutorials-images/18.GitBashSSH/08.png)
+![](../../img/tutorials-images/18.GitBashSSH/08.png)
 
 **Fix:** When `ssh-keygen` prompts `Enter file in which to save the key`, don't just press Enter — type a plain-ASCII path manually instead, for example:
 
@@ -82,21 +82,21 @@ cat ~/.ssh/id_ed25519.pub
 
 This prints your public key. Copy the entire output.
 
-![](./img/tutorials-images/18.GitBashSSH/09.png)
+![](../../img/tutorials-images/18.GitBashSSH/09.png)
 
 2. On the [Glows.ai](http://glows.ai) dashboard, click `Profile` in the left sidebar, then `SSH keys`, then `New SSH Key`.
 
-![](./img/tutorials-images/18.GitBashSSH/10.png)
+![](../../img/tutorials-images/18.GitBashSSH/10.png)
 
 3. Paste the public key you copied into the field, then click **`Update key`** to save it. It may take a few minutes to take effect.
 
-![](./img/tutorials-images/18.GitBashSSH/11.png)
+![](../../img/tutorials-images/18.GitBashSSH/11.png)
 
 ## Connect to Your Instance via Git Bash and the SSH Key
 
 1. After completing the previous step, launch your instance and click `SSH port22` — the SSH Key field should change to `Active` (it may take a few minutes to switch from `Inactive` to `Active`). Once it does, you're ready to log in.
 
-![](./img/tutorials-images/18.GitBashSSH/12.png)
+![](../../img/tutorials-images/18.GitBashSSH/12.png)
 
 2. Open **Git Bash** and run the connection command:
 
@@ -106,15 +106,15 @@ ssh -p <Service Port> -i <path to private key> root@<Access URL>
 
 If you used the default path in this tutorial, `<path to private key>` is `~/.ssh/id_ed25519`.
 
-![](./img/tutorials-images/18.GitBashSSH/13.png)
+![](../../img/tutorials-images/18.GitBashSSH/13.png)
 
 3. The **first time** you connect to this host, Git Bash will show a prompt asking whether to trust the host's key fingerprint (an SSH safeguard against connecting to a spoofed server). Type `yes` and press Enter to continue. This host's information is then remembered, so you won't see this prompt again when connecting to the same instance.
 
-![](./img/tutorials-images/18.GitBashSSH/14.png)
+![](../../img/tutorials-images/18.GitBashSSH/14.png)
 
 4. Connected successfully.
 
-![](./img/tutorials-images/18.GitBashSSH/15.png)
+![](../../img/tutorials-images/18.GitBashSSH/15.png)
 
 ## Contact Us
 

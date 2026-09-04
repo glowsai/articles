@@ -27,15 +27,15 @@ Open WebUI 是一個自架、開源的 AI 聊天平台，透過 Ollama 這類推
 
 首先我們在 Glows.ai 創建一個實例，您也可以參考實例創建教程：https://docs.glows.ai/zh-TW/docs/create-new。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/001.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/001.png)
 
 - 點擊 `Create New` 並於介面中，選擇 GPU **`NVIDIA GeForce RTX 4090`**。選擇具有 **Open WebUI** 版本 0.11.0 的鏡像，本次實作我們選擇的是 **`img-9vl776l1 - Open WebUI 0.11.0`** 鏡像。點擊 `Complete Checkout` 啟動實例。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/002.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/002.png)
 
 - 成功啟動機器後，點擊 `Port 8080` 後，點擊 `Open` 進入 Open WebUI 介面。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/003.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/003.png)
 
 - 在 Open WebUI 視窗中即可進行登入。若是第一次開啟，需要註冊一個管理員帳號。
 
@@ -49,61 +49,61 @@ Open WebUI 是一個自架、開源的 AI 聊天平台，透過 Ollama 這類推
 
 ### 建立 RAG 知識庫
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/004.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/004.png)
 
 - 點擊左側的 `Workspace`，點擊 `Knowledge`，再點擊 `Create`，開始建立知識庫。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/005.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/005.png)
 
 - 輸入知識庫的基本資料後，點擊 `Create Knowledge`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/006.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/006.png)
 
 - 建立成功後您可以看到知識庫名稱，以及知識庫的 ID，稍後將會使用到此 ID。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/007.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/007.png)
 
 - 接著點擊 `＋`，並點擊 `Upload files`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/008.jpeg)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/008.jpeg)
 
 - 選擇您要作為知識庫資料的檔案，本案例中使用虛構故事劇情文本。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/009.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/009.png)
 
 - 檔案上傳後，您即可在列表中看到資料，表示此知識庫成功嵌入此檔案。
 
 ### 將知識庫綁定於模型
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/010.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/010.png)
 
 - 為了使 AI 能調用此知識庫中的資料，我們需要建立一個新的模型，並且綁定此知識庫。首先點擊 `Model` 後，點擊 `Create`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/011.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/011.png)
 
 - 輸入模型基本資料以及 System prompt。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/012.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/012.png)
 
 - 在下方接著選擇 `Select Knowledge`，並選擇您指定的知識庫。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/013.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/013.png)
 
 - 完成後點擊 `Save & Create`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/014.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/014.png)
 
 - 建立成功後，您即可在模型列表中看見該模型。
 
 ### 使 AI 透過知識庫的資料回答
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/015.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/015.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/016.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/016.png)
 
 - 在對話框右側選擇先前建立的模型，並且在對話框輸入測試的問題，確認 AI 能夠取得知識庫的資料。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/017.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/017.png)
 
 - 測試成功，AI 成功取得知識庫中的資料並回答。
 
@@ -117,15 +117,15 @@ Open WebUI 是一個自架、開源的 AI 聊天平台，透過 Ollama 這類推
 
 要透過 API 呼叫 Open WebUI，必須先取得 API 金鑰作為身分驗證，讓系統可以判斷這次您的請求擁有權限，進而開放服務。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/018.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/018.png)
 
 - 首先點擊左下角 `Settings`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/019.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/019.png)
 
 - 點擊 `Authorization`，開啟 `API Keys` 後，點擊 `Save` 後，即會開啟 API 金鑰功能。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/020.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/020.png)
 
 - 點擊 `Account`，您即可獲取 API Key。
 
@@ -133,11 +133,11 @@ Open WebUI 是一個自架、開源的 AI 聊天平台，透過 Ollama 這類推
 
 在呼叫 API 時，除了 API 金鑰之外，必須額外提供知識庫的 ID，明確告訴系統這次要調用的文件資料來源是哪一份。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/021.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/021.png)
 
 - 首先點擊 `Workspace` → `Knowledge` → 點擊指定的知識庫。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/022.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/022.png)
 
 - 您可以在右側找到知識庫的 ID，此 ID 將會作為參數傳入 API 請求。
 
@@ -145,11 +145,11 @@ Open WebUI 是一個自架、開源的 AI 聊天平台，透過 Ollama 這類推
 
 取得 API 金鑰及知識庫 ID 後，接著我們即刻進行 API 的使用。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/023.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/023.png)
 
 - 首先透過 Glows.ai 介面，取得 SSH 連線方式。例如：`ssh -p <你的SSH port> root@tw-06.access.glows.ai`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/024.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/024.png)
 
 - 透過終端機使用 SSH 存取該機器，輸入密碼後進入機器。
 
@@ -186,17 +186,17 @@ curl -X POST http://localhost:8080/api/chat/completions \
 >
 > **`YOUR_KNOWLEDGE_ID`**: 於 WorkSpace > Knowledge，點進目標知識庫，網址列或詳情頁會顯示這串 ID。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/025.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/025.png)
 
 - 為驗證 AI 是否真正調用知識庫資料，範例中要求 AI 針對知識庫中的虛構故事劇情進行問題測試。其中一則問題為「故事中的音樂學院每年最多招收多少名學生」，並要求 AI 附上引用原文。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/026.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/026.png)
 
 - AI 正確回答「12 名」，並準確引用了知識庫中對應的段落位置，證實檢索結果確實來自知識庫，而非模型猜測。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/027.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/027.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/028.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/028.png)
 
 - 另一則問題為「故事中的燈塔的高度是多少?」，同樣要求 AI 附上引用原文。AI 正確回答「46 公尺高」。
 
@@ -210,15 +210,15 @@ Sub-agent 是一個讓 AI 把工作拆成多份，分派給多個獨立分身各
 
 ### 設定並使用 Sub-agents
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/029.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/029.png)
 
 - 點擊左下角個人資訊頭像，點擊 `Setting`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/030.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/030.png)
 
 - 將 `Enable sub-agents` 開啟，點擊 `Save`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/031.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/031.png)
 
 - 開啟一段對話進行測試，Sub-agents 成功觸發任務委派後，進一步以數學計算題測試其準確性，確認「子代理」運算功能。產出結果確認 Sub-agents 能成功觸發平行任務處理機制。
 
@@ -230,11 +230,11 @@ Skills 是一個讓你把固定的規則或風格寫成一份可重複調用的�
 
 ### 建立 Skills
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/032.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/032.png)
 
 - 點擊 `Workspace` → 點擊 `Skill` → 點擊 `Create` 開始設定。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/033.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/033.png)
 
 在此頁面中，您可以輸入：
 
@@ -243,31 +243,31 @@ Skills 是一個讓你把固定的規則或風格寫成一份可重複調用的�
 - **Skill Description**: 一句話說明什麼情況下該使用這個技能，決定技能是否會被正確觸發。
 - **內文**: 具體規則，用條列式列出可執行的行為要求。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/034.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/034.png)
 
 - 在此範例中，我們建立一個「Email 潤稿助理」技能，讓 AI 依照固定的四條規則（語氣、長度、結構、結尾）調整郵件用詞，並在回覆開頭附上固定標記，方便確認技能是否真的被套用。輸入完畢後，點擊 `Save & Create`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/035.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/035.png)
 
 - 完成後您即可在 Skills 列表中看見建立好的 Skill。
 
 ### 使用 Skills
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/036.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/036.png)
 
 - 點擊 `Models` 選擇欲套用 Skill 的模型，並在右側點擊 `Edit`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/037.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/037.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/038.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/038.png)
 
 - 點擊 `Select Skill`，選擇剛剛建立的 Skill。選擇完畢後在選單下方點擊 `Save & Update`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/039.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/039.png)
 
 - 在聊天對話框透過問題測試，Skill 成功被自動觸發（`view_skill` 已執行）。AI 偵測到這次的提問（潤飾寄給客戶的訊息）符合此觸發情境，因此自動呼叫 view_skill 讀取規則並套用。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/040.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/040.png)
 
 - 您也可以主動在輸入框輸入 `$` 列出現有的 Skills，主動指定讓 AI 使用。
 
@@ -275,19 +275,19 @@ Skills 是一個讓你把固定的規則或風格寫成一份可重複調用的�
 
 除了自架的本地模型（Ollama），Open WebUI 同樣能接上其他雲端模型（如 OpenAI），兩者可以在同一個介面裡並存、混用。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/041.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/041.png)
 
 - 點擊左下角個人訊息頭像後，點擊 `Setting`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/042.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/042.png)
 
 - 在左側列表選擇 `Connections`，將 OpenAI API 開啟後，點擊 `＋`。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/043.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/043.png)
 
 - 開始輸入外部供應商模型資訊。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/044.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/044.png)
 
 - 點擊 `URL`，您可以選定不同的模型供應商。輸入您的 API Key，完成後點擊 `Save`。
 
@@ -301,11 +301,11 @@ Skills 是一個讓你把固定的規則或風格寫成一份可重複調用的�
   - `openrouter.ai` — OpenRouter
   - `api.x.ai` — xAI（Grok）
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/045.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/045.png)
 
 - 在 Models 中，您即可以選擇剛剛所設置的外部供應商模型。
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/046.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/046.png)
 
 - 您也可以直接在對話框右側，指定您要使用的外部供應商模型。
 

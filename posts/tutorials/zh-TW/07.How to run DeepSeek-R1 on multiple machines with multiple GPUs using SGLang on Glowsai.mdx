@@ -17,11 +17,11 @@ tags:
 
 1. 在介面上點選 `Upgrade`，購買 5GB 空間。你也可以依實際需求購買更大的儲存空間。
 
-![Space Storage](./img/tutorials-images/07.DeepSeekSGLang/01.SpaceStorage.png)
+![Space Storage](../../img/tutorials-images/07.DeepSeekSGLang/01.SpaceStorage.png)
 
 2. 購買儲存方案後，依圖片順序點選 `Modify`。本教學將 3GB 分配給 `Snapshot`，2GB 分配給「TW-01」的 `Datadrive`，再點選 `Update`。此配置僅供示範，請依專案需求調整容量。
 
-![Modify Quata](./img/tutorials-images/07.DeepSeekSGLang/02.ModifyQuota.png)
+![Modify Quata](../../img/tutorials-images/07.DeepSeekSGLang/02.ModifyQuota.png)
 
 ## 步驟二：建立執行個體
 
@@ -35,17 +35,17 @@ tags:
 | DeepSeek-R1 671B             | 8x H100               | 2          | 建議使用 2 台各配備 8 張 GPU 的機器 |
 | DeepSeek-R1 671B             | 8x H200               | 1          | 多張高階 GPU 必須位於同一節點     |
 
-![CreateNew](./img/tutorials-images/07.DeepSeekSGLang/03.CreateNew.png)
+![CreateNew](../../img/tutorials-images/07.DeepSeekSGLang/03.CreateNew.png)
 
 在頁面底部點選 `Mount`，將自己的 `Datadrive` 掛載至執行個體。這樣可在多個執行個體之間共用檔案，也方便永久保存機器上的檔案，或稍後下載至本機。
 
 完成後，點選 `Complete Checkout` 建立執行個體。
 
-![Mount Data Drive](./img/tutorials-images/07.DeepSeekSGLang/04.MountDataDrive.png)
+![Mount Data Drive](../../img/tutorials-images/07.DeepSeekSGLang/04.MountDataDrive.png)
 
 若要透過 SGLang 在多台機器與多張 GPU 上執行大型模型推論服務，請重複以上步驟，再建立一個執行個體。兩個執行個體建立完成後，**My Instances** 頁面會顯示兩筆記錄。
 
-![My Instance](./img/tutorials-images/07.DeepSeekSGLang/05.MyInstance.png)
+![My Instance](../../img/tutorials-images/07.DeepSeekSGLang/05.MyInstance.png)
 
 執行個體約需 30–50 秒啟動。狀態變成 `Running` 後即可使用。
 
@@ -57,7 +57,7 @@ tags:
 
 **注意：** 若需要對應其他連接埠，可點選 `New Port Forwarding` 新增。新增的連接埠若使用 HTTP 通訊協定，請勾選 HTTP 選項。
 
-![Port](./img/tutorials-images/07.DeepSeekSGLang/06.Port.png)
+![Port](../../img/tutorials-images/07.DeepSeekSGLang/06.Port.png)
 
 點選 HTTP Port 8888 的 `Open` 開啟 JupyterLab。建立新的 Terminal，輸入以下命令，將模型下載到執行個體的 /home/DeepSeek-R1-Distill-Qwen-14B 目錄。模型約 28GB，預估下載時間為 5–10 分鐘。
 
@@ -67,7 +67,7 @@ tags:
 huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --local-dir /home/DeepSeek-R1-Distill-Qwen-14B
 ```
 
-![Download](./img/tutorials-images/07.DeepSeekSGLang/07.Download.png)
+![Download](../../img/tutorials-images/07.DeepSeekSGLang/07.Download.png)
 
 ### 2. 建立叢集
 
@@ -81,15 +81,15 @@ huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --local-dir /h
 - Region：TW-01
 - Name：可自行命名，例如 SGLang。
 
-![Create Network Group](./img/tutorials-images/07.DeepSeekSGLang/08.CreateNetworkGroup.png)
+![Create Network Group](../../img/tutorials-images/07.DeepSeekSGLang/08.CreateNetworkGroup.png)
 
 點選 `Add Instance`，把先前建立的兩個執行個體加入 Network Group。
 
-![Add Instance](./img/tutorials-images/07.DeepSeekSGLang/09.AddInstance.png)
+![Add Instance](../../img/tutorials-images/07.DeepSeekSGLang/09.AddInstance.png)
 
 加入後，Status 會變成 `Connected`，代表內部網路已連線。先前顯示的 IP CIDR 代表內部 IP 位址。例如下圖中，兩台機器的內部 IP 分別是 192.168.1.1 與 192.168.1.2。
 
-![Connected](./img/tutorials-images/07.DeepSeekSGLang/10.Connected.png)
+![Connected](../../img/tutorials-images/07.DeepSeekSGLang/10.Connected.png)
 
 ### 3. 啟動服務
 
@@ -98,7 +98,7 @@ huggingface-cli download deepseek-ai/DeepSeek-R1-Distill-Qwen-14B --local-dir /h
 - 內部 IP：192.168.1.1
 - 內部網路介面：meth340
 
-![Internal Network](./img/tutorials-images/07.DeepSeekSGLang/11.InternalNetwork.png)
+![Internal Network](../../img/tutorials-images/07.DeepSeekSGLang/11.InternalNetwork.png)
 
 在兩個節點上依序執行以下命令：
 
@@ -113,7 +113,7 @@ export HOST_IP=192.168.1.1
 python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 0 --trust-remote-code --host 0.0.0.0
 ```
 
-![Instance1](./img/tutorials-images/07.DeepSeekSGLang/12.Instance1.png)
+![Instance1](../../img/tutorials-images/07.DeepSeekSGLang/12.Instance1.png)
 
 ```bash
 # On Instance 2, run the following commands in order
@@ -126,11 +126,11 @@ export HOST_IP=192.168.1.1
 python3 -m sglang.launch_server --model /home/DeepSeek-R1-Distill-Qwen-14B --port 8000 --tp 2 --dist-init-addr 192.168.1.1:6379 --nnodes 2 --node-rank 1 --trust-remote-code --host 0.0.0.0
 ```
 
-![Instance2](./img/tutorials-images/07.DeepSeekSGLang/13.Instance2.png)
+![Instance2](../../img/tutorials-images/07.DeepSeekSGLang/13.Instance2.png)
 
 下圖是正常執行時的畫面。模型通常可在 1 分鐘內載入完成。
 
-![Model Loading](./img/tutorials-images/07.DeepSeekSGLang/14.ModelLoading.png)
+![Model Loading](../../img/tutorials-images/07.DeepSeekSGLang/14.ModelLoading.png)
 
 ## 步驟四：測試 API
 
@@ -141,7 +141,7 @@ Copied link：https://tw-03.access.glows.ai:24516?token=hSFGABSM
 Actual link：https://tw-03.access.glows.ai:24516
 ```
 
-![HTTP Port 8000](./img/tutorials-images/07.DeepSeekSGLang/15.HTTPPort8000.png)
+![HTTP Port 8000](../../img/tutorials-images/07.DeepSeekSGLang/15.HTTPPort8000.png)
 
 以下是測試程式碼。請將程式碼中的 base_url 改成剛才複製的連結。
 
@@ -162,7 +162,7 @@ response = client.chat.completions.create(
 print(response)
 ```
 
-![Demo](./img/tutorials-images/07.DeepSeekSGLang/16.Demo.png)
+![Demo](../../img/tutorials-images/07.DeepSeekSGLang/16.Demo.png)
 
 ## 步驟五：資料儲存與快照
 
@@ -181,7 +181,7 @@ print(response)
 
 如果沒有修改環境，則不需要建立快照。
 
-![Take Snapshot](./img/tutorials-images/07.DeepSeekSGLang/17.TakeSnapshot.png)
+![Take Snapshot](../../img/tutorials-images/07.DeepSeekSGLang/17.TakeSnapshot.png)
 
 ## 步驟六：關閉執行個體
 

@@ -19,7 +19,7 @@ The tutorial covers the following topics:
 
 **GPT-OSS-20B** is an open-source large language model released by OpenAI in August 2025, featuring around 21 billion parameters. It uses a **Mixture-of-Experts (MoE)** architecture, where each token only activates about 3.6 billion parameters, reducing inference resource requirements. The model supports local deployment, with performance optimizations for MoE layers, and runs with only 16GB of GPU memory. According to official benchmarks, its performance is close to **OpenAI o3-mini** on several common tests.
 
-![image-20250811161540192](./img/tutorials-images/12_gpt_oss/01.png)
+![image-20250811161540192](../../img/tutorials-images/12_gpt_oss/01.png)
 
 ## Creating an Instance
 
@@ -27,7 +27,7 @@ On Glows.ai, create an on-demand instance following [this guide](https://docs.gl
 
 On the **Create New** page, set `Workload Type` to **Inference GPU -- 4090** and select the **GPT OSS 20B** image. This image comes with the necessary runtime environment and pre-started services: Ollama (listening on port 11434) and OpenWebUI (listening on port 8080).
 
-![image-20250811142101261](./img/tutorials-images/12_gpt_oss/02.png)
+![image-20250811142101261](../../img/tutorials-images/12_gpt_oss/02.png)
 
 **Datadrive** is Glows.ai’s cloud storage service, allowing you to upload data, models, and code before creating an instance. During instance creation, you can click `Mount` to mount Datadrive, giving direct access from the instance.
 
@@ -35,7 +35,7 @@ This tutorial focuses on inference only, so mounting Datadrive is not required.
 
 After completing the setup, click `Complete Checkout` in the bottom right to create the instance.
 
-![image-20250811142313589](./img/tutorials-images/12_gpt_oss/03.png)
+![image-20250811142313589](../../img/tutorials-images/12_gpt_oss/03.png)
 
 The **GPT OSS 20B** instance takes about 30–60 seconds to start. Once started, you can check its status and access links in `My Instances`:
 
@@ -44,39 +44,39 @@ The **GPT OSS 20B** instance takes about 30–60 seconds to start. Once started,
 - **HTTP Port 11434**: Ollama API
 - **HTTP Port 8080**: OpenWebUI
 
-![image-20250811142452011](./img/tutorials-images/12_gpt_oss/04.png)
+![image-20250811142452011](../../img/tutorials-images/12_gpt_oss/04.png)
 
 ## Using GPT OSS 20B
 
 Go to the `My Instances` page and click the `Open` button under **HTTP Port 8080** to access the **Open WebUI** service. The first time you use it, you’ll need to create an administrator account.
 
-![image-20250811142719474](./img/tutorials-images/12_gpt_oss/05.png)
+![image-20250811142719474](../../img/tutorials-images/12_gpt_oss/05.png)
 
 Once the account is created, you’ll enter the chat interface and can interact directly with the **gpt-oss-20b** model.
 
-![image-20250811143014826](./img/tutorials-images/12_gpt_oss/06.png)
+![image-20250811143014826](../../img/tutorials-images/12_gpt_oss/06.png)
 
 **Open WebUI** also suggests follow-up questions based on the current conversation, making it easier to extend dialogues.
 
-![image-20250811150602422](./img/tutorials-images/12_gpt_oss/07.png)
+![image-20250811150602422](../../img/tutorials-images/12_gpt_oss/07.png)
 
 ## Sharing with Friends
 
 OpenWebUI has a built-in account management system to isolate conversations. Follow these steps: click the top-left menu → bottom-left avatar → **`Admin Panel`**.
 
-![image-20250811143426787](./img/tutorials-images/12_gpt_oss/08.png)
+![image-20250811143426787](../../img/tutorials-images/12_gpt_oss/08.png)
 
 Click `Settings`, set **Default User Role** to `user`, enable **New Sign Ups**, and click `Save`.
 
-![image-20250811144203704](./img/tutorials-images/12_gpt_oss/09.png)
+![image-20250811144203704](../../img/tutorials-images/12_gpt_oss/09.png)
 
 Share the **HTTP Port 8080** link from `My Instances` with friends. They can open it in a browser and click `Sign up` to create a new account.
 
-![image-20250811144249486](./img/tutorials-images/12_gpt_oss/10.png)
+![image-20250811144249486](../../img/tutorials-images/12_gpt_oss/10.png)
 
 After users register, the admin can view their accounts and question history in the **`Admin Panel`**.
 
-![image-20250811144448371](./img/tutorials-images/12_gpt_oss/11.png)
+![image-20250811144448371](../../img/tutorials-images/12_gpt_oss/11.png)
 
 ## Calling GPT OSS 20B via API
 
@@ -84,12 +84,12 @@ To call GPT-OSS-20B programmatically, enable it as an API service.
 
 In the **`Admin Panel` → `Settings`**, scroll down to **Enable API Key**, enable it, and click **Save**.
 
-![image-20250811144752670](./img/tutorials-images/12_gpt_oss/12.png)
+![image-20250811144752670](../../img/tutorials-images/12_gpt_oss/12.png)
 
 In your personal account, go to `Settings` → `Account` to view or create API keys. Keep your key safe, as it will be used in **Auto Deploy** examples.
 
-![image-20250811144841124](./img/tutorials-images/12_gpt_oss/13.png)
-![image-20250811144912480](./img/tutorials-images/12_gpt_oss/14.png)
+![image-20250811144841124](../../img/tutorials-images/12_gpt_oss/13.png)
+![image-20250811144912480](../../img/tutorials-images/12_gpt_oss/14.png)
 
 After obtaining an **API key**, you can send requests as follows. API endpoint format:
 
@@ -118,7 +118,7 @@ curl -X POST https:/tw-05.access.glows.ai:25947/api/chat/completions \
 
 The model returns results after inference.
 
-![image-20250811150332264](./img/tutorials-images/12_gpt_oss/15.png)
+![image-20250811150332264](../../img/tutorials-images/12_gpt_oss/15.png)
 
 You can also use OpenAI’s Python SDK:
 
@@ -139,7 +139,7 @@ response = client.chat.completions.create(
 print(response)
 ```
 
-![image-20250811170502665](./img/tutorials-images/12_gpt_oss/16.png)
+![image-20250811170502665](../../img/tutorials-images/12_gpt_oss/16.png)
 
 ## Advanced Usage: **Auto Deploy**
 
@@ -151,25 +151,25 @@ Traditional GPU deployment requires manually creating and releasing instances. F
 
 To preserve API keys and environment configurations, take a snapshot via **`Take Snapshot`** on Glows.ai.
 
-![image-20250811170732162](./img/tutorials-images/12_gpt_oss/17.png)
+![image-20250811170732162](../../img/tutorials-images/12_gpt_oss/17.png)
 
 Enter a snapshot name and select **`automatically released`**, so the instance is released after snapshot creation.
 
-![image-20250811170845190](./img/tutorials-images/12_gpt_oss/18.png)
+![image-20250811170845190](../../img/tutorials-images/12_gpt_oss/18.png)
 
 If you haven’t purchased storage, Glows.ai stores snapshots under **Snapshots → Restorable**. For this tutorial, the snapshot is small. You can buy a 5GB storage plan for \$0.5/month at [Storage Space](https://platform.glows.ai/space) and allocate 1GB to the snapshot. Afterward, move it to **Available** in [Snapshots](https://platform.glows.ai/snapshots).
 
-![image-20250811171559043](./img/tutorials-images/12_gpt_oss/19.png)
+![image-20250811171559043](../../img/tutorials-images/12_gpt_oss/19.png)
 
 ### Setting Up Auto Deploy
 
 Go to [Auto Deploy](https:/platform.glows.ai/deploy) → `New Deploy` to create a new configuration. Name it for easy identification.
 
-![image-20250811171843622](./img/tutorials-images/12_gpt_oss/20.png)
+![image-20250811171843622](../../img/tutorials-images/12_gpt_oss/20.png)
 
 Select the GPU and environment. You can use a snapshot or system image; here, we choose the previously created snapshot.
 
-![image-20250811171948063](./img/tutorials-images/12_gpt_oss/21.png)
+![image-20250811171948063](../../img/tutorials-images/12_gpt_oss/21.png)
 
 Set the service port and start command. For this example, Open WebUI runs on port 8080 automatically, so only the port needs configuration.
 
@@ -177,14 +177,14 @@ Set the service port and start command. For this example, Open WebUI runs on por
 Port: 8080
 ```
 
-![image-20250811172106189](./img/tutorials-images/12_gpt_oss/22.png)
+![image-20250811172106189](../../img/tutorials-images/12_gpt_oss/22.png)
 Click `Confirm` to complete setup.
 
 ### Viewing Configuration
 
 After setup, you can see the fixed link and configuration details.
 
-![image-20250811172148517](./img/tutorials-images/12_gpt_oss/23.png)
+![image-20250811172148517](../../img/tutorials-images/12_gpt_oss/23.png)
 
 ### Calling Auto Deploy Link
 
@@ -206,7 +206,7 @@ curl -X POST https:/tw-05.sgw.glxxxxxx224w/api/chat/completions \
       }'
 ```
 
-![image-20250811173542494](./img/tutorials-images/12_gpt_oss/24.png)
+![image-20250811173542494](../../img/tutorials-images/12_gpt_oss/24.png)
 
 If no new requests occur within 5 minutes, the system releases the instance automatically. **Auto Deploy** also shows total costs and **Instance Status**:
 

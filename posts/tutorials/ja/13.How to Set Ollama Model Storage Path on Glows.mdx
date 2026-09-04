@@ -20,11 +20,11 @@ tags:
 
 作業を始める前に、インスタンス作成時に **Mount** を選び、`Datadrive` を接続したことを確認してください。
 
-![image-20250906115435105](./img/tutorials-images/Ollama/01.png)
+![image-20250906115435105](../../img/tutorials-images/Ollama/01.png)
 
 インスタンス作成後、インスタンス画面で **HTTP 8888 Port（JupyterLab サービス）**を開き、下図のように新しい **Terminal** を作成します。
 
-![image-20250906110026201](./img/tutorials-images/Ollama/02.png)
+![image-20250906110026201](../../img/tutorials-images/Ollama/02.png)
 
 Terminal で次の操作を順に行います。
 
@@ -39,12 +39,12 @@ export OLLAMA_MODELS=/datadrive/ollama
 nohup ollama serve > ollama.log 2>&1 &
 ```
 
-![image-20250906110430019](./img/tutorials-images/Ollama/03.png)
+![image-20250906110430019](../../img/tutorials-images/Ollama/03.png)
 
 設定して再起動すると、`ollama pull` でダウンロードしたモデルは `/datadrive/ollama` に保存されます。
 次回は Snapshot を作成しなくても、Datadrive を再マウントすればダウンロード済みモデルを利用できます。
 
-![image-20250906110704574](./img/tutorials-images/Ollama/04.png)
+![image-20250906110704574](../../img/tutorials-images/Ollama/04.png)
 
 ---
 
@@ -66,11 +66,11 @@ export OLLAMA_MODELS=/datadrive/ollama
 
 **Ctrl + S** でファイルを保存します。
 
-![image-20250906114655391](./img/tutorials-images/Ollama/05.png)
+![image-20250906114655391](../../img/tutorials-images/Ollama/05.png)
 
 設定後、Snapshot を作成できます。インスタンス画面で **Take Snapshot** をクリックし、名前を入力します。現在のインスタンスが不要な場合は **Release instance after Snapshot completes** を選択できます。
 
-![image-20250908180754775](./img/tutorials-images/Ollama/06.png)
+![image-20250908180754775](../../img/tutorials-images/Ollama/06.png)
 
 この Snapshot から作成する新しいインスタンスでは、Ollama モデルが `/datadrive/ollama` に保存されるため、再設定は不要です。
 

@@ -22,7 +22,7 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
 - PyCharm は JetBrains が開発するツールです。Glows.ai はサービスへの接続手順だけを案内しています。IDE に関する問題は PyCharm の公式サポートへお問い合わせください。
 
 - このチュートリアルでは PyCharm 2024.2.4（Professional Edition）を使用します。
-  ![PyCharm Edition](./img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
+  ![PyCharm Edition](../../img/tutorials-images/02.PyCharm/01.PyCharm.PNG)
 
 最初に Glows.ai で [GPU をレンタル](https://platform.glows.ai/create)し、その GPU を使えるように PyCharm を設定します。
 
@@ -34,15 +34,15 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
 
 2. `Create to start` をクリックしてプロジェクトを作成します。
 
-   ![Create to Start](./img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
+   ![Create to Start](../../img/tutorials-images/02.PyCharm/02.Create2Start.PNG)
 
 3. プロジェクトフォルダーを右クリックし、新しい Python ファイルを作成します。
 
-   ![Create New File](./img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
+   ![Create New File](../../img/tutorials-images/02.PyCharm/03.CreateNewFile.PNG)
 
 4. Python ファイルに「Test」などの名前を付けます。
 
-   ![NametheFile](./img/tutorials-images/02.PyCharm/04.NametheFile.png)
+   ![NametheFile](../../img/tutorials-images/02.PyCharm/04.NametheFile.png)
 
 5. ファイルに簡単なコードを入力します。
 
@@ -50,7 +50,7 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
    print("Hello world!")
    ```
 
-   ![SimpleCommand](./img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
+   ![SimpleCommand](../../img/tutorials-images/02.PyCharm/05.SimpleCommand.png)
 
 ## **ステップ 2：リモート接続を設定する**
 
@@ -58,17 +58,17 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
 
 - Windows では、左上の File - Settings をクリックします。
 
-  ![Windows User](./img/tutorials-images/02.PyCharm/06.WindowsUser.png)
+  ![Windows User](../../img/tutorials-images/02.PyCharm/06.WindowsUser.png)
 
 - Mac では、**PyCharm - Preferences** をクリックします。
 
-  ![Mac User](./img/tutorials-images/02.PyCharm/07.MacUser.png)
+  ![Mac User](../../img/tutorials-images/02.PyCharm/07.MacUser.png)
 
 **PyCharm 2024**
 
 2. PyCharm 2024 以降を使用する場合は、**Project:pythonProject - Python Interpreter** を開き、`Add Interpreter` -> `On SSH` の順にクリックしてリモートインタープリターを追加します。
 
-![New Remote Interpreter](./img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
+![New Remote Interpreter](../../img/tutorials-images/02.PyCharm/08.NewRemoteInterpreter.png)
 
 3. レンタルしたマシンの Host、Port、Username、password を入力します。
 
@@ -76,9 +76,9 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
 - Port：Glows.ai の SSH 接続情報にある `-p` の後ろの数字です。この例では `23470` で、通常は 5 桁です。
 - Username：`root`
 
-  ![Detail](./img/tutorials-images/02.PyCharm/09.Detail1.png)
+  ![Detail](../../img/tutorials-images/02.PyCharm/09.Detail1.png)
 
-  ![Detail2](./img/tutorials-images/02.PyCharm/10.Detail2.png)
+  ![Detail2](../../img/tutorials-images/02.PyCharm/10.Detail2.png)
 
 4. 続く画面で `Next` をクリックします。インタープリター選択画面では `System Interpreter` を選び、レンタルしたマシンの Python インタープリターを入力します。既定のパスは次のとおりです。
    `/root/miniconda3/envs/workenv/bin/python`
@@ -89,21 +89,21 @@ PyCharm などの IDE でプログラムを開発している場合、SSH を使
 
 5. `Create` をクリックしてリモートインタープリターの追加を完了します。
 
-![AddRemoteInterpreter](./img/tutorials-images/02.PyCharm/11.AddRemoteInterpreter.png)
+![AddRemoteInterpreter](../../img/tutorials-images/02.PyCharm/11.AddRemoteInterpreter.png)
 
 6. `Apply` をクリックして同期を開始します。
 
-![Start Synchronization](./img/tutorials-images/02.PyCharm/12.StartSynchronization.png)
+![Start Synchronization](../../img/tutorials-images/02.PyCharm/12.StartSynchronization.png)
 
 ## **ステップ 3：コードを実行する**
 
 同期が完了したらファイル名を右クリックし、`Run` をクリックして実行します。
 
-![ExcuteFile](./img/tutorials-images/02.PyCharm/13.ExcuteFile.png)
+![ExcuteFile](../../img/tutorials-images/02.PyCharm/13.ExcuteFile.png)
 
 実行結果が表示されます。
 
-![Results](./img/tutorials-images/02.PyCharm/14.Results.png)
+![Results](../../img/tutorials-images/02.PyCharm/14.Results.png)
 
 ## **ステップ 4：ほかの Python パッケージをインストールする**
 
@@ -119,32 +119,32 @@ PyCharm がサーバーに接続済みでも、コードの実行時にパッケ
 
    自動設定されない場合は、**Tools -> Deployment -> Configuration** をクリックして設定します。
 
-   ![Configuration](./img/tutorials-images/02.PyCharm/15.Configuration.png)
+   ![Configuration](../../img/tutorials-images/02.PyCharm/15.Configuration.png)
 
 2. **Host** と **Port** を、レンタルしたマシンのホスト名とポート番号に変更します。
 
    **Root Path** は空欄のままにしてください。自動入力された値を使うと同期エラーが発生する場合があります。
 
-   ![Root Path](./img/tutorials-images/02.PyCharm/16.Root%20Path.png)
-   ![HostandPort](./img/tutorials-images/02.PyCharm/17.HostandPort.png)
+   ![Root Path](../../img/tutorials-images/02.PyCharm/16.Root%20Path.png)
+   ![HostandPort](../../img/tutorials-images/02.PyCharm/17.HostandPort.png)
 
 3. 接続を見分けやすくするため、名前を Glows.ai に変更できます。
 
    左側の一覧にある名前を右クリックし、`Rename` を選んで Glows.ai に変更します。
 
-   ![Rename](./img/tutorials-images/02.PyCharm/18.Rename.png)
+   ![Rename](../../img/tutorials-images/02.PyCharm/18.Rename.png)
 
 ## **ステップ 6：ファイルをアップロード、ダウンロードする**
 
 PyCharm は既定で、ローカルで開いているプロジェクトの全ファイルをリモートサーバーへ同期します。下部の `File Transfer` に転送状況が表示され、ファイルがサーバーのディレクトリへ同期されたことを確認できます。
 
-![File Transfer](./img/tutorials-images/02.PyCharm/19.FileTransfer.png)
+![File Transfer](../../img/tutorials-images/02.PyCharm/19.FileTransfer.png)
 
 自動同期されない場合は、手動でファイルを同期できます。
 
 同期するファイルを選んで右クリックし、**Deployment -> Upload to xxx** を選択します。リモートファイルを変更した場合や、新しいファイルや結果が生成された場合は、フォルダーを右クリックして **Deployment -> Download from xxx** を選択するとローカル環境へ同期できます。
 
-![Sync Manually](./img/tutorials-images/02.PyCharm/20.SyncManually.png)
+![Sync Manually](../../img/tutorials-images/02.PyCharm/20.SyncManually.png)
 
 ## **リモートターミナルを使う**
 
@@ -152,12 +152,12 @@ PyCharm からリモートで bash コマンドを実行するには、PyCharm �
 
 1. ターミナルは既定ではローカルに接続されています。**Tools -> Start SSH Session** をクリックしてリモートサーバーに接続します。
 
-   ![Connect to Remote Server](./img/tutorials-images/02.PyCharm/21.Connect2RemoteServer.png)
+   ![Connect to Remote Server](../../img/tutorials-images/02.PyCharm/21.Connect2RemoteServer.png)
 
 2. Glows.ai のホストを選択して接続します。
 
-   ![Connect](./img/tutorials-images/02.PyCharm/22.Connect.png)
+   ![Connect](../../img/tutorials-images/02.PyCharm/22.Connect.png)
 
 3. ホストを選ぶと、PyCharm の下部に新しい `Terminal` が開き、Glows.ai のマシンに接続されます。ここで bash コマンドを実行できます。
 
-   ![New Terminal](./img/tutorials-images/02.PyCharm/23.NewTerminal.png)
+   ![New Terminal](../../img/tutorials-images/02.PyCharm/23.NewTerminal.png)

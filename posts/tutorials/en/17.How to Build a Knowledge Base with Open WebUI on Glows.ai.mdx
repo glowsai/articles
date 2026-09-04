@@ -27,15 +27,15 @@ Let's walk through a hands-on demonstration of Open WebUI on Glows.ai.
 
 First, create an instance on Glows.ai. You can refer to the [instance creation tutorial](https://docs.glows.ai/docs/create-new).
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/001.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/001.png)
 
 - Click `Create New`, then select the **`NVIDIA GeForce RTX 4090`** GPU. Choose the image with **Open WebUI** version 0.11.0 — in this walkthrough we use the **`img-9vl776l1 - Open WebUI 0.11.0`** image. Click `Complete Checkout` to launch the instance.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/002.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/002.png)
 
 - Once the machine has launched successfully, click `Port 8080`, then click `Open` to enter the Open WebUI interface.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/003.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/003.png)
 
 - You can now log in from the Open WebUI window. If this is your first time opening it, you'll need to register an administrator account.
 
@@ -49,61 +49,61 @@ In a typical AI conversation, the AI can only answer based on what it remembers 
 
 ### Create a RAG Knowledge Base
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/004.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/004.png)
 
 - Click `Workspace` on the left, then `Knowledge`, then `Create` to start building your knowledge base.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/005.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/005.png)
 
 - Enter the basic information for the knowledge base, then click `Create Knowledge`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/006.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/006.png)
 
 - Once created, you'll see the knowledge base name along with its ID — you'll need this ID later.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/007.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/007.png)
 
 - Next, click `＋`, then click `Upload files`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/008.jpeg)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/008.jpeg)
 
 - Select the files you want to use as knowledge-base data. In this example we use a fictional story as the source text.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/009.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/009.png)
 
 - After the upload, you'll see the file listed, confirming it has been successfully embedded into the knowledge base.
 
 ### Bind the Knowledge Base to a Model
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/010.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/010.png)
 
 - For the AI to draw on this knowledge base, you need to create a new model and bind the knowledge base to it. Click `Model`, then click `Create`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/011.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/011.png)
 
 - Enter the model's basic information and its system prompt.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/012.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/012.png)
 
 - Below that, select `Select Knowledge` and choose your knowledge base.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/013.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/013.png)
 
 - Once done, click `Save & Create`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/014.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/014.png)
 
 - After creation, you'll see the model listed in the model list.
 
 ### Let the AI Answer Using Knowledge-Base Data
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/015.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/015.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/016.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/016.png)
 
 - On the right side of the chat window, select the model you just created, then type a test question to confirm the AI can retrieve data from the knowledge base.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/017.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/017.png)
 
 - Test successful — the AI correctly retrieved and answered using data from the knowledge base.
 
@@ -117,15 +117,15 @@ A knowledge base configured through the web UI isn't limited to the chat window 
 
 To call Open WebUI via API, you first need an API key for authentication, so the system can verify your request is authorized before serving it.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/018.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/018.png)
 
 - First, click `Settings` in the bottom left.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/019.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/019.png)
 
 - Click `Authorization`, enable `API Keys`, then click `Save` to turn on the API key feature.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/020.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/020.png)
 
 - Click `Account` to retrieve your API key.
 
@@ -133,11 +133,11 @@ To call Open WebUI via API, you first need an API key for authentication, so the
 
 In addition to the API key, you also need the knowledge base's ID when calling the API, so the system knows exactly which document source to use.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/021.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/021.png)
 
 - Click `Workspace` → `Knowledge` → your target knowledge base.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/022.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/022.png)
 
 - You'll find the knowledge base ID on the right side — this is the value you'll pass as a parameter in the API request.
 
@@ -145,11 +145,11 @@ In addition to the API key, you also need the knowledge base's ID when calling t
 
 With the API key and knowledge base ID in hand, you're ready to use the API.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/023.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/023.png)
 
 - First, get the SSH connection details from the Glows.ai interface. For example: `ssh -p <your SSH port> root@tw-06.access.glows.ai`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/024.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/024.png)
 
 - Connect to the machine over SSH from your terminal, and enter the password to log in.
 
@@ -186,17 +186,17 @@ curl -X POST http://localhost:8080/api/chat/completions \
 >
 > **`YOUR_KNOWLEDGE_ID`**: Found under Workspace > Knowledge — open your target knowledge base and this ID appears in the URL or the detail page.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/025.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/025.png)
 
 - To verify the AI is genuinely using the knowledge base, the example asks it questions about the fictional story stored there. One question: "What is the maximum number of students the conservatory in the story accepts for strings each year?", along with a request to cite the exact passage.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/026.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/026.png)
 
 - The AI correctly answered "12," accurately citing the corresponding passage from the knowledge base — confirming the answer genuinely came from retrieval, not from the model guessing.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/027.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/027.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/028.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/028.png)
 
 - Another question asked about the height of the lighthouse in the story, again requiring a cited passage. The AI correctly answered "46 meters."
 
@@ -210,15 +210,15 @@ Let's look at how to enable this feature.
 
 ### Configure and Use Sub-agents
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/029.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/029.png)
 
 - Click your profile avatar in the bottom left, then click `Setting`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/030.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/030.png)
 
 - Turn on `Enable sub-agents`, then click `Save`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/031.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/031.png)
 
 - Start a conversation to test it. After Sub-agents successfully triggers task delegation, we further test its accuracy with a math problem to confirm the sub-agent computation works. The results confirm that Sub-agents can successfully trigger parallel task processing.
 
@@ -230,11 +230,11 @@ Skills let you write a fixed set of rules or a style into a reusable capability,
 
 ### Create a Skill
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/032.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/032.png)
 
 - Click `Workspace` → `Skill` → `Create` to start configuring one.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/033.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/033.png)
 
 On this page, you can enter:
 
@@ -243,31 +243,31 @@ On this page, you can enter:
 - **Skill Description**: A one-line explanation of when this skill should be used, which determines whether it gets triggered correctly.
 - **Body**: The specific rules, listed as concrete, actionable requirements.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/034.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/034.png)
 
 - In this example, we create an "Email Polishing Assistant" skill that has the AI adjust email wording according to four fixed rules (tone, length, structure, and closing), and prepend a fixed marker to its reply so you can confirm the skill was actually applied. Once entered, click `Save & Create`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/035.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/035.png)
 
 - Once created, you'll see the new Skill in the Skills list.
 
 ### Use Skills
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/036.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/036.png)
 
 - Click `Models`, choose the model you want to apply the Skill to, then click `Edit` on the right.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/037.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/037.png)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/038.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/038.png)
 
 - Click `Select Skill` and choose the Skill you just created, then click `Save & Update` below the menu.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/039.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/039.png)
 
 - Testing with a question in the chat box, the Skill is automatically triggered (`view_skill` is invoked). The AI detects that the request — polishing a message to send to a client — matches this Skill's trigger condition, so it automatically calls view_skill to read and apply the rules.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/040.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/040.png)
 
 - You can also proactively type `$` in the input box to list existing Skills and select one yourself.
 
@@ -275,19 +275,19 @@ On this page, you can enter:
 
 Besides your own self-hosted local models (Ollama), Open WebUI can also connect to other cloud models (such as OpenAI), and both can coexist and be mixed within the same interface.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/041.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/041.png)
 
 - Click your profile avatar in the bottom left, then click `Setting`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/042.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/042.png)
 
 - In the left-hand list, select `Connections`, enable the OpenAI API, then click `＋`.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/043.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/043.png)
 
 - Enter the external provider's model information.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/044.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/044.png)
 
 - Click `URL` to choose a different model provider. Enter your API key, then click `Save`.
 
@@ -301,11 +301,11 @@ Besides your own self-hosted local models (Ollama), Open WebUI can also connect 
   - `openrouter.ai` — OpenRouter
   - `api.x.ai` — xAI (Grok)
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/045.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/045.png)
 
 - In Models, you can now select the external provider model you just configured.
 
-![ ](./img/tutorials-images/17.OpenWebUIKnowledgeBase/046.png)
+![ ](../../img/tutorials-images/17.OpenWebUIKnowledgeBase/046.png)
 
 - You can also select the external provider model directly on the right side of the chat window.
 
