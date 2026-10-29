@@ -1,13 +1,13 @@
 ---
 id: ubuntu_docker_restart_boot
 title: "如何在 Glows.ai 上設定 Ubuntu 開機自動重啟 Docker 容器"
-date: "2026-09-09 18:00"
-description: "在 Ubuntu GPU 實例上建立 systemd 開機服務，等待 GPU 驅動與 Docker 皆就緒後，自動重啟指定的 Docker 容器。"
+date: "2026-09-08 18:00"
+description: "在 Glows.ai 的 Ubuntu GPU 實例上建立 systemd 開機服務，等待 GPU 驅動與 Docker 皆就緒後，自動重啟指定的 Docker 容器。"
 tags:
   - Tutorial
 ---
 
-本教程說明如何在 Ubuntu GPU 機器上，建立一個 `systemd` 開機服務，確保開機時等待 GPU 驅動與 Docker 服務都就緒後，才自動重啟指定的 Docker 容器，避免因為驅動或服務尚未準備好，導致容器啟動失敗。
+本教程說明如何在 [Glows.ai](https://glows.ai) 的 Ubuntu GPU 機器上，建立一個 `systemd` 開機服務，確保開機時等待 GPU 驅動與 Docker 服務都就緒後，才自動重啟指定的 Docker 容器，避免因為驅動或服務尚未準備好，導致容器啟動失敗。
 
 本教程包括以下內容：
 

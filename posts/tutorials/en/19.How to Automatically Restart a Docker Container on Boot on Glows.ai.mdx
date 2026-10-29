@@ -1,13 +1,13 @@
 ---
 id: ubuntu_docker_restart_boot
 title: "How to Automatically Restart a Docker Container on Boot on Glows.ai"
-date: "2026-09-09 18:00"
-description: "Create a systemd boot service on an Ubuntu GPU instance that waits for the NVIDIA driver and Docker to be ready before automatically restarting a Docker container."
+date: "2026-09-08 18:00"
+description: "Create a systemd boot service on a Glows.ai GPU instance running Ubuntu that waits for the NVIDIA driver and Docker to be ready before automatically restarting a Docker container."
 tags:
   - Tutorial
 ---
 
-This tutorial explains how to create a `systemd` boot service on an Ubuntu GPU instance that waits until both the GPU driver and the Docker service are ready before automatically restarting a specified Docker container — avoiding startup failures caused by the driver or service not being ready yet.
+This tutorial explains how to create a `systemd` boot service on a [Glows.ai](https://glows.ai) GPU instance running Ubuntu that waits until both the GPU driver and the Docker service are ready before automatically restarting a specified Docker container — avoiding startup failures caused by the driver or service not being ready yet.
 
 This tutorial covers:
 

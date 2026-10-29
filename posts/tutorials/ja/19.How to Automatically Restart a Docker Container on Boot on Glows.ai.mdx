@@ -1,13 +1,13 @@
 ---
 id: ubuntu_docker_restart_boot
 title: "Glows.ai で Ubuntu 起動時に Docker コンテナを自動再起動する方法"
-date: "2026-09-09 18:00"
-description: "Ubuntu の GPU インスタンスで、NVIDIA ドライバーと Docker の準備が整うまで待機してから、指定した Docker コンテナを自動的に再起動する systemd 起動サービスを作成します。"
+date: "2026-09-08 18:00"
+description: "Glows.ai の Ubuntu GPU インスタンスで、NVIDIA ドライバーと Docker の準備が整うまで待機してから、指定した Docker コンテナを自動的に再起動する systemd 起動サービスを作成します。"
 tags:
   - Tutorial
 ---
 
-このチュートリアルでは、Ubuntu の GPU インスタンス上で `systemd` 起動サービスを作成し、GPU ドライバーと Docker サービスの両方が準備できるまで待機してから、指定した Docker コンテナを自動的に再起動する方法を解説します。これにより、ドライバーやサービスの準備が整う前にコンテナが起動を試みて失敗する問題を防げます。
+このチュートリアルでは、[Glows.ai](https://glows.ai) の Ubuntu GPU インスタンス上で `systemd` 起動サービスを作成し、GPU ドライバーと Docker サービスの両方が準備できるまで待機してから、指定した Docker コンテナを自動的に再起動する方法を解説します。これにより、ドライバーやサービスの準備が整う前にコンテナが起動を試みて失敗する問題を防げます。
 
 このチュートリアルの内容は以下のとおりです。
 
