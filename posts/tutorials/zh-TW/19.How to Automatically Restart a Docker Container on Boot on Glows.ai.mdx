@@ -1,0 +1,318 @@
+---
+id: ubuntu_docker_restart_boot
+title: "如何在 Glows.ai 上設定 Ubuntu 開機自動重啟 Docker 容器"
+date: "2026-09-08 18:00"
+description: "在 Glows.ai 的 Ubuntu GPU 實例上建立 systemd 開機服務，等待 GPU 驅動與 Docker 皆就緒後，自動重啟指定的 Docker 容器。"
+tags:
+  - Tutorial
+---
+
+本教程說明如何在 [Glows.ai](https://glows.ai) 的 Ubuntu GPU 機器上，建立一個 `systemd` 開機服務，確保開機時等待 GPU 驅動與 Docker 服務都就緒後，才自動重啟指定的 Docker 容器，避免因為驅動或服務尚未準備好，導致容器啟動失敗。
+
+本教程包括以下內容：
+
+- 前置準備（確認 GPU 環境、建立測試用容器）
+- 建立啟動腳本
+- 設定腳本執行權限
+- 建立 systemd 開機服務
+- 重新載入 systemd 設定
+- 設定開機自動啟動
+- 手動測試服務
+- 查看是否已設定成功／查看服務狀態
+
+## Systemd 簡介
+
+Systemd 是 Linux 系統裡的總管，開機時，負責照順序啟動各種服務。
+
+`systemctl` 是用來對 Systemd 下指令的工具，開啟、關閉、重啟某個服務，或是查看某個服務當前狀態，都是透過 `systemctl` 指令與 `systemd` 溝通。
+
+此教程會建立一個 `systemd` 開機服務，功能如下：
+
+- 使用 **root 權限** 執行
+- 等待 Ubuntu 完整啟動
+- 等待 NVIDIA GPU 驅動初始化完成（確認 `nvidia-smi` 正常）
+- 等待 Docker 服務啟動完成
+- 自動執行：`docker restart myServer`
+
+## 前置準備（GPU 機器專屬，開始設定前的檢查）
+
+進入下方步驟前，在 GPU 實例上確認以下三個項目：
+
+**1. 開啟一台 GPU 機器後，先確認 `nvidia-smi` 能正常顯示 GPU 資訊**
+
+目的：稍後的腳本中，有段邏輯是透過檢查 nvidia-smi 來判斷是否繼續執行，所以必須要確認 GPU 及驅動安裝狀態。本次教學需要使用 Docker 和 systemctl 指令，目前只有 VM 類型支持。
+
+- 點擊 `Create New` 後開始建立實例，搜尋 Ubuntu 並選擇 VM 類型的機器，選用 Ubuntu 的鏡像並建立實例。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/01.png)
+
+- 實例成功運行後，在實例頁面中，點擊 `Access` > `SSH Port 22` > 複製 `SSH Command` > 使用 `Password`，透過 SSH 連線至實例。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/02.png)
+
+- 連線至實例後，輸入：**`nvidia-smi`**，成功確認 GPU 及驅動安裝狀態。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/03.png)
+
+**2. 將權限改成 root**
+
+若是您的實例不是 root 使用者，使用 `sudo su`，改為 root 使用者。避免後續 `docker`／`systemctl` 指令因權限不足失敗。
+
+1. 完成權限調整前，這時的 User 仍然是 glows，而不是 root。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/04.png)
+
+2. 執行 `sudo su` 之後會被要求輸入密碼，在實例詳情中的 `Access` > `SSH Port 22` > `Password` 取得密碼。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/05.png)
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/06.png)
+
+**3. 先建立好要被自動重啟的 `myServer`（範例名稱）容器**
+
+`docker restart` 只能重啟已存在的容器，本範例我們使用 nginx 建立一個最簡單的 server。如果這台機器上還沒有 `myServer`，之後開機腳本執行到 `docker restart myServer` 會失敗。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/07.png)
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/08.png)
+
+## 1. 建立啟動腳本
+
+建立腳本檔案：
+
+```bash
+sudo nano /usr/local/bin/restart-myserver.sh
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/09.png)
+
+加入以下內容：
+
+```bash
+#!/bin/bash
+
+# 等待 NVIDIA 驅動初始化完成
+echo "等待 NVIDIA 驅動啟動..."
+
+until nvidia-smi >/dev/null 2>&1
+do
+    sleep 2
+done
+
+echo "NVIDIA 驅動已正常啟動"
+
+# 等待 Docker 服務啟動完成
+echo "等待 Docker 啟動..."
+
+until systemctl is-active --quiet docker
+do
+    sleep 2
+done
+
+echo "Docker 已啟動"
+
+# 重啟 Docker 容器
+echo "正在重啟 myServer..."
+
+docker restart myServer
+
+echo "myServer 重啟完成"
+```
+
+> - `until nvidia-smi >/dev/null 2>&1; do sleep 2; done`：這是一個「重複檢查」的迴圈，不斷檢查 `nvidia-smi` 狀態，確認 GPU 驅動就緒後才往下執行。
+> - `until systemctl is-active --quiet docker; do sleep 2; done`：檢查 Docker 服務是否已經啟動。
+> - `docker restart myServer`：腳本主要的目的，重啟指定的容器。
+> - **執行流程：等 GPU 驅動就緒 -> 等待 Docker 啟動後 -> 重啟指定容器**（`docker restart myServer`）
+
+編輯完成後，使用：
+
+```text
+Ctrl + O
+Enter
+Ctrl + X
+```
+
+存檔後離開編輯器。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/10.png)
+
+## 2. 設定腳本執行權限
+
+執行：
+
+```bash
+sudo chmod +x /usr/local/bin/restart-myserver.sh
+```
+
+> Linux 底下新建立的檔案，預設是「不能」被執行的，只能被讀取和編輯。`chmod +x` 是將此腳本檔案標記成「可執行」，後續使用 systemd 開機時執行（或手動執行），不會因為權限不足被拒絕。執行後不會打印出任何內容。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/11.png)
+
+## 3. 建立 systemd 開機服務
+
+建立服務檔：
+
+```bash
+sudo nano /etc/systemd/system/restart-myserver.service
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/12.png)
+
+輸入：
+
+```text
+[Unit]
+Description=Restart myServer Docker container after NVIDIA initialization
+After=network-online.target docker.service nvidia-persistenced.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/restart-myserver.sh
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/13.png)
+
+> - **[Unit]**：
+>     - `Description`：說明文字。
+>     - `After`／`Wants`：規定啟動順序要等網路、Docker、NVIDIA 服務就緒後才啟動。
+> - **[Service]**：
+>     - `Type=oneshot`：表示這是執行一次就結束的服務。
+>     - `ExecStart`：指定要執行的腳本路徑。
+>     - `RemainAfterExit=yes`：讓服務執行完後仍顯示 active，使運行成功的結果能被驗證（否則會顯示成 inactive）。
+>     - `User=root`：此腳本用到的指令需要最高權限 root。
+> - **[Install]**：
+>     - `WantedBy=multi-user.target` 決定這個服務要綁定在開機進入一般模式時啟動。
+
+儲存離開。
+
+## 4. 重新載入 systemd 設定
+
+執行：
+
+```bash
+sudo systemctl daemon-reload
+```
+
+> `daemon-reload` 是手動告訴 systemd「有新增／修改服務設定檔，請重新讀取一次」。如果沒有執行這個指令，systemd 仍會沿用舊的設定，或無法得知有這個新服務存在，之後使用指令時可能會找不到這個服務，或套用到舊的設定內容。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/14.png)
+
+## 5. 設定開機自動啟動
+
+執行：
+
+```bash
+sudo systemctl enable restart-myserver.service
+```
+
+> `enable` 是將這個服務登記到開機自動啟動清單裡。使 systemd 在重開機時自動去執行它。
+
+成功後會看到類似：
+
+```text
+Created symlink /etc/systemd/system/multi-user.target.wants/restart-myserver.service
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/15.png)
+
+## 6. 手動測試服務
+
+不用重新開機，可以直接測試：
+
+```bash
+sudo systemctl start restart-myserver.service
+```
+
+> 上一步的 `enable` 本身不會立即執行，於是使用 `start` 驗證腳本、systemd 服務檔設定沒問題。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/16.png)
+
+查看執行紀錄：
+
+```bash
+journalctl -u restart-myserver.service -f
+```
+
+正常流程會看到：
+
+```text
+等待 NVIDIA 驅動啟動...
+NVIDIA 驅動已正常啟動
+
+等待 Docker 啟動...
+Docker 已啟動
+
+正在重啟 myServer...
+myServer 重啟完成
+```
+
+## 查看是否已設定成功
+
+查看是否啟用：
+
+```bash
+systemctl is-enabled restart-myserver.service
+```
+
+> 如果返回 `enabled` 代表已設定完成。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/17.png)
+
+## 查看服務狀態
+
+```bash
+systemctl status restart-myserver.service
+```
+
+> 顯示：`Active: active (exited)` 代表服務已正常執行完成。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/18.png)
+
+## 開機流程說明
+
+設定完成後，開機流程如下：
+
+```text
+Ubuntu 開機
+    ↓
+systemd 啟動
+    ↓
+等待網路與 Docker 服務
+    ↓
+等待 NVIDIA 驅動完成初始化
+    ↓
+確認 nvidia-smi 正常
+    ↓
+確認 Docker 啟動
+    ↓
+執行 docker restart myServer
+```
+
+這樣可以避免以下問題：
+
+- GPU 驅動尚未載入，導致 CUDA 容器啟動失敗
+- Docker 已啟動但 NVIDIA Runtime 尚未準備完成
+- 開機過程太快導致容器初始化異常
+
+## 此方案適合機型
+
+- Ubuntu 20.04 / 22.04 / 24.04
+- NVIDIA GPU 主機
+- Docker + CUDA 容器環境
+- 需要開機後自動恢復服務的 AI 推理伺服器、GPU Server 等環境
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 email、Discord 或 Line 聯絡我們。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

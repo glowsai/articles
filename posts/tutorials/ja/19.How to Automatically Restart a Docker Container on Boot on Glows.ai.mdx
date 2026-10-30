@@ -1,0 +1,316 @@
+---
+id: ubuntu_docker_restart_boot
+title: "Glows.ai で Ubuntu 起動時に Docker コンテナを自動再起動する方法"
+date: "2026-09-08 18:00"
+description: "Glows.ai の Ubuntu GPU インスタンスで、NVIDIA ドライバーと Docker の準備が整うまで待機してから、指定した Docker コンテナを自動的に再起動する systemd 起動サービスを作成します。"
+tags:
+  - Tutorial
+---
+
+このチュートリアルでは、[Glows.ai](https://glows.ai) の Ubuntu GPU インスタンス上で `systemd` 起動サービスを作成し、GPU ドライバーと Docker サービスの両方が準備できるまで待機してから、指定した Docker コンテナを自動的に再起動する方法を解説します。これにより、ドライバーやサービスの準備が整う前にコンテナが起動を試みて失敗する問題を防げます。
+
+このチュートリアルの内容は以下のとおりです。
+
+- 事前準備（GPU 環境の確認、テスト用コンテナの作成）
+- 起動スクリプトの作成
+- スクリプトの実行権限の設定
+- systemd 起動サービスの作成
+- systemd 設定の再読み込み
+- 起動時の自動実行を有効化
+- サービスの手動テスト
+- 設定が成功したかの確認／サービス状態の確認
+
+## Systemd の概要
+
+Systemd は Linux の管理役で、起動時に各種サービスを順番に立ち上げる役割を担っています。
+
+`systemctl` は Systemd に指示を出すためのツールで、サービスの起動・停止・再起動や、現在の状態確認は、すべて `systemctl` コマンドを通じて `systemd` とやり取りします。
+
+このチュートリアルで作成する `systemd` 起動サービスは、以下のように動作します。
+
+- **root 権限**で実行
+- Ubuntu の起動完了を待機
+- NVIDIA GPU ドライバーの初期化完了を待機（`nvidia-smi` で確認）
+- Docker サービスの起動完了を待機
+- 自動的に実行：`docker restart myServer`
+
+## 事前準備（GPU インスタンス専用・設定前の確認事項）
+
+以下の手順に進む前に、GPU インスタンス上で次の 3 点を確認してください。
+
+**1. GPU インスタンスを起動したら、まず `nvidia-smi` が GPU 情報を正しく表示することを確認する**
+
+理由：このチュートリアルのスクリプトには、`nvidia-smi` を確認して処理を続けるかどうかを判断するロジックがあるため、事前に GPU とドライバーが正しくインストールされていることを確認しておく必要があります。本チュートリアルでは `docker` と `systemctl` コマンドを使用しますが、現在 VM タイプのインスタンスでのみサポートされています。
+
+- `Create New` をクリックしてインスタンス作成を開始し、Ubuntu を検索して VM タイプのマシンを選択します。Ubuntu イメージを選んでインスタンスを作成します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/01.png)
+
+- インスタンスが正常に起動したら、インスタンスページで `Access` > `SSH Port 22` > `SSH Command` をコピーし、`Password` を使って SSH 接続します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/02.png)
+
+- インスタンスに接続したら、**`nvidia-smi`** を実行し、GPU とドライバーが正しくインストールされていることを確認します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/03.png)
+
+**2. 権限を root に変更する**
+
+インスタンスが root ユーザーでログインしていない場合は、`sudo su` を実行して root ユーザーに切り替えます。これにより、後続の `docker`／`systemctl` コマンドが権限不足で失敗することを防げます。
+
+1. 切り替え前は、ユーザーはまだ `glows` であり、`root` ではありません。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/04.png)
+
+2. `sudo su` を実行するとパスワードを求められます。インスタンス詳細ページの `Access` > `SSH Port 22` > `Password` から取得してください。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/05.png)
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/06.png)
+
+**3. 自動再起動の対象となる `myServer`（例として使用する名前）コンテナを事前に作成する**
+
+`docker restart` は既に存在するコンテナに対してのみ実行できます。本チュートリアルでは nginx を使って最小構成のサーバーを例として作成します。このマシンに `myServer` がまだ存在しない場合、後で起動スクリプトが `docker restart myServer` を実行する際に失敗します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/07.png)
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/08.png)
+
+## 1. 起動スクリプトを作成する
+
+スクリプトファイルを作成します。
+
+```bash
+sudo nano /usr/local/bin/restart-myserver.sh
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/09.png)
+
+以下の内容を追加します。
+
+```bash
+#!/bin/bash
+
+# NVIDIA ドライバーの初期化完了を待機
+echo "NVIDIA ドライバーの起動を待機しています..."
+
+until nvidia-smi >/dev/null 2>&1
+do
+    sleep 2
+done
+
+echo "NVIDIA ドライバーが正常に起動しました"
+
+# Docker サービスの起動完了を待機
+echo "Docker の起動を待機しています..."
+
+until systemctl is-active --quiet docker
+do
+    sleep 2
+done
+
+echo "Docker が起動しました"
+
+# Docker コンテナを再起動
+echo "myServer を再起動しています..."
+
+docker restart myServer
+
+echo "myServer の再起動が完了しました"
+```
+
+> - `until nvidia-smi >/dev/null 2>&1; do sleep 2; done`：`nvidia-smi` の状態を繰り返し確認するループで、GPU ドライバーの準備が完了してから次の処理に進みます。
+> - `until systemctl is-active --quiet docker; do sleep 2; done`：Docker サービスが起動済みかどうかを確認します。
+> - `docker restart myServer`：このスクリプトの本来の目的で、指定したコンテナを再起動します。
+> - **実行フロー：GPU ドライバーの準備完了を待機 -> Docker の起動を待機 -> 指定したコンテナを再起動**（`docker restart myServer`）
+
+編集が完了したら、以下の操作で保存してエディタを終了します。
+
+```text
+Ctrl + O
+Enter
+Ctrl + X
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/10.png)
+
+## 2. スクリプトに実行権限を設定する
+
+以下を実行します。
+
+```bash
+sudo chmod +x /usr/local/bin/restart-myserver.sh
+```
+
+> Linux で新しく作成したファイルは、デフォルトでは実行できず、読み取りと編集のみが可能です。`chmod +x` はこのスクリプトを「実行可能」に設定するもので、後で systemd（または手動）がこのスクリプトを実行する際に、権限不足で拒否されなくなります。このコマンドを実行しても何も出力されません。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/11.png)
+
+## 3. systemd 起動サービスを作成する
+
+サービスファイルを作成します。
+
+```bash
+sudo nano /etc/systemd/system/restart-myserver.service
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/12.png)
+
+以下を入力します。
+
+```text
+[Unit]
+Description=Restart myServer Docker container after NVIDIA initialization
+After=network-online.target docker.service nvidia-persistenced.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/restart-myserver.sh
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/13.png)
+
+> - **[Unit]**：
+>     - `Description`：説明文です。
+>     - `After`／`Wants`：ネットワーク、Docker、NVIDIA の各サービスが準備完了してから起動するように順序を規定します。
+> - **[Service]**：
+>     - `Type=oneshot`：一度実行して終了するサービスであることを示します。
+>     - `ExecStart`：実行するスクリプトのパスを指定します。
+>     - `RemainAfterExit=yes`：実行完了後も active と表示されるようにし、正常に実行された結果を確認できるようにします（設定しない場合は inactive と表示されます）。
+>     - `User=root`：このスクリプトで使用するコマンドには root 権限が必要です。
+> - **[Install]**：
+>     - `WantedBy=multi-user.target` は、このサービスをシステムが通常の multi-user モードで起動する際にバインドすることを決定します。
+
+保存して終了します。
+
+## 4. systemd の設定を再読み込みする
+
+以下を実行します。
+
+```bash
+sudo systemctl daemon-reload
+```
+
+> `daemon-reload` は、「サービス設定ファイルが追加・変更されたので再読み込みしてほしい」ということを systemd に手動で伝えるコマンドです。これを実行しないと、systemd は古い設定を使い続けたり、この新しいサービスの存在を認識できなかったりします。後でコマンドを実行した際に、サービスが見つからない、または古い設定が適用されるといった問題が発生する可能性があります。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/14.png)
+
+## 5. 起動時の自動実行を設定する
+
+以下を実行します。
+
+```bash
+sudo systemctl enable restart-myserver.service
+```
+
+> `enable` は、このサービスを起動時の自動実行リストに登録するコマンドです。これにより、systemd は再起動時に自動でこのサービスを実行します。
+
+成功すると、以下のような表示が出ます。
+
+```text
+Created symlink /etc/systemd/system/multi-user.target.wants/restart-myserver.service
+```
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/15.png)
+
+## 6. サービスを手動でテストする
+
+再起動しなくても、すぐにテストできます。
+
+```bash
+sudo systemctl start restart-myserver.service
+```
+
+> 前の手順の `enable` はすぐには実行されないため、`start` を使ってスクリプトと systemd サービスファイルの設定に問題がないことを確認します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/16.png)
+
+実行ログを確認します。
+
+```bash
+journalctl -u restart-myserver.service -f
+```
+
+正常な場合、以下のように表示されます。
+
+```text
+NVIDIA ドライバーの起動を待機しています...
+NVIDIA ドライバーが正常に起動しました
+
+Docker の起動を待機しています...
+Docker が起動しました
+
+myServer を再起動しています...
+myServer の再起動が完了しました
+```
+
+## 設定が成功したかを確認する
+
+有効化されているかを確認します。
+
+```bash
+systemctl is-enabled restart-myserver.service
+```
+
+> `enabled` が返ってきたら設定完了です。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/17.png)
+
+## サービスの状態を確認する
+
+```bash
+systemctl status restart-myserver.service
+```
+
+> `Active: active (exited)` と表示されれば、サービスが正常に実行完了したことを示します。
+
+![](../../img/tutorials-images/19.UbuntuDockerRestart/18.png)
+
+## 起動フローの説明
+
+設定完了後の起動フローは以下のとおりです。
+
+```text
+Ubuntu が起動
+    ↓
+systemd が起動
+    ↓
+ネットワークと Docker サービスを待機
+    ↓
+NVIDIA ドライバーの初期化完了を待機
+    ↓
+nvidia-smi が正常であることを確認
+    ↓
+Docker の起動を確認
+    ↓
+docker restart myServer を実行
+```
+
+これにより、以下のような問題を防ぐことができます。
+
+- GPU ドライバーがまだロードされておらず、CUDA コンテナの起動に失敗する
+- Docker は起動済みだが、NVIDIA Runtime の準備が完了していない
+- 起動処理が速すぎて、コンテナの初期化が異常になる
+
+## このソリューションが適したマシン構成
+
+- Ubuntu 20.04 / 22.04 / 24.04
+- NVIDIA GPU ホスト
+- Docker + CUDA コンテナ環境
+- 起動後にサービスを自動的に復旧させる必要がある AI 推論サーバーや GPU サーバーなどの環境
+
+## お問い合わせ
+
+Glows.ai の利用中に質問やご意見がある場合は、email、Discord、Line からお問い合わせください。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)

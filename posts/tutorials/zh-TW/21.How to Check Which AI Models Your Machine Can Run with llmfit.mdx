@@ -1,0 +1,462 @@
+---
+id: llmfit_model_fit_evaluation
+title: "如何使用 llmfit 評估機器能跑哪些 AI 模型（MacBook M1 與 Glows.ai RTX 4090 實測）"
+date: "2026-10-07 17:00"
+description: "使用開源工具 llmfit 在下載模型前評估機器能執行哪些 LLM，並以 Ollama 在 MacBook M1 與 Glows.ai RTX 4090 上實測，驗證預估是否準確。"
+tags:
+  - Tutorial
+---
+
+本教程說明如何使用開源工具 llmfit，在下載模型之前，先評估一台機器能執行哪些開源大型語言模型（LLM），並使用 Ollama 實際執行模型，驗證 llmfit 的預估是否準確。
+
+實測分為兩部分：一台 8GB 記憶體的 MacBook M1，以及 Glows.ai 上的 NVIDIA GeForce RTX 4090 實例，比較兩台機器能執行的模型大小、速度與回答品質。
+
+本教程包括以下內容：
+
+- 前置準備（安裝 llmfit 與 Ollama）
+- 認識 llmfit 介面
+- MacBook 實測 1：Llama 3.2 1B
+- MacBook 實測 2：Qwen3 4B（超過記憶體極限的情況）
+- Glows.ai RTX 4090 實測：Qwen3.6 27B
+- 結果總整理與使用建議
+
+## llmfit 簡介
+
+[llmfit](https://github.com/AlexsJones/llmfit) 是一個開源的終端機工具。開源模型有上萬個，每個模型又有好幾種壓縮版本，憑感覺挑一個下載，常常一執行就記憶體不足或速度極慢。llmfit 會偵測機器的 CPU、記憶體與 GPU，在**下載模型之前**就告訴您：
+
+- 這台機器能不能執行該模型（Fit 等級）
+- 該選用哪一種壓縮版本
+- 預估每秒能生成多少 token
+
+llmfit 本身只負責評估，不會執行模型。實際執行模型需要搭配 Ollama 這類工具：模型檔案本身只是一大包數據，Ollama 負責把它載入記憶體並運算出回答。
+
+## 前置準備
+
+### 1. 安裝 llmfit
+
+macOS 使用 Homebrew 安裝：
+
+```bash
+brew install llmfit
+```
+
+Linux（例如 Glows.ai 的實例）使用官方安裝指令：
+
+```bash
+curl -fsSL https://llmfit.axjns.dev/install.sh | sh
+```
+
+安裝完成後，輸入以下指令確認版本。本教程使用 llmfit 1.1.16。
+
+```bash
+llmfit --version
+```
+
+![](../../img/tutorials-images/21.llmfit/01.png)
+
+### 2. 安裝 Ollama
+
+macOS 請至 [ollama.com](https://ollama.com) 下載安裝檔，拖曳至「應用程式」資料夾後開啟。安裝完成後，確認版本：
+
+```bash
+ollama --version
+```
+
+![](../../img/tutorials-images/21.llmfit/02.png)
+
+### 3. 準備統一的測試問題
+
+為了公平比較，本教程所有模型都使用同一個問題：
+
+```text
+Explain what a GPU is in about 150 words.
+```
+
+## 一、認識 llmfit 介面（MacBook M1 8GB）
+
+### 1. 開啟 llmfit
+
+執行：
+
+```bash
+llmfit
+```
+
+![](../../img/tutorials-images/21.llmfit/03.png)
+
+畫面最上方兩行是 llmfit 偵測到的硬體與執行工具：
+
+- **CPU / RAM / GPU**：此 MacBook M1 為 8GB 統一記憶體，CPU 與 GPU 共用同一塊記憶體
+- **RAM: X GB avail**：目前**實際可用**的記憶體，後續判斷時非常重要
+- **Ollama / MLX / llama.cpp**：偵測到的模型執行工具，目前這台都沒有安裝，所以顯示 `X`
+
+即使已安裝 Ollama，此處仍可能顯示 ✗。這不影響 llmfit 的評估結果，只會影響 llmfit 內建的實測功能。
+
+### 2. 欄位說明
+
+| 欄位 | 說明 |
+|---|---|
+| **Provider** | 模型發布者。建議優先選擇官方（Meta、Alibaba、Google）或知名轉檔者（unsloth、mlx-community） |
+| **Params** | 參數量，例如 1.1B 代表 11 億個參數。越大通常越聰明，但越佔記憶體 |
+| **Score** | 綜合分數（0–100），由品質、速度、適配度、對話長度四項加權計算 |
+| **tok/s\*** | 預估每秒生成的 token 數，星號代表估算值 |
+| **Quant** | llmfit 評估所使用的壓縮版本 |
+| **Mem %** | 模型會佔用多少記憶體。**數字越小越安全**，建議在 70% 以下 |
+| **Ctx** | 對話長度。「262k→10k」代表模型支援 262k，但在此機器上只能開到 10k |
+| **Fit** | 適配等級，說明如下 |
+| **Use Case** | 模型用途，例如 Chat、Coding、Multimodal |
+
+### 3. Fit 等級
+
+按 `f` 可依 Fit 等級篩選模型，共分為四級：
+
+| 等級 | 說明 |
+|---|---|
+| **Perfect** | 記憶體充足，可順暢執行，建議優先選擇 |
+| **Good** | 可以執行，但有小幅妥協 |
+| **Marginal** | 勉強塞得進記憶體，實際使用體驗不佳 |
+| **Too Tight** | 記憶體不足，無法執行 |
+
+**Perfect**：記憶體佔用低，對話長度完整保留。
+
+![](../../img/tutorials-images/21.llmfit/04.png)
+
+**Marginal**：記憶體佔用在 85%–92%，多數模型被壓縮至 Q2_K、Q3_K_M，對話長度也被大幅縮短。
+
+![](../../img/tutorials-images/21.llmfit/05.png)
+
+**Too Tight**：記憶體佔用超過 100%，無法執行。此級別顯示的速度沒有參考價值。
+
+![](../../img/tutorials-images/21.llmfit/06.png)
+
+### 4. 篩選與排序，挑出適合的模型
+
+依序設定篩選條件，按 `f` 切換至 **Perfect**、按 `U` 切換至 **Chat**、按 `s` 切換至 **Score**，排在最前面的即為「在此機器上執行最順暢的聊天模型」。第一名為 **unsloth/Llama-3.2-1B-Instruct-GGUF**。
+
+![](../../img/tutorials-images/21.llmfit/07.png)
+
+Score 最高不代表模型最聰明。Score 是「在這台機器上的平衡分數」，小模型因速度快、記憶體充足，總分容易排在前面。若需要較聰明的模型，可在 Perfect 中改以參數量排序，選擇較大的模型，代價是速度較慢。
+
+### 5. 常用快捷鍵
+
+快捷鍵**區分大小寫**，大寫與小寫為不同功能：
+
+| 按鍵 | 功能 |
+|---|---|
+| `/` | 搜尋模型名稱 |
+| `f` | 依 Fit 等級篩選 |
+| `U` | 依用途篩選 |
+| `s` | 切換排序方式 |
+| `S`（大寫） | 模擬其他硬體規格 |
+| `Enter` | 查看單一模型詳情 |
+| `h` | 列出所有快捷鍵 |
+| `q` | 離開 |
+
+## 二、MacBook 實測 1：Llama 3.2 1B
+
+### 1. 查看 llmfit 的評估
+
+按 `/` 搜尋 `llama-3.2-1b`，同一個模型會有許多轉檔版本，選擇 Provider 為 **unsloth** 的版本。
+
+![](../../img/tutorials-images/21.llmfit/08.png)
+
+選中後按 `Enter` 查看詳情，重點項目如下：
+
+- **Fit Level**：Perfect，Run Mode 為 GPU
+- **Baseline Est**：預估 35.0 tok/s
+- **Mem Usage**：22.7%（約 1.8GB / 8GB）
+- **Score Breakdown**：品質 54、速度 88、適配度 100、對話長度 100
+
+![](../../img/tutorials-images/21.llmfit/09.png)
+
+分數拆解說明了此模型的特性：執行快、記憶體充足，但品質分數偏低。
+
+### 2. 使用 Ollama 執行模型
+
+執行：
+
+```bash
+ollama run hf.co/unsloth/Llama-3.2-1B-Instruct-GGUF:Q8_0 --verbose
+```
+
+**模型名稱的格式：** `hf.co/` + llmfit 中的模型名稱 + `:` + 壓縮版本。Ollama 會直接從 Hugging Face 下載該模型。若 llmfit 中的模型名稱不是 GGUF 格式，可在詳情頁右側的 **GGUF Downloads** 找到可用的下載來源。
+
+加上 `--verbose` 參數，每次回答後會顯示速度統計。離開聊天請輸入 `/bye`。
+
+下載完成後會進入聊天，可先輸入 `hello` 測試。
+
+![](../../img/tutorials-images/21.llmfit/10.png)
+
+### 3. 實測速度與回答品質
+
+輸入測試問題後，統計資訊中的 **eval rate** 即為實際生成速度：**42.53 tokens/s**，比 llmfit 預估的 35 tok/s 稍快。
+
+![](../../img/tutorials-images/21.llmfit/11.png)
+
+回答流暢、字數控制得宜，但內容有錯誤：模型表示 GPU 有「數十億個核心」，實際上 GPU 核心數為數千至一兩萬個，「數十億」是電晶體的數量。這與 llmfit 給出的品質分數 54 相符。
+
+### 4. 確認記憶體使用量
+
+另開一個終端機分頁，執行：
+
+```bash
+ollama ps
+```
+
+![](../../img/tutorials-images/21.llmfit/12.png)
+
+**SIZE** 為 1.5GB，與 llmfit 預估的約 1.8GB 接近。**PROCESSOR** 為 100% GPU，代表模型完整載入 GPU 執行。
+
+### 5. 預估與實測對照
+
+| 項目 | llmfit 預估 | 實測 |
+|---|---|---|
+| 速度 | 35 tok/s | **42.53 tok/s** |
+| 記憶體 | 約 1.8 GB | **1.5 GB** |
+| 執行位置 | GPU | **100% GPU** |
+
+記憶體充足時，llmfit 的預估相當準確，且偏保守。
+
+## 三、MacBook 實測 2：Qwen3 4B（超過記憶體極限的情況）
+
+### 1. 查看 llmfit 的評估
+
+按 `/` 搜尋 `qwen3-4b`，官方版本 **Qwen/Qwen3-4B-Instruct-2507** 的評估為：Fit **Good**、Mem **71%**、預估 **9.3 tok/s**。
+
+![](../../img/tutorials-images/21.llmfit/13.png)
+
+實測使用的是 Ollama 官方模型庫的 `qwen3:4b-q8_0`，與 llmfit 中的 Qwen3-4B-Instruct-2507 同為 4B、8-bit，記憶體與速度的預估相同，因此以官方版本作為參考。
+
+請注意畫面最上方：**RAM: 2.6 GB avail / 8.0 GB total**。表格中的 71% 是以 8GB 總量計算，但此時 MacBook 實際可用的記憶體只有 2.6GB。
+
+### 2. 查看詳情頁的記憶體需求
+
+按 `Enter` 查看詳情，Memory 區塊已列出關鍵資訊：
+
+- **Rec RAM（建議記憶體）**：3.7GB，但目前可用僅 2.6GB，由此可知後續使用可能嚴重變慢，甚至卡住
+- **VRAM by Context**：對話長度 4K 即需 5.1GB，GPU 可用僅 5.3GB，幾乎貼近上限
+- **Disk/quant**：同一模型的 4-bit 版本僅需 2.2GB
+
+> 列表上的 Good，是以記憶體**總量 8GB** 計算的。但這台 MacBook 開著其他程式，當下實際可用的只剩 **2.6GB**。由此可以**預測**：執行這個模型時，記憶體會不夠用。
+
+![](../../img/tutorials-images/21.llmfit/14.png)
+
+### 3. 實際執行結果
+
+執行：
+
+```bash
+ollama run qwen3:4b-q8_0 --verbose
+```
+
+僅輸入 `hi`，整台電腦即卡住，將近 **12 分鐘**後才完成回答，速度僅 **0.36 tokens/s**，比預估的 9.3 tok/s 慢了 25 倍以上。
+
+![](../../img/tutorials-images/21.llmfit/15.png)
+
+原因是記憶體不足，系統改用硬碟暫代記憶體，速度大幅下降。（Qwen3 預設會先思考再回答，因此畫面會先出現 Thinking 內容。）
+
+**重點：** 列表上的 Fit 等級是以記憶體**總量**計算。執行前請比較詳情頁的 **Rec RAM** 與畫面上方的**可用記憶體**。記憶體佔用超過七成的模型，在小筆電上建議先關閉其他程式，或改用壓縮較多的版本（例如 4-bit）。
+
+## 四、Glows.ai RTX 4090 實測：Qwen3.6 27B
+
+8GB 的 MacBook 約只能順暢執行 1B–3B 的模型。若要執行更大、更聰明的模型，需要更大的 VRAM。以下使用 Glows.ai 的 RTX 4090 實例進行測試。
+
+### 1. 建立實例
+
+點擊 `Create New` 後開始建立實例：
+
+1. GPU Model 選擇 **`NVIDIA GeForce RTX 4090`**（24GB VRAM、10 vCPUs、50GB RAM，0.490 Credit/h）
+2. 於 Official 鏡像中搜尋 `qwen`，選擇 **`Qwen3.6 27B Q4`**（已預裝 Ollama 與 qwen3.6:27b 模型）
+3. 點擊 `Complete Checkout` 建立實例
+
+![](../../img/tutorials-images/21.llmfit/16.png)
+
+實例成功運行後，在實例頁面中，點擊 `Access` > `SSH Port 22` > 複製 SSH Command > 使用 Password，透過 SSH 連線至實例。
+
+### 2. 確認 GPU 與模型
+
+連線至實例後，執行：
+
+```bash
+nvidia-smi
+ollama list
+```
+
+![](../../img/tutorials-images/21.llmfit/17.png)
+
+`nvidia-smi` 顯示 GPU 為 **RTX 4090**、記憶體 **24564MiB**，目前使用量僅 1MiB，代表尚未載入模型。`ollama list` 顯示鏡像已預裝 **qwen3.6:27b**（17GB）。
+
+若 `ollama list` 出現 `could not connect` 錯誤，代表 Ollama 服務尚未啟動，請先執行以下指令再重試：
+
+```bash
+ollama serve > ollama.log 2>&1 &
+```
+
+### 3. 安裝 llmfit
+
+執行：
+
+```bash
+curl -fsSL https://llmfit.axjns.dev/install.sh | sh
+```
+
+![](../../img/tutorials-images/21.llmfit/18.png)
+
+### 4. 查看 llmfit 的評估
+
+執行：
+
+```bash
+llmfit
+```
+
+畫面上方偵測到 **NVIDIA GeForce RTX 4090（24.0 GB, CUDA）**，Ollama 顯示 **✓（1 installed）**。與 MacBook 相比，Score 最高的模型從 1B 提升至 **27B 等級**，預估速度約 40–45 tok/s。
+
+![](../../img/tutorials-images/21.llmfit/19.png)
+
+**CPU 與 RAM 顯示的是整台實體主機**（144 核、755GB），而非實際租用的 10 vCPUs、50GB。執行模型主要取決於 GPU，**VRAM 24GB 的偵測是正確的**，因此評估結果不受影響。
+
+排名前面的多為 AWQ、GPTQ、AutoRound 格式，這些主要供 vLLM 使用，Ollama 無法直接執行。
+
+按 `i` 讓已安裝的模型排在最上方。**Qwen/Qwen3.6-27B** 的 Inst 欄位已打勾，但 Fit 顯示 **Marginal**、Mem **97%**。
+
+![](../../img/tutorials-images/21.llmfit/20.png)
+
+按 `Enter` 查看詳情：
+
+- **Quantization**：Q4_K_M，模型預設版本，即鏡像安裝的版本
+- **Best Quant**：Q6_K (for this hardware)，llmfit 認為此 GPU 上品質最佳的版本
+
+![](../../img/tutorials-images/21.llmfit/21.png)
+
+列表上的 Marginal 是以 **Q6_K（22.2GB）** 計算，而非實際安裝的 **Q4_K_M（16.1GB）**。Inst 欄位打勾只代表「已安裝此模型」，同一列的其他數值則是 llmfit 推薦版本的評估結果。
+
+### 5. 確認實際安裝的壓縮版本
+
+執行：
+
+```bash
+ollama show qwen3.6:27b
+```
+
+![](../../img/tutorials-images/21.llmfit/22.png)
+
+**quantization** 顯示 **Q4_K_M**。Capabilities 中的 **thinking** 代表此模型預設會先思考再回答。
+
+壓縮版本名稱以 Q4_K_M 為例：**Q4** 代表每個參數壓縮至約 4 bit（數字越大，檔案越大、品質越好）；**K** 為壓縮方法；**M** 為 Medium，同一 bit 數中的中等版本。
+
+### 6. 實測 A：鏡像預設設定（對話長度 32K）
+
+執行：
+
+```bash
+ollama run qwen3.6:27b --verbose
+```
+
+![](../../img/tutorials-images/21.llmfit/23.png)
+
+進入聊天後，先輸入以下指令關閉思考模式，再輸入測試問題：
+
+```text
+/set nothink
+```
+
+![](../../img/tutorials-images/21.llmfit/24.png)
+
+**為什麼要關閉思考模式？** Qwen3.6 預設會先推理一輪再回答，連簡單問題也會產生大量思考內容。MacBook 上的 Llama 3.2 1B 沒有思考模式，關閉後兩者皆為直接回答，比較才公平。遇到複雜的數學或推理題時，可輸入 `/set think` 重新開啟。
+
+回答品質明顯優於 Llama 3.2 1B：正確說明 GPU 具有「數千個核心」，也清楚說明 CPU 與 GPU 的差異。但速度僅 **3.75 tokens/s**，198 個 token 花費將近 53 秒。
+
+另開終端機分頁，執行 `ollama ps`：
+
+![](../../img/tutorials-images/21.llmfit/25.png)
+
+- **SIZE**：24GB，佔滿整張 RTX 4090
+- **PROCESSOR**：12%/88% CPU/GPU，有 12% 被分配至 CPU 運算
+- **CONTEXT**：32768，鏡像預設的對話長度為 32K
+
+模型除了本體之外，還需要一塊空間記住對話內容（KV cache）。對話長度設定越大，這塊空間越大，且 Ollama 在載入模型時就會**預先保留整塊空間**。32K 的對話空間加上 27B 的模型超過 24GB，放不下的部分只能交由 CPU 運算，整體速度因此大幅下降。這也對應到 llmfit 詳情頁中的 **VRAM by Context**。
+
+### 7. 實測 B：對話長度調整為 4K
+
+在 Ollama 聊天視窗中執行：
+
+```text
+/set parameter num_ctx 4096
+```
+
+再次輸入測試問題。模型會以新設定重新載入（load duration 約 14 秒），速度回升至 **40.04 tokens/s**。
+
+![](../../img/tutorials-images/21.llmfit/26.png)
+
+再次執行 `ollama ps`：
+
+![](../../img/tutorials-images/21.llmfit/27.png)
+
+**SIZE** 為 22GB，**PROCESSOR** 為 100% GPU，**CONTEXT** 為 4096，模型完整載入 GPU。
+
+執行 `nvidia-smi`：
+
+![](../../img/tutorials-images/21.llmfit/28.png)
+
+GPU 記憶體使用量為 **22427MiB / 24564MiB**，由 ollama 佔用。對照載入前的 1MiB，一個 27B 模型幾乎佔滿 RTX 4090 的記憶體，僅剩約 2GB。
+
+另以一台同規格實例重新測試，速度同樣約 41 tokens/s，結果可重現。
+
+| 對話長度 | SIZE | PROCESSOR | 速度 |
+|---|---|---|---|
+| 32K（鏡像預設） | 24 GB | 12%/88% CPU/GPU | 3.75 tok/s |
+| **4K** | 22 GB | **100% GPU** | **40.04 tok/s** |
+
+`/set parameter num_ctx` 只對本次聊天有效，離開後重新執行會回到鏡像預設的 32K。若需要讀取長文件或進行長對話，建議改用 VRAM 更大的 GPU（例如 48GB 的 L40S）。
+
+### 8. 測試完成後停止實例
+
+Glows.ai 實例依使用時間計費。測試完成後，請先輸入 `/bye` 離開 Ollama，並至 `My Instances` 停止或刪除實例，避免持續計費。
+
+## 五、結果總整理
+
+### 1. 實測結果對照
+
+| 機器 | 模型 | llmfit 評估 | 實測速度 | 實測記憶體 | 結論 |
+|---|---|---|---|---|---|
+| MacBook M1 8GB | Llama 3.2 1B（Q8_0） | Perfect、35 tok/s | **42.53 tok/s** | 1.5 GB、100% GPU | 預估準確，速度快但細節會出錯 |
+| MacBook M1 8GB | Qwen3 4B（8-bit） | Good、9.3 tok/s | **0.36 tok/s** | 記憶體不足，系統卡住 | 可用記憶體不足，無法使用 |
+| RTX 4090 24GB | Qwen3.6 27B（Q4_K_M）、32K | Marginal（以 Q6_K 評估） | **3.75 tok/s** | 24 GB、12%/88% CPU/GPU | 對話長度過大，被 CPU 拖慢 |
+| RTX 4090 24GB | Qwen3.6 27B（Q4_K_M）、4K | — | **40.04 tok/s** | 22 GB、100% GPU | 全速執行，回答品質明顯提升 |
+
+### 2. MacBook 與 RTX 4090 對比
+
+| 項目 | MacBook M1 8GB | RTX 4090 24GB |
+|---|---|---|
+| 可順暢執行的模型 | Llama 3.2 1B | **Qwen3.6 27B** |
+| 速度 | 42.53 tok/s | **40.04 tok/s** |
+| 回答品質 | 流暢，但有事實錯誤 | 內容正確、說明完整 |
+
+模型大小相差 20 倍以上，速度幾乎相同，回答品質明顯提升。
+
+### 3. 成本估算
+
+RTX 4090 實例為 0.490 Credit/h。以實測 40.04 tok/s 連續生成計算，每小時約可生成 14.4 萬個 token，**每生成 100 萬個 token 約需 3.4 Credit**。
+
+此為單人連續生成的估算，實際成本依使用方式而有所不同。
+
+### 4. 使用 llmfit 的建議
+
+1. **先看 Fit，再看 Mem %**：優先選擇 Perfect 或 Good，Mem % 在 70% 以下較為安全
+2. **Score 高不代表最聰明**：Score 是在該機器上的平衡分數，需要更聰明的模型時，請選擇參數量較大的模型
+3. **確認壓縮版本**：llmfit 以其推薦版本計算，不一定是您安裝的版本。請用 `ollama show` 確認 quantization，再對照詳情頁的 Disk/quant
+4. **確認實際可用記憶體**：列表以記憶體總量計算，執行前請比較詳情頁的 Rec RAM 與畫面上方的可用記憶體
+5. **對話長度會佔用 VRAM**：速度異常緩慢時，先用 `ollama ps` 確認 PROCESSOR 是否為 100% GPU，必要時調低 `num_ctx`
+6. **雲端實例以 VRAM 為準**：llmfit 讀取到的 CPU 與 RAM 可能是整台實體主機的數值
+7. **最後一定要實測**：llmfit 能快速篩選模型，但實際效能仍需實際執行驗證
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 email、Discord 或 Line 聯絡我們。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)
