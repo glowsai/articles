@@ -1,0 +1,135 @@
+---
+id: openwebui_autodeploy_local_model
+title: "如何透過 Auto Deploy 在 Open WebUI 中調用 Glows.ai 本地模型"
+date: "2026-10-20 19:00"
+description: "透過 Glows.ai Auto Deploy 按需啟動 GPU 本地模型，並串接到常駐部署的 Open WebUI，打造省成本的混合部署架構。"
+tags:
+  - Tutorial
+---
+
+本教程將教大家如何在 [Glows.ai](https://glows.ai) 上，透過 Auto Deploy 按需啟動 GPU 本地模型，並串接到常駐部署的 Open WebUI 介面，打造一套「CPU 常駐介面 + GPU 按需啟動模型」的省成本混合部署架構。
+
+本教程包括以下內容：
+
+- 建立 GPU 實例的 Auto Deploy
+- 驗證 Auto Deploy 啟動的本地模型是否正常運作
+- 建立實例部署 Open WebUI
+- 在 Open WebUI 中新增 Auto Deploy 連線
+- 實際測試對話
+
+## Auto Deploy 簡介
+
+Auto Deploy 是 Glows.ai 提供的按需部署機制：當有請求送達時才自動啟動實例執行運算，並在閒置一段時間後自動釋放。適合搭配頻率不固定的介面服務，只在真正需要推理時才佔用昂貴的 GPU 資源。
+
+Open WebUI 本身是輕量的對話介面，不需要 GPU 就能常駐運行，透過外接 API 的方式，將對話請求轉發給 Auto Deploy 啟動的 GPU 模型處理。
+
+接著讓我們透過步驟化的示範，一起在 Glows.ai 上體驗這套架構的完整設定流程。
+
+## 建立 Auto Deploy
+
+1. 進入 Glows.ai 平台左側選單的 **`Auto Deploy`**，點擊右上角的 **`New Deploy`**。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/01.png)
+
+2. 開始建立實例，選擇 GPU，型號選擇 **`NVIDIA GeForce RTX 4090`**。鏡像選擇帶有 `Gemma4 31B Q4` 模型的鏡像。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/02.png)
+
+3. 下拉後，Port (HTTP/HTTPS) 欄位填入 `11434`（這是 Ollama 服務預設監聽的 port）。點擊 `Confirm` 創建 Auto Deploy。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/03.png)
+
+4. 在 Auto Deploy 介面中，列表中點選剛剛建立的實例，展開後即可在 **URL** 欄位看到對外的固定網址，複製此 URL。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/04.png)
+
+## 測試 Auto Deploy
+
+1. 在正式接上 Open WebUI 之前，建議先用終端機直接測試 API，確認 Auto Deploy 設定無誤。
+
+在終端機中測試對話功能（Chat Completions API）是否正常運作。
+
+輸入：
+
+```json
+curl -X POST "你的AutoDeployURL/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemma4:31b-it-q4_K_M",
+    "messages": [{"role": "user", "content": "hello"}]
+  }'
+```
+
+附圖中可以看到，透過指令，我們成功得到使用 Auto Deploy 開啟的實例的本地 AI 模型回覆。
+
+> 注意：第一次呼叫請耐心等待，透過 Auto Deploy 發送請求後 Glows.ai 才會開啟 GPU 實例，啟動需要十幾至三十秒左右。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/05.png)
+
+注意：`model` 欄位填入的模型名稱，按照本教程使用的鏡像為：`gemma4:31b-it-q4_K_M`。
+
+若使用與本教程中不同鏡像的實例，模型名稱會不一樣，您也可以先執行 `curl "你的AutoDeployURL/api/tags"` 取得模型精確名稱。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/06.png)
+
+2. 在 Glows.ai 實例介面，我們可以看到透過剛剛的指令，實例已透過 Auto Deploy 成功啟動。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/07.png)
+
+3. 實例啟動後，後續如果沒有新的請求，實例會自動釋放。在 Auto Deploy 創建時，我們可以設定自動釋放的時間。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/08.png)
+
+## 在 Open WebUI 中設定模型連線
+
+1. 在建立實例頁面中，開始建立一個具有 Open WebUI 鏡像的實例，您可以在對話框中輸入 `open webui` 搜尋快速找到 Open WebUI 鏡像。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/09.png)
+
+2. 實例成功運行後，選擇 `Access` > `HTTP Port 8080` > `Open`，開啟 Open WebUI 介面。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/10.png)
+
+3. 在 Open WebUI 中，點擊 `Workspace` > `Models` > `Create`，開始建立模型。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/11.png)
+
+4. 點擊模型選單後，在列表中點擊 `Manage Connections`。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/12.png)
+
+5. 接著會出現一彈窗，點擊右側的 `＋`，開始建立新連線。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/13.png)
+
+6. 在 URL 欄位中，貼上剛剛從 Auto Deploy 頁面拿到的網址，並在最後面加上 `/v1`（例如 `https://tw-05.sgw.glows.ai:0000/x/xxxxxxxx/v1`），點擊 Save。（彈窗中的 `Auth` 欄位留空即可，因為 Ollama 啟動預設不需要 API Key。）
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/14.png)
+
+7. 彈窗表單成功保存後，列表中可以看到剛剛建立的新連線，確認後點擊 `Save`。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/15.png)
+
+## 開始對話
+
+1. 點擊 Open WebUI 主畫面的 `New Chat`，開始新對話。在輸入框右側點擊模型列表，選擇我們剛剛所建立的模型。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/16.png)
+
+2. 成功透過觸發 Auto Deploy，得到來自 Glows.ai 實例本地 AI 模型的回覆。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/17.png)
+
+3. 成功調用模型代表實例成功啟動。實例啟動後，後續如果沒有新的請求，實例會自動釋放。在 Auto Deploy 創建時，我們可以設定自動釋放的時間。
+
+![](../../img/tutorials-images/20.OpenWebUIAutoDeploy/18.png)
+
+## 聯絡我們
+
+使用 Glows.ai 時若有問題或建議，可透過 email、Discord 或 Line 聯絡我們。
+
+**Email:** [support@glows.ai](mailto:support@glows.ai)
+
+**Discord:** [https://discord.com/invite/glowsai](https://discord.com/invite/glowsai)
+
+**Line:** [https://lin.ee/fHcoDgG](https://lin.ee/fHcoDgG)
